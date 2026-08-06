@@ -1,0 +1,43 @@
+# Render Blueprint — backend Notitas (API Spring Boot) en el plan GRATIS.
+#
+# Cómo usarlo:
+#   1. Sube el repo a GitHub.
+#   2. En render.com: New → Blueprint → conéctalo al repo.
+#   3. Render detecta este render.yaml y crea el servicio.
+#   4. Rellena los secretos (sync: false) que te pide:
+#        DB_URL, DB_USER, DB_PASSWORD   → Supabase (connection pooler)
+#        SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY → Supabase Storage
+#        NOTITAS_JWT_SECRET             → genera uno con:
+#            node -e "console.log(require('crypto').randomBytes(48).toString('base64'))"
+#
+# Notas del plan free: el servicio se duerme tras ~15 min sin tráfico y tarda
+# ~1 min en despertar. CORS y health check ya están configurados aquí.
+services:
+  - type: web
+    name: notitas-api
+    runtime: docker
+    rootDir: backend
+    dockerfilePath: Dockerfile
+    plan: free
+    healthCheckPath: /api/public/health
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: APP_STORAGE_PROVIDER
+        value: supabase
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://notitas-five.vercel.app
+        # Actualizar si cambia la URL del frontend en Vercel
+        # (si consigues el alias notitas.vercel.app, cámbiala a https://notitas.vercel.app)
+      - key: DB_URL
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: NOTITAS_JWT_SECRET
+        sync: false

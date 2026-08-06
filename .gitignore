@@ -1,0 +1,16 @@
+# Vercel CLI (vercel link/login crean esta carpeta en la raíz)
+.vercel/
+
+# Logs y temporales
+*.log
+.DS_Store
+
+# IDEs
+.idea/
+.vscode/
+
+
+# Secretos y tokens de Vercel CLI
+.env
+.env.local
+.env.*.local
