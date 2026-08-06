@@ -20,6 +20,27 @@ export const formatShortDate = (iso) => {
   return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 };
 
+/**
+ * Formats an ISO date as a relative time string (e.g. "hace 5 min", "hace 2 h").
+ * @param {string} iso - ISO date string.
+ * @returns {string}
+ */
+export const formatRelativeTime = (iso) => {
+  if (!iso) return '';
+  const now = new Date();
+  const date = new Date(iso);
+  const diffMs = now - date;
+  const diffMin = Math.floor(diffMs / 60000);
+
+  if (diffMin < 1) return 'ahora';
+  if (diffMin < 60) return `hace ${diffMin} min`;
+  const diffHours = Math.floor(diffMin / 60);
+  if (diffHours < 24) return `hace ${diffHours}h`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `hace ${diffDays}d`;
+  return formatShortDate(iso);
+};
+
 import { API_BASE_URL } from '../services/api';
 
 /**
