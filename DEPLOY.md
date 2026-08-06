@@ -77,8 +77,13 @@ Combinación 100 % gratuita (sin tarjeta de crédito):
 
 ## 1. Frontend → Vercel (`notitas.vercel.app`)
 
-El `vercel.json` de la raíz ya apunta al subdirectorio `frontend` y activa los
-rewrites de SPA (rutas como `/login`, `/shared/note/:token` funcionan).
+El `vercel.json` vive en `frontend/` y activa los rewrites de SPA (rutas como
+`/login`, `/shared/note/:token` funcionan).
+
+> ⚠️ **Importante (CLI Vercel ≥ v56):** `rootDirectory` ya NO es válido dentro
+de `vercel.json`. Ahora es una **configuración del proyecto**: en el dashboard
+(Project → Settings → General → Root Directory = `frontend`) o vía API. Sin
+esto, Vercel intentará buildear desde la raíz del repo y fallará.
 
 ### Opción A — CLI (rápida)
 
@@ -87,23 +92,26 @@ rewrites de SPA (rutas como `/login`, `/shared/note/:token` funcionan).
 npx vercel login
 
 # 2. Desde la raíz del proyecto: crea el proyecto y vincula el directorio
-npx vercel link
-#    → "Set up and deploy?" Sí
-#    → "Which scope?" Tu cuenta
-#    → "Link to existing project?" No (crear nuevo)
-#    → "What's your project's name?"  notitas   ← importante: define notitas.vercel.app
+npx vercel link --yes --project notitas   # nombre en minúsculas
 
-# 3. Deploy de previsualización (opcional, genera una URL de test)
+# 3. Fija Root Directory = frontend (configuración del proyecto):
+#    dashboard → Project → Settings → General → Root Directory → frontend
+#    (o vía API: PATCH /v9/projects/notitas con {"rootDirectory":"frontend"})
+
+# 4. Variable de entorno VITE_API_URL (producción y preview)
+echo 'https://<tu-backend>' | vercel env add VITE_API_URL production
+echo 'https://<tu-backend>' | vercel env add VITE_API_URL preview
+
+# 5. Deploy de previsualización (opcional, genera una URL de test)
 npx vercel
 
-# 4. Deploy a producción
+# 6. Deploy a producción
 npx vercel --prod
 ```
 
-Al finalizar verás la URL. Si el nombre `notitas` está libre, será
-**https://notitas.vercel.app**. Si ya está ocupado, Vercel asignará
-`notitas-XXXX.vercel.app`; puedes reservar el alias en el dashboard
-(Project → Settings → Domains → `notitas.vercel.app` si está disponible).
+Al finalizar verás la URL. El alias por defecto es `notitas-XXXX.vercel.app`;
+si consigues el alias libre `notitas.vercel.app`, resérvalo en el dashboard
+(Project → Settings → Domains).
 
 ### Opción B — Dashboard + GitHub
 
