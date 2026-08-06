@@ -30,7 +30,7 @@ import NoteListSkeleton from './skeletons/NoteListSkeleton';
 import CoverImage from './CoverImage';
 import AuthorAvatars from './AuthorAvatars';
 import MemberProfileDialog from './MemberProfileDialog';
-import { getPlainText, getAssetUrl } from '../utils/text';
+import { getPlainText, getAssetUrl, formatRelativeTime } from '../utils/text';
 
 export default function NoteList() {
   const { currentProjectId, currentNoteId, setCurrentNote, searchQuery } = useUiStore();
@@ -462,10 +462,7 @@ export default function NoteList() {
                             )}
                           </Box>
                           <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.68rem', fontWeight: 500, flexShrink: 0 }}>
-                            {new Date(note.updatedAt || note.createdAt).toLocaleDateString(undefined, {
-                              month: 'short',
-                              day: 'numeric',
-                            })}
+                            {formatRelativeTime(note.updatedAt || note.createdAt)}
                           </Typography>
                         </Box>
                       </CardContent>

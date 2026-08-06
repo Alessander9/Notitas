@@ -75,9 +75,22 @@ export default function Navbar() {
   const [anchorEl, setAnchorEl] = useState(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const avatarInputRef = useRef(null);
+  const searchInputRef = useRef(null);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const queryClient = useQueryClient();
+
+  // Ctrl+K / Cmd+K para enfocar la búsqueda
+  React.useEffect(() => {
+    const handler = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
 
   const handleMenu = (event) => {
     setAnchorEl(event.currentTarget);
@@ -137,10 +150,11 @@ export default function Navbar() {
         <SearchIcon color="action" />
       </SearchIconWrapper>
       <StyledInputBase
-        placeholder="Buscar notas globalmente..."
+        placeholder="Buscar notas globalmente... (Ctrl+K)"
         inputProps={{ 'aria-label': 'search' }}
         value={searchQuery}
         onChange={handleSearchChange}
+        inputRef={searchInputRef}
       />
     </Search>
   );
