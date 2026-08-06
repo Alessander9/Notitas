@@ -26,7 +26,7 @@ services:
       - key: APP_STORAGE_PROVIDER
         value: supabase
       - key: CORS_ALLOWED_ORIGINS
-        value: https://notitas-five.vercel.app
+        value: https://notitas-five.vercel.app,https://notitas-alessander.vercel.app
         # Actualizar si cambia la URL del frontend en Vercel
         # (si consigues el alias notitas.vercel.app, cámbiala a https://notitas.vercel.app)
       - key: DB_URL
