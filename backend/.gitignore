@@ -34,3 +34,6 @@ build/
 
 # Archivos subidos por la aplicación (avatares, portadas, adjuntos)
 uploads/
+
+.vercel
+.env*
