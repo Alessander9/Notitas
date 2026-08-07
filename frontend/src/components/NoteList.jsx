@@ -196,21 +196,19 @@ export default function NoteList() {
   });
 
   return (
-    <motion.div
-      animate={{ width: isCollapsed ? 60 : { xs: '100%', md: 320 } }}
-      transition={{ type: 'spring', stiffness: 300, damping: 28 }}
-      style={{ height: '100%', flexShrink: 0 }}
-    >
     <Box
       sx={{
-        width: '100%',
+        width: isCollapsed ? 60 : { xs: '100%', md: 320 },
+        minWidth: isCollapsed ? 60 : { xs: '100%', md: 320 },
         height: '100%',
+        flexShrink: 0,
         borderRight: '1px solid',
         borderColor: 'divider',
         display: 'flex',
         flexDirection: 'column',
         bgcolor: 'background.default',
         overflow: 'hidden',
+        transition: 'width 0.2s ease-in-out, min-width 0.2s ease-in-out',
       }}
     >
       {isLoading ? (
@@ -722,6 +720,5 @@ export default function NoteList() {
         </DialogActions>
       </Dialog>
     </Box>
-    </motion.div>
   );
 }
