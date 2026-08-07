@@ -2,7 +2,7 @@ import React from 'react';
 import { Box, Typography, LinearProgress } from '@mui/material';
 import { keyframes } from '@emotion/react';
 import { useUiStore } from '../store/uiStore';
-import splashImage from '../assets/pantalla-carga-notitas.png';
+import logoImage from '../assets/logo notitas.png';
 
 const float = keyframes`
   0%, 100% { transform: translateY(0); }
@@ -46,7 +46,7 @@ export default function LoadingPage({ message = 'Preparando tu espacio de trabaj
         opacity: exiting ? 0 : 1,
       }}
     >
-      {/* Splash Screen Image */}
+      {/* Logo animado */}
       <Box
         sx={{
           animation: `${float} 3s ease-in-out infinite`,
@@ -58,24 +58,57 @@ export default function LoadingPage({ message = 'Preparando tu espacio de trabaj
       >
         <Box
           sx={{
-            width: { xs: 280, sm: 350, md: 400 },
-            height: 'auto',
+            width: { xs: 120, sm: 140, md: 160 },
+            height: { xs: 120, sm: 140, md: 160 },
             animation: `${glow} 2.6s ease-in-out infinite`,
             '@media (prefers-reduced-motion: reduce)': { animation: 'none' },
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
         >
           <img
-            src={splashImage}
-            alt="Notitas"
+            src={logoImage}
+            alt="Notitas Logo"
             style={{
               width: '100%',
-              height: 'auto',
+              height: '100%',
               objectFit: 'contain',
-              filter: 'drop-shadow(0 8px 24px rgba(56,108,95,0.3))',
+              filter: 'drop-shadow(0 8px 24px rgba(56,108,95,0.4))',
             }}
           />
         </Box>
       </Box>
+
+      {/* Wordmark */}
+      <Typography
+        variant="h3"
+        fontWeight="bold"
+        sx={{
+          mt: 3,
+          letterSpacing: '0.5px',
+          background: darkMode
+            ? 'linear-gradient(90deg, #6a968c, #ffffff, #6a968c)'
+            : 'linear-gradient(90deg, #386c5f, #6a968c, #386c5f)',
+          backgroundSize: '200% auto',
+          backgroundClip: 'text',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          animation: `${shimmer} 2.4s linear infinite`,
+          '@media (prefers-reduced-motion: reduce)': { animation: 'none' },
+        }}
+      >
+        Notitas
+      </Typography>
+
+      {/* Tagline */}
+      <Typography
+        variant="body1"
+        color="text.secondary"
+        sx={{ mt: 0.5, opacity: 0.8, animation: `${fadeInUp} 0.8s ease-out` }}
+      >
+        Organizador de Proyectos, Notas y Recursos
+      </Typography>
 
       {/* Loading bar */}
       <Box sx={{ width: 220, mt: 4 }}>
