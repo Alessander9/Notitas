@@ -34,6 +34,7 @@ Notitas es una aplicación web (SPA) para crear **proyectos**, escribir **notas 
 - Sección **Destacados** con notas favoritas.
 - CRUD completo con diálogo de **25 colores y 35 iconos**, vista previa de portada (JPG/PNG/GIF, máx 10 MB).
 - **Invitación por enlace** (`/join/project/:token`) — el invitado entra como **EDITOR**.
+- **Pin/Unpin proyectos**: fijar proyectos favoritas para acceso rápido (persistido en localStorage).
 
 ### Notas y editor
 - **Editor enriquecido TipTap**: negrita, cursiva, tachado, código, títulos, listas, checklists, **tablas redimensionables**, undo/redo, placeholder.
@@ -45,13 +46,17 @@ Notitas es una aplicación web (SPA) para crear **proyectos**, escribir **notas 
 - **Compartir públicamente** (`/shared/note/:token`) sin necesidad de cuenta.
 - **Mover notas entre proyectos**, tags editables, contador de palabras y minutos de lectura, "último editor".
 - **Roles**: los miembros **VIEWER** ven el editor en modo solo lectura.
+- **NoteList colapsable**: panel que se minimiza mostrando avatar del usuario + avatares circulares de notas con animaciones staggered.
+- **Pin/Unpin notas**: fijar notas favoritas para acceso rápido.
 
 ### Experiencia y sesión
 - UI en **español**, tema **claro/oscuro** con paleta de marca, fondos ambientales con glows y transiciones premium (framer-motion).
-- **Command palette** (`Ctrl/Cmd+K`) estilo Linear/Spotlight: búsqueda global + acciones rápidas.
-- **Toasts** con acción (p. ej. botón *Deshacer* al mover una nota a la papelera) y diálogos de confirmación.
+- **Command palette** (`Ctrl/Cmd+K`) estilo Linear/Spotlight: búsqueda global con resaltado + acciones rápidas, animaciones staggered.
+- **Toasts** con acción (p. ej. botón *Deshacer* al mover una nota a la papelera) y diálogos de confirmación con ondas pulsantes.
 - **Sesión robusta**: JWT en cookie `httpOnly`, renovación deslizante, validación al arrancar, **logout por inactividad** (60 min, configurable) y **revocación real de tokens**.
-- **Responsive**: sidebar colapsable, FAB móvil (SpeedDial), skeletons de carga en todas las vistas.
+- **Responsive**: sidebar colapsable con logo animado, FAB móvil con menú personalizado y backdrop blur, skeletons de carga en todas las vistas.
+- **NoteList colapsable**: avatar del usuario con badge + avatares circulares de notas con animaciones staggered.
+- **Pin/Unpin**: fijar proyectos y notas favoritas para acceso rápido (persistido en localStorage).
 
 ---
 
@@ -64,7 +69,7 @@ Notitas es una aplicación web (SPA) para crear **proyectos**, escribir **notas 
 | Editor | **TipTap 2.11** | StarterKit + tablas, checklists, imágenes flotantes/redimensionables (NodeView), placeholder |
 | Estado global | **Zustand 5** | 4 stores: auth, ui, toast, confirm |
 | Datos de servidor | **TanStack React Query 5** | Caché por claves, mutaciones con invalidación |
-| Animaciones | **framer-motion 13** | Transiciones de vistas, cards, pantallas |
+| Animaciones | **framer-motion 13** | Transiciones de vistas, cards, pantallas, micro-interacciones |
 | HTTP | **axios 1.7** | Cliente único con interceptor 401 |
 | Rutas | **react-router-dom 7** | BrowserRouter + lazy loading |
 | Backend | **Spring Boot 3.4.1** (Java 17, Maven) | `com.notitas.api` |
@@ -137,7 +142,9 @@ Monorepo con dos piezas desplegadas por separado:
         ├── main.jsx / App.jsx   ← tema MUI, QueryClient, rutas, boot/welcome screens
         ├── index.css            ← fuente Inter, scrollbars, estilos TipTap, animaciones
         ├── components/          ← ~22 componentes + carpeta skeletons/ (9)
-        ├── hooks/useProjectNotes.js
+        ├── hooks/
+        │   ├── useProjectNotes.js
+        │   └── useTiltHover.js      ← efecto micro-tilt 2.5D en cards
         ├── pages/               ← Login, Register, Workspace, JoinProject, SharedNote
         ├── services/api.js      ← cliente axios con interceptor 401
         ├── store/               ← authStore, uiStore, toastStore, confirmStore

@@ -66,7 +66,9 @@
         ├── main.jsx / App.jsx   ← tema MUI, QueryClient, rutas, boot/welcome screens
         ├── index.css            ← fuente Inter, scrollbars, estilos TipTap, animaciones
         ├── components/          ← ~22 componentes + carpeta skeletons/ (9)
-        ├── hooks/useProjectNotes.js
+        ├── hooks/
+        │   ├── useProjectNotes.js
+        │   └── useTiltHover.js      ← hook para efecto micro-tilt 2.5D en cards
         ├── pages/               ← Login, Register, Workspace, JoinProject, SharedNote
         ├── services/api.js      ← cliente axios
         ├── store/               ← authStore, uiStore, toastStore, confirmStore
@@ -229,6 +231,7 @@
 - **Logout por inactividad** (`IdleSessionGuard`): 60 min sin actividad → diálogo "¿Sigues ahí?" → 60 s de gracia → cierra sesión (configurable con `notitas-idle-timeout-minutes`).
 - **Command palette** (`Ctrl/Cmd+K`): búsqueda global de notas/proyectos + acciones rápidas (nueva nota/proyecto, tema, favoritos, papelera) con navegación por teclado.
 - **UI premium**: fondo ambiental con glows de marca (theme-aware), transición suave al cambiar de tema, favicon/logo de marca (verde `#386c5f→#00C9A7`), zoom en portadas al hover, entrada en cascada del grid, FAB móvil (SpeedDial) y toasts con botón **Deshacer**.
+- **UI mejorada (2026-08)**: CommandPalette con resaltado de búsqueda y animaciones staggered, EmptyState con ilustraciones flotantes animadas, ConfirmDialog con ondas pulsantes y botones gradiente, MobileFab con menú personalizado framer-motion y backdrop blur, NoteEditor con toolbar micro-animada y save status animado, Sidebar móvil con logo animado, nav items staggered, touch targets 48px, NoteList colapsable con avatar de usuario y avatares circulares de notas, pin/unpin proyectos y notas, MuiPaper modernizado con glassmorphism (backdrop-filter blur, sombras por elevation, hover effects).
 - **Rutas** (con lazy loading):
   - `/login`, `/register` → AuthLayout
   - `/join/project/:token` → JoinProject (público)
@@ -288,7 +291,9 @@ Las mutaciones invalidan con `invalidateQueries({ queryKey: ['notes'] })` (prefi
 - **MemberProfileDialog**: perfil del miembro al hacer clic en un avatar.
 - **Toasts / ConfirmDialog**: notificaciones y confirmación global (con framer-motion); los toasts admiten una **acción** (p. ej. botón "Deshacer" al mover una nota a la papelera, con 6 s para deshacer).
 - **CommandPalette**: paleta Ctrl+K estilo Linear/Spotlight (búsqueda + acciones rápidas, navegación ↑↓/Enter/Esc).
-- **MobileFab**: SpeedDial flotante en móvil (nueva nota, nuevo proyecto, cambiar tema).
+- **MobileFab**: Menú personalizado flotante en móvil con framer-motion, backdrop blur, tooltips glassmorphism (nueva nota, nuevo proyecto, cambiar tema).
+- **NoteList**: Panel colapsable con toggle (320px → 60px), cuando colapsado muestra avatar del usuario con badge de conteo + avatares circulares de notas con animaciones staggered.
+- **SidebarProjectItem**: Touch targets 48px para móvil, icono de pin para fijar/desfijar proyectos, acciones hover con glassmorphism y tooltips con arrow.
 - **IdleSessionGuard**: logout por inactividad con diálogo de aviso (seguro con varias pestañas).
 - **FloatingImageNodeView**: NodeView de TipTap para imágenes arrastrables y redimensionables.
 - **CoverImage**: imagen con fallback de color + icono (soporta GIF); prop `zoomOnHover` para zoom suave al pasar el cursor.
