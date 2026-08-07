@@ -703,17 +703,52 @@ const noteItemVariants = {
       )}
 
       {/* Projects List (ordered by most recent activity) */}
-      <Box sx={{ flexGrow: 1, overflowY: 'auto', px: 1.5, pb: 2 }}>
-        {projects.length === 0 ? (
-          !effectiveCollapsed && (
-            <Box sx={{ p: 2, textAlign: 'center' }}>
-              <Typography variant="body2" color="text.secondary">
-                No tienes proyectos aún.
-              </Typography>
-            </Box>
-          )
-        ) : (
-          <List dense disablePadding>
+      <Box sx={{ flexGrow: 1, overflowY: 'auto', overflowX: 'hidden', px: 1.5, pb: 2, minHeight: 0 }}>
+        {!effectiveCollapsed && projects.length === 0 && (
+          <Box sx={{ p: 2, textAlign: 'center' }}>
+            <Typography variant="body2" color="text.secondary">
+              No tienes proyectos aún.
+            </Typography>
+          </Box>
+        )}
+        {!effectiveCollapsed && projects.length > 0 && (
+          <List dense disablePadding sx={{ py: 0.5 }}>
+            {allProjects.map((project) => (
+              <SidebarProjectItem
+                key={project.id}
+                project={project}
+                isSelected={currentProjectId === project.id}
+                isCollapsed={effectiveCollapsed}
+                expanded={expandedProjects.has(project.id)}
+                onToggleExpand={() => toggleProject(project.id)}
+                onSelect={() => selectAndClose(project.id)}
+                onOpenNote={(p, note) => {
+                  setCurrentProject(p.id);
+                  setCurrentNote(note.id);
+                  if (embedded) setSidebarMobileOpen(false);
+                }}
+                onShare={handleShareProject}
+                onEdit={handleOpenEditModal}
+                onDelete={(p, e) => {
+                  e.stopPropagation();
+                  confirm({
+                    title: 'Eliminar proyecto',
+                    message: `¿Eliminar proyecto "${p.name}" y sus notas? Esta acción no se puede deshacer.`,
+                    confirmLabel: 'Eliminar',
+                    cancelLabel: 'Cancelar',
+                    color: 'error',
+                    onConfirm: () => deleteProjectMutation.mutate(p.id),
+                  });
+                }}
+                onCreateNote={createNoteMutation.mutate}
+                isPinned={pinnedProjects.includes(project.id)}
+                onTogglePin={togglePinProject}
+              />
+            ))}
+          </List>
+        )}
+        {effectiveCollapsed && (
+          <List dense disablePadding sx={{ py: 0.5 }}>
             {allProjects.map((project) => (
               <SidebarProjectItem
                 key={project.id}
