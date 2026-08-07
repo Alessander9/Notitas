@@ -1,4 +1,32 @@
-# Logs
+# Notitas Frontend - .gitignore
+
+# --- Dependencias y build ---
+node_modules
+dist
+dist-ssr
+build
+coverage
+coverage/
+
+# --- Secretos y variables de entorno ---
+# .env.example SI se trackea (plantilla publica sin valores reales).
+.env
+.env.*
+!.env.example
+*.env
+!*.env.local.example
+
+# Credenciales y material criptografico
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+secrets/
+credentials.json
+
+# --- Logs ---
 logs
 *.log
 npm-debug.log*
@@ -7,21 +35,19 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
-
-# Editor directories and files
+# --- Editor y SO ---
 .vscode/*
 !.vscode/extensions.json
 .idea
 .DS_Store
+Thumbs.db
+Desktop.ini
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
 
+# --- Vercel ---
 .vercel
-.env*
+.vercel/

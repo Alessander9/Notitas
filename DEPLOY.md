@@ -225,8 +225,10 @@ DB_USER='postgres.<ref>' DB_PASSWORD='<password>' \
   (`app.upload.dir=uploads`).
 - **`ddl-auto=update`:** práctico para el primer deploy; migrar a Flyway
   antes de crecer.
-- **Secreto JWT:** el valor por defecto es público en el repo; en producción
-  fija `NOTITAS_JWT_SECRET` propio. Genera uno con:
+- **Secreto JWT:** el repo **no** contiene ningún secreto por defecto. En
+  desarrollo (H2 en memoria) `JwtUtils` genera una clave aleatoria por arranque
+  si falta `NOTITAS_JWT_SECRET`. En producción es **obligatorio** fijarlo
+  (la app no arranca sin él). Genera uno con:
   `openssl rand -base64 48` (en Windows:
   `node -e "console.log(require('crypto').randomBytes(48).toString('base64'))"`).
 - **Sesión:** el JWT vive en una cookie `httpOnly` (no en localStorage);

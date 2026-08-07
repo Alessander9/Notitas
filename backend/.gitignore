@@ -35,5 +35,26 @@ build/
 # Archivos subidos por la aplicación (avatares, portadas, adjuntos)
 uploads/
 
+# Secretos y variables de entorno
+# NUNCA commitear .env reales; usa .env.example como plantilla pública.
+.env
+.env.*
+!.env.example
+*.env
+!*.env.local.example
+
+# Credenciales y material criptográfico
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.secret
+secrets/
+credentials.json
+service-account*.json
+
+# Vercel
 .vercel
-.env*
+.vercel/

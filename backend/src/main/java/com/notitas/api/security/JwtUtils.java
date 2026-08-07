@@ -14,6 +14,8 @@ import org.springframework.util.StringUtils;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
+import java.util.Base64;
 import java.util.Date;
 
 @Component
@@ -26,9 +28,43 @@ public class JwtUtils {
     @Value("${app.jwt.expiration-ms}")
     private int jwtExpirationMs;
 
+    /**
+     * Clave de firma derivada del secreto configurado (NOTITAS_JWT_SECRET).
+     * En desarrollo, si no hay secreto configurado, se genera UNA clave
+     * aleatoria al primer uso y se cachea para toda la vida de la app (si se
+     * regenerara por request, el login firmaría con una clave y la validación
+     * usaría otra → 401 en todas las peticiones). Las sesiones H2 en memoria
+     * tampoco persisten entre reinicios, así que es consistente. En
+     * producción NO hay fallback: la app no arranca sin NOTITAS_JWT_SECRET
+     * (ver application-prod.properties).
+     */
+    private volatile SecretKey signingKey;
+
     private SecretKey getSigningKey() {
-        byte[] keyBytes = this.jwtSecret.getBytes(StandardCharsets.UTF_8);
-        return Keys.hmacShaKeyFor(keyBytes);
+        SecretKey key = this.signingKey;
+        if (key == null) {
+            synchronized (this) {
+                key = this.signingKey;
+                if (key == null) {
+                    byte[] keyBytes = (this.jwtSecret == null || this.jwtSecret.isBlank())
+                            ? randomKeyBytes()
+                            : this.jwtSecret.getBytes(StandardCharsets.UTF_8);
+                    key = Keys.hmacShaKeyFor(keyBytes);
+                    this.signingKey = key;
+                }
+            }
+        }
+        return key;
+    }
+
+    /**
+     * 64 bytes aleatorios (512 bits) — muy por encima del mínimo de 256 bits
+     * que exige jjwt para HS256. Solo desarrollo, sin secreto configurado.
+     */
+    private static byte[] randomKeyBytes() {
+        byte[] bytes = new byte[64];
+        new SecureRandom().nextBytes(bytes);
+        return bytes;
     }
 
     public String generateJwtToken(Authentication authentication) {

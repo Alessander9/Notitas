@@ -1,18 +1,71 @@
-# Vercel CLI (vercel link/login crean esta carpeta en la raíz)
+# ════════════════════════════════════════════════════════════════
+# Notitas — .gitignore raíz
+# ════════════════════════════════════════════════════════════════
+
+# ─── Secretos y variables de entorno ─────────────────────────────
+# NUNCA commitear archivos .env reales (contienen credenciales).
+# Usa .env.example como plantilla pública.
+.env
+.env.*
+!.env.example
+*.env
+!*.env.example
+
+# Vercel CLI (vercel link/login crean estas carpetas)
 .vercel/
+.vercel
 
-# Logs y temporales
+# ─── Credenciales y material criptográfico ───────────────────────
+# Claves privadas, certificados, keystores y secrets en texto plano.
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.pub.bak
+id_rsa
+id_ed25519
+*.secret
+secrets/
+credentials/
+credentials.json
+service-account*.json
+client-secret*.json
+*.ppk
+*.asc
+
+# ─── Logs y temporales ───────────────────────────────────────────
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 .DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+*~
+.tmp
 
-# IDEs
+# ─── IDEs y editores ─────────────────────────────────────────────
 .idea/
 .vscode/
+*.iml
+*.ipr
+*.iws
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
 
+# ─── Scripts de desarrollo con credenciales de prueba ────────────
+# Harness E2E/CDP locales que contienen cuentas y passwords de test.
+# No deben llegar al repo (git add . los arrastraría).
+scripts/
 
-# Secretos y tokens de Vercel CLI
-.env
-.env.local
-.env.*.local
-.vercel
-.env*
+# ─── Documentos de trabajo del asistente ─────────────────────────
+living-workspace-plan.md

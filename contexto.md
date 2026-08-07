@@ -197,7 +197,7 @@
 
 | Perfil | BD | Notas |
 |---|---|---|
-| default (dev) | **H2 en memoria** (`jdbc:h2:mem:notitasdb`) | Consola H2 apagada; subida de archivos `uploads/`; JWT default en el repo (⚠️ cambiar en prod) |
+| default (dev) | **H2 en memoria** (`jdbc:h2:mem:notitasdb`) | Consola H2 apagada; subida de archivos `uploads/`; sin secreto JWT en el repo: si falta `NOTITAS_JWT_SECRET`, `JwtUtils` genera una clave aleatoria por arranque (en prod es obligatorio, sin fallback) |
 | `dev` | H2 | Habilita consola H2 + SQL logging |
 | `prod` | **PostgreSQL** (`DB_URL`, `DB_USER`, `DB_PASSWORD` desde env) | Puerto `PORT` (env), CORS por defecto con el dominio único `https://notitas-cleo.vercel.app` (`CORS_ALLOWED_ORIGINS`), JWT **obligatorio** (sin fallback), cookie secure, consola H2 apagada |
 | `test` | H2 | Rate limit desactivado |

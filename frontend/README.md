@@ -1,16 +1,43 @@
-# React + Vite
+# 📝 Notitas — Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+SPA de **Notitas** construida con **React 19 + Vite 8** y **MUI v6**.
 
-Currently, two official plugins are available:
+> 📚 **Documentación completa del proyecto (monorepo):** [`../README.md`](../README.md)
+> · Guía de despliegue: [`../DEPLOY.md`](../DEPLOY.md)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Stack
 
-## React Compiler
+- React 19 + Vite 8 (JSX, sin TypeScript)
+- MUI v6 + Emotion (tema claro/oscuro custom)
+- TipTap 2.11 (editor enriquecido: tablas, checklists, imágenes flotantes/redimensionables)
+- Zustand 5 (stores: auth, ui, toast, confirm)
+- TanStack React Query 5 (caché del servidor)
+- framer-motion 13 (animaciones)
+- react-router-dom 7 (rutas con lazy loading)
+- oxlint (lint)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Scripts
 
-## Expanding the Oxlint configuration
+| Comando | Descripción |
+|---|---|
+| `npm run dev` | Dev server en http://localhost:5173 (proxy `/api` y `/uploads` → `localhost:8080`) |
+| `npm run build` | Build de producción a `dist/` |
+| `npm run lint` | Lint con oxlint |
+| `npm run preview` | Sirve el build |
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+## Estructura
+
+```
+src/
+├── components/   ← ~22 componentes + skeletons/ (9)
+├── hooks/        ← useProjectNotes.js
+├── pages/        ← Login, Register, Workspace, JoinProject, SharedNote
+├── services/     ← api.js (cliente axios con interceptor 401)
+├── store/        ← authStore, uiStore, toastStore, confirmStore
+└── utils/        ← text.js (getPlainText, formatShortDate, getAssetUrl, getAvatarUrl)
+```
+
+## Entorno
+
+- `VITE_API_URL` — URL base de la API (sin `/api`). Si se omite, apunta a `http://localhost:8080` vía el proxy de Vite. Se incrusta en el build (cambiar requiere redeploy).
+- Usuario demo local: `admin@notitas.com` / `password123` (lo siembra el backend con H2 en memoria).
