@@ -10,6 +10,7 @@ import com.notitas.api.model.User;
 import com.notitas.api.payload.ProjectRequest;
 import com.notitas.api.payload.ProjectResponse;
 import com.notitas.api.repository.NoteRepository;
+import com.notitas.api.repository.NoteVersionRepository;
 import com.notitas.api.repository.ProjectMemberRepository;
 import com.notitas.api.repository.ProjectRepository;
 import com.notitas.api.repository.UserRepository;
@@ -37,6 +38,9 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Autowired
     private NoteRepository noteRepository;
+
+    @Autowired
+    private NoteVersionRepository noteVersionRepository;
 
     @Autowired
     private FileStorageService fileStorageService;
@@ -127,11 +131,15 @@ public class ProjectServiceImpl implements ProjectService {
         Project project = projectRepository.findByIdAndUserId(id, userId)
                 .orElseThrow(() -> new AccessDeniedException("No tienes acceso a este proyecto"));
 
-        // Antes se borraba solo el proyecto: cualquier nota o miembro referenciado
-        // rompía la FK (notes.project_id / project_members.project_id) y el borrado
-        // fallaba con 500. Ahora se borran primero notas (con sus archivos en
-        // disco) y miembros, y luego el proyecto.
+        // Antes se borraba solo el proyecto: cualquier nota, versión o miembro
+        // referenciado rompía la FK (notes.project_id, note_versions.note_id,
+        // project_members.project_id) y el borrado fallaba con 500. Ahora se
+        // borran primero versiones, notas (con sus archivos) y miembros, y
+        // después el proyecto.
         List<Note> notes = noteRepository.findByProjectId(id);
+        for (Note note : notes) {
+            noteVersionRepository.deleteByNoteId(note.getId());
+        }
         for (Note note : notes) {
             deleteNoteFiles(note);
         }

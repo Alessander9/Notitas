@@ -4,7 +4,7 @@ Guía para el **primer despliegue en producción**. La arquitectura es:
 
 | Pieza | Tecnología | Dónde vive |
 |---|---|---|
-| Frontend (React + Vite) | SPA estática | **Vercel** → `notitas.vercel.app` |
+| Frontend (React + Vite) | SPA estática | **Vercel** → `notitas-cleo.vercel.app` (dominio único) |
 | Backend (Spring Boot) | API REST en contenedor | Vercel (Docker), Railway, Render o Fly.io |
 | Base de datos | PostgreSQL | **Supabase** |
 
@@ -20,7 +20,7 @@ Combinación 100 % gratuita (sin tarjeta de crédito):
 
 | Pieza | Servicio gratis | Detalle |
 |---|---|---|
-| Frontend (React + Vite) | **Vercel** (Hobby) | `notitas.vercel.app` — ya configurado en `vercel.json` |
+| Frontend (React + Vite) | **Vercel** (Hobby) | `notitas-cleo.vercel.app` — dominio único de producción |
 | Backend (Spring Boot) | **Render** (free web service) | Usa `backend/Dockerfile` vía `render.yaml`. Se duerme a los ~15 min sin tráfico (tarda ~1 min en despertar). 750 h/mes: suficiente para 24/7 |
 | Base de datos | **Supabase** (free) | PostgreSQL con pooler; 500 MB gratis |
 | Archivos (portadas, adjuntos, avatares, imágenes) | **Supabase Storage** (free) | Bucket público `uploads` (1 GB). El backend ya lo soporta con `APP_STORAGE_PROVIDER=supabase` |
@@ -75,7 +75,7 @@ Combinación 100 % gratuita (sin tarjeta de crédito):
 
 ---
 
-## 1. Frontend → Vercel (`notitas.vercel.app`)
+## 1. Frontend → Vercel (`notitas-cleo.vercel.app`)
 
 El `vercel.json` vive en `frontend/` y activa los rewrites de SPA (rutas como
 `/login`, `/shared/note/:token` funcionan).
@@ -109,9 +109,9 @@ npx vercel
 npx vercel --prod
 ```
 
-Al finalizar verás la URL. El alias por defecto es `notitas-XXXX.vercel.app`;
-si consigues el alias libre `notitas.vercel.app`, resérvalo en el dashboard
-(Project → Settings → Domains).
+Al finalizar verás la URL. **El dominio de producción es `notitas-cleo.vercel.app`**
+(único): configura los dominios del proyecto en el dashboard
+(Project → Settings → Domains → `notitas-cleo.vercel.app`).
 
 ### Opción B — Dashboard + GitHub
 
@@ -171,7 +171,7 @@ con la API:
 2. Vercel detecta el `backend/Dockerfile` y lo construye.
 3. Variables de entorno del backend:
    `DB_URL`, `DB_USER`, `DB_PASSWORD`,
-   `CORS_ALLOWED_ORIGINS=https://notitas.vercel.app`, `NOTITAS_JWT_SECRET`
+   `CORS_ALLOWED_ORIGINS=https://notitas-cleo.vercel.app`, `NOTITAS_JWT_SECRET`
    (el `Dockerfile` ya activa `SPRING_PROFILES_ACTIVE=prod` y escucha en `$PORT`).
 
 ### Opción B — Railway / Render / Fly.io (recomendada)
@@ -187,7 +187,7 @@ docker run --rm -p 8080:8080 \
   -e DB_URL='jdbc:postgresql://aws-0-<region>.pooler.supabase.com:6543/postgres?sslmode=require' \
   -e DB_USER='postgres.<ref>' \
   -e DB_PASSWORD='<password>' \
-  -e CORS_ALLOWED_ORIGINS='https://notitas.vercel.app' \
+  -e CORS_ALLOWED_ORIGINS='https://notitas-cleo.vercel.app' \
   -e NOTITAS_JWT_SECRET='<secreto propio — generarlo: ver "Secreto JWT" en la sección 4>' \
   notitas-api
 ```
@@ -209,13 +209,13 @@ DB_USER='postgres.<ref>' DB_PASSWORD='<password>' \
 
 ## 4. Checklist post-deploy
 
-- [ ] Abre `https://notitas.vercel.app` → redirige a `/login`.
+- [ ] Abre `https://notitas-cleo.vercel.app` → redirige a `/login`.
 - [ ] Regístrate un usuario nuevo (en prod **no** hay datos demo).
 - [ ] Crea un proyecto, una nota, sube una portada y un adjunto.
 - [ ] Prueba un enlace compartido `/shared/note/:token` (funciona por los rewrites SPA).
 - [ ] Prueba una invitación `/join/project/:token`.
 - [ ] Revisa la consola del navegador (sin errores CORS: el backend debe permitir
-      el origen `https://notitas.vercel.app` — ya configurado vía `CORS_ALLOWED_ORIGINS`).
+      el origen `https://notitas-cleo.vercel.app` — ya configurado vía `CORS_ALLOWED_ORIGINS`).
 
 ## Notas y pendientes conocidos
 

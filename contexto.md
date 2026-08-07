@@ -114,7 +114,7 @@
 
 **ProjectServiceImpl:**
 - `getProjectsByUser` combina proyectos propios + proyectos donde es miembro (sin duplicados), y `mapToResponse` calcula el rol actual (`OWNER`/`EDITOR`/`VIEWER`) + creator + colaboradores.
-- **Borrar proyecto** borra primero notas (con sus archivos en disco), luego miembros y luego el proyecto (fix: antes fallaba con 500 por violación de FK).
+- **Borrar proyecto** borra primero **versiones** (`deleteByNoteId`), notas (con sus archivos en disco), luego miembros y luego el proyecto (fix: antes fallaba con 500 por violación de FK, incluida la FK de `note_versions.note_id`).
 - **Invitaciones:** `inviteToken` UUID persistido; `joinProject` añade el miembro con rol `EDITOR` (o devuelve el proyecto si ya es owner/miembro).
 
 **FileStorageServiceImpl:**
@@ -199,7 +199,7 @@
 |---|---|---|
 | default (dev) | **H2 en memoria** (`jdbc:h2:mem:notitasdb`) | Consola H2 apagada; subida de archivos `uploads/`; JWT default en el repo (⚠️ cambiar en prod) |
 | `dev` | H2 | Habilita consola H2 + SQL logging |
-| `prod` | **PostgreSQL** (`DB_URL`, `DB_USER`, `DB_PASSWORD` desde env) | Puerto `PORT` (env), CORS por defecto con los 4 dominios de producción (`CORS_ALLOWED_ORIGINS`), JWT **obligatorio** (sin fallback), cookie secure, consola H2 apagada |
+| `prod` | **PostgreSQL** (`DB_URL`, `DB_USER`, `DB_PASSWORD` desde env) | Puerto `PORT` (env), CORS por defecto con el dominio único `https://notitas-cleo.vercel.app` (`CORS_ALLOWED_ORIGINS`), JWT **obligatorio** (sin fallback), cookie secure, consola H2 apagada |
 | `test` | H2 | Rate limit desactivado |
 
 **`DatabaseInitializer`** (solo perfiles ≠ prod): si la BD está vacía siembra el usuario demo **`admin@notitas.com` / `password123`**, 2 proyectos (Backend Spring Boot, Frontend React) con 3 notas HTML de ejemplo, tags y versiones iniciales.
@@ -224,6 +224,8 @@
 - **Pantalla de boot** (`LoadingPage`) durante ~1.6s la primera vez (sesión), y **WelcomeScreen** animada al hacer login/logout (3.4s, con cap de seguridad de 6s; el logout guarda una "foto" del usuario para la despedida).
 - **Validación de sesión al arrancar** (`refreshSession` → `/api/auth/refresh` + `/api/users/me`): si la cookie expiró o fue revocada, logout limpio. Renovación deslizante cada 6 h y al volver a la pestaña.
 - **Fix prod (2026-08): tokens con firma inválida → 401, no 500.** `validateJwtToken` no capturaba `SignatureException` (firma JWT que no coincide), así que un token corrupto o re-firmado hacía explotar `/api/auth/refresh` con 500 "Error interno" (el síntoma era la sesión cerrada con error al volver). Ahora `SignatureException` devuelve 401 limpio. Cubierto con test de regresión (`refresh_withWellFormedButWrongSignature_returnsUnauthorizedNot500`).
+- **Fix prod (2026-08): TDZ en CommandPalette.** El `useEffect` de reset usaba `searching` (de `useQuery`) en sus dependencias ANTES de su declaración → `ReferenceError: Cannot access 'y' before initialization` en el build de producción (pantalla en blanco en cualquier ruta). Reordenados los hooks (las queries ahora se declaran antes del efecto). Se detectó ejecutando el bundle de producción con un harness CDP que capturó el stack minificado.
+- **Fix prod (2026-08): crear/editar proyecto explotaba ("Algo salió mal").** Los `TextField` de `ProjectFormDialog` pasaban `onChange` directo a los setters de `useState` de los padres (`onNameChange={setName}`): MUI invoca `onChange(event)`, así que el estado recibía el objeto SyntheticEvent y `name.trim()` reventaba en el render → ErrorBoundary. Normalizado `e.target.value` dentro del diálogo (cubre dashboard y sidebar). Este era el síntoma original reportado: "al ponerle nombre me dice error y se cierra".
 - **Logout por inactividad** (`IdleSessionGuard`): 60 min sin actividad → diálogo "¿Sigues ahí?" → 60 s de gracia → cierra sesión (configurable con `notitas-idle-timeout-minutes`).
 - **Command palette** (`Ctrl/Cmd+K`): búsqueda global de notas/proyectos + acciones rápidas (nueva nota/proyecto, tema, favoritos, papelera) con navegación por teclado.
 - **UI premium**: fondo ambiental con glows de marca (theme-aware), transición suave al cambiar de tema, favicon/logo de marca (verde `#386c5f→#00C9A7`), zoom en portadas al hover, entrada en cascada del grid, FAB móvil (SpeedDial) y toasts con botón **Deshacer**.
@@ -322,10 +324,10 @@ Las mutaciones invalidan con `invalidateQueries({ queryKey: ['notes'] })` (prefi
 
 ## 7. Despliegue (resumen de `DEPLOY.md`)
 
-- **Frontend** → Vercel (`notitas.vercel.app`): `vercel.json` en la raíz apunta a `frontend/`, framework Vite, rewrites SPA. Env var `VITE_API_URL=https://<backend>/` (en build).
+- **Frontend** → Vercel (**dominio único `notitas-cleo.vercel.app`**): `vercel.json` en la raíz apunta a `frontend/`, framework Vite, rewrites SPA. Env var `VITE_API_URL=https://notitas-api.onrender.com` (en build). Los alias antiguos (`notitas-five`, `notitas-alessander`) fueron **eliminados**.
 - **Backend** → contenedor Docker (`backend/Dockerfile`, JRE 17 alpine, usuario no-root, `SPRING_PROFILES_ACTIVE=prod`): Vercel (Docker), Railway, Render o Fly.io. Env vars: `DB_URL`, `DB_USER`, `DB_PASSWORD`, `CORS_ALLOWED_ORIGINS`, `NOTITAS_JWT_SECRET`.
 - **BD** → Supabase PostgreSQL con connection pooler (`...pooler.supabase.com:6543`). El esquema se crea solo con `ddl-auto=update`.
-- **CORS de producción**: los 4 dominios (`notitas.vercel.app`, `notitas-five`, `notitas-alessander`, `notitas-cleo`) en `render.yaml` (`CORS_ALLOWED_ORIGINS`) y en el default de `application-prod.properties`.
+- **CORS de producción**: solo `https://notitas-cleo.vercel.app` en `render.yaml` (`CORS_ALLOWED_ORIGINS`) y en el default de `application-prod.properties`.
 - **Migraciones Flyway**: V1 (esquema) + V2 (token_version) se ejecutan automáticamente al arrancar en prod. En prod los archivos viven en **Supabase Storage** (no en disco local).
 - ⚠️ Pendientes: fijar secreto JWT propio en prod (obligatorio, sin fallback) y dominio propio para la cookie first-party.
 

@@ -26,10 +26,10 @@ services:
       - key: APP_STORAGE_PROVIDER
         value: supabase
       - key: CORS_ALLOWED_ORIGINS
-        value: https://notitas.vercel.app,https://notitas-five.vercel.app,https://notitas-alessander.vercel.app,https://notitas-cleo.vercel.app
-        # Actualizar si cambia la URL del frontend en Vercel
-        # (todos los alias de producción deben estar aquí o el navegador
-        # recibirá 403 en el preflight CORS y las peticiones fallarán)
+        value: https://notitas-cleo.vercel.app
+        # Dominio único de producción: https://notitas-cleo.vercel.app
+        # Actualizar si cambia la URL del frontend en Vercel (un origen
+        # ausente aquí recibe 403 en el preflight CORS).
       - key: DB_URL
         sync: false
       - key: DB_USER
