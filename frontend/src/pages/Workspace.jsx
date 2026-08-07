@@ -71,6 +71,7 @@ export default function Workspace() {
             ModalProps={{ keepMounted: true }}
             sx={{
               display: { xs: 'block', md: 'none' },
+              zIndex: 1300,
               '& .MuiBackdrop-root': {
                 backdropFilter: 'blur(6px)',
                 bgcolor: (theme) =>
