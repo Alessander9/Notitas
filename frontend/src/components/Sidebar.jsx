@@ -374,11 +374,11 @@ const noteItemVariants = {
 
   return (
     <Box
-      component={motion.div}
-      animate={{ width: embedded ? '100%' : effectiveCollapsed ? 72 : 300 }}
-      transition={{ type: 'spring', stiffness: 300, damping: 28 }}
       sx={{
+        width: embedded ? '100%' : effectiveCollapsed ? 72 : 300,
+        minWidth: embedded ? '100%' : effectiveCollapsed ? 72 : 300,
         height: '100%',
+        flexShrink: 0,
         borderRight: embedded ? 'none' : '1px solid',
         borderColor: 'divider',
         display: 'flex',
@@ -389,6 +389,7 @@ const noteItemVariants = {
         WebkitBackdropFilter: 'blur(24px) saturate(180%)',
         position: 'relative',
         overflow: 'hidden',
+        transition: 'width 0.25s cubic-bezier(0.4, 0, 0.2, 1), min-width 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
         // Safe area para dispositivos con notch (iPhone)
         pb: 'env(safe-area-inset-bottom, 0px)',
       }}
