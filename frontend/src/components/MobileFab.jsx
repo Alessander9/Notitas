@@ -3,7 +3,6 @@ import { Box, Typography, IconButton } from '@mui/material';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Add as AddIcon,
-  Close as CloseIcon,
   NoteAdd as NoteAddIcon,
   FolderOpen as FolderIcon,
   DarkMode as DarkModeIcon,
