@@ -14,6 +14,8 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Avatar,
+  Badge,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -30,6 +32,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import { useUiStore } from '../store/uiStore';
+import { useAuthStore } from '../store/authStore';
 import { toast } from '../store/toastStore';
 import NoteListSkeleton from './skeletons/NoteListSkeleton';
 import CoverImage from './CoverImage';
@@ -39,6 +42,7 @@ import { getPlainText, getAssetUrl, formatRelativeTime } from '../utils/text';
 
 export default function NoteList() {
   const { currentProjectId, currentNoteId, setCurrentNote, searchQuery } = useUiStore();
+  const { user } = useAuthStore();
   const queryClient = useQueryClient();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [pinnedNotes, setPinnedNotes] = useState(() => {
@@ -214,10 +218,40 @@ export default function NoteList() {
       {/* Header */}
       <Box sx={{ p: isCollapsed ? 1 : 2, display: 'flex', alignItems: 'center', justifyContent: isCollapsed ? 'center' : 'space-between', borderBottom: '1px solid', borderColor: 'divider', minHeight: 56 }}>
         {isCollapsed ? (
-          <Tooltip title={getHeaderTitle()} placement="right">
-            <IconButton onClick={() => setIsCollapsed(false)} size="small">
-              <EditNoteIcon />
-            </IconButton>
+          <Tooltip title={`${getHeaderTitle()} (${notes.length} notas)`} placement="right">
+            <motion.div
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setIsCollapsed(false)}
+              style={{ cursor: 'pointer' }}
+            >
+              <Badge
+                badgeContent={notes.length}
+                color="primary"
+                sx={{
+                  '& .MuiBadge-badge': {
+                    fontSize: '0.6rem',
+                    height: 18,
+                    minWidth: 18,
+                    fontWeight: 700,
+                  },
+                }}
+              >
+                <Avatar
+                  src={user?.avatar ? getAssetUrl(user.avatar) : undefined}
+                  sx={{
+                    width: 40,
+                    height: 40,
+                    bgcolor: 'primary.main',
+                    border: '2px solid',
+                    borderColor: 'divider',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                  }}
+                >
+                  {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                </Avatar>
+              </Badge>
+            </motion.div>
           </Tooltip>
         ) : (
           <>
