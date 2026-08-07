@@ -92,9 +92,22 @@ export default function FavoritesSection({ projects, projectsLoading }) {
           overflowX: 'auto',
           pb: 1.5,
           pt: 0.5,
+          px: 0.5,
+          scrollSnapType: 'x mandatory',
+          WebkitOverflowScrolling: 'touch',
           scrollbarWidth: 'thin',
-          '&::-webkit-scrollbar': { height: 6 },
-          '&::-webkit-scrollbar-thumb': { background: '#e0e6ed', borderRadius: 3 },
+          '&::-webkit-scrollbar': { height: 8 },
+          '&::-webkit-scrollbar-track': { background: 'transparent' },
+          '&::-webkit-scrollbar-thumb': { 
+            background: (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)', 
+            borderRadius: 4,
+            '&:hover': {
+              background: (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.25)',
+            },
+          },
+          // Sombra sutil a los lados para indicar que hay más contenido
+          maskImage: 'linear-gradient(to right, transparent, black 20px, black calc(100% - 20px), transparent)',
+          WebkitMaskImage: 'linear-gradient(to right, transparent, black 20px, black calc(100% - 20px), transparent)',
         }}
       >
         {favorites.map((note) => {
@@ -110,6 +123,7 @@ export default function FavoritesSection({ projects, projectsLoading }) {
               sx={{
                 position: 'relative',
                 flex: '0 0 260px',
+                scrollSnapAlign: 'start',
                 borderRadius: 3,
                 overflow: 'hidden',
                 cursor: 'pointer',
