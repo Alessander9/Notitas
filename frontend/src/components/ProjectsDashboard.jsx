@@ -90,7 +90,7 @@ function ProjectGridCard({ project, index, onSelect, onEdit, onShare, onDelete }
   return (
     <motion.div
       layout
-      layoutId={`project-${project.id}`}
+      layoutId={`dashboard-project-${project.id}`}
       initial={{ opacity: 0, y: 30 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.9 }}
