@@ -218,6 +218,42 @@ export default function App() {
               root: {
                 backgroundImage: 'none',
                 backgroundColor: darkMode ? 'rgba(26,26,53,0.85)' : 'rgba(255,255,255,0.85)',
+                transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+              },
+              outlined: {
+                border: '1px solid',
+                borderColor: darkMode ? 'rgba(255,255,255,0.08)' : 'rgba(230,232,242,0.8)',
+                borderRadius: 16,
+                backdropFilter: 'blur(12px) saturate(150%)',
+                WebkitBackdropFilter: 'blur(12px) saturate(150%)',
+                boxShadow: darkMode 
+                  ? '0 4px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.03)' 
+                  : '0 4px 16px rgba(56,108,95,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
+                '&:hover': {
+                  borderColor: darkMode ? 'rgba(255,255,255,0.12)' : 'rgba(56,108,95,0.2)',
+                  boxShadow: darkMode 
+                    ? '0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)' 
+                    : '0 8px 28px rgba(56,108,95,0.1), inset 0 1px 0 rgba(255,255,255,0.9)',
+                  transform: 'translateY(-2px)',
+                },
+              },
+              elevation0: {
+                boxShadow: 'none',
+              },
+              elevation1: {
+                boxShadow: darkMode 
+                  ? '0 2px 12px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.03)' 
+                  : '0 2px 12px rgba(56,108,95,0.07), inset 0 1px 0 rgba(255,255,255,0.8)',
+              },
+              elevation2: {
+                boxShadow: darkMode 
+                  ? '0 4px 20px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)' 
+                  : '0 4px 20px rgba(56,108,95,0.09), inset 0 1px 0 rgba(255,255,255,0.85)',
+              },
+              elevation3: {
+                boxShadow: darkMode 
+                  ? '0 8px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.05)' 
+                  : '0 8px 28px rgba(56,108,95,0.11), inset 0 1px 0 rgba(255,255,255,0.9)',
               },
             },
           },
