@@ -33,6 +33,7 @@ import CoverImage from './CoverImage';
 import ProfileDialog from './ProfileDialog';
 import { getAvatarUrl } from '../utils/text';
 import logoImage from '../assets/logo notitas.png';
+import textoImage from '../assets/notitas-texto.png';
 
 const Search = styled('div')(({ theme }) => ({
   position: 'relative',
@@ -228,9 +229,24 @@ export default function Navbar() {
                 }}
               />
             </Box>
-            <Typography variant="h5" fontWeight="bold" color="primary" sx={{ letterSpacing: '0.5px', whiteSpace: 'nowrap' }}>
-              Notitas
-            </Typography>
+            <Box
+              sx={{
+                height: 28,
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
+              <img
+                src={textoImage}
+                alt="Notitas"
+                style={{
+                  height: '100%',
+                  width: 'auto',
+                  objectFit: 'contain',
+                  filter: 'drop-shadow(0 1px 2px rgba(56,108,95,0.2))',
+                }}
+              />
+            </Box>
           </Box>
         </Box>
 
