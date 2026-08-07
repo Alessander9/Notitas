@@ -51,10 +51,10 @@ export default function SidebarProjectItem({
     <motion.div
       layout
       layoutId={`project-${project.id}`}
-      initial={{ opacity: 0, x: -16 }}
+      initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
-      transition={{ type: 'spring', stiffness: 260, damping: 26 }}
-      style={{ marginBottom: 6 }}
+      transition={{ type: 'spring', stiffness: 250, damping: 24 }}
+      style={{ marginBottom: 4 }}
     >
       {/* ── Project Header Row ───────────────────────────── */}
       <Box
@@ -77,11 +77,12 @@ export default function SidebarProjectItem({
               alignItems: 'center',
               gap: 1,
               px: isCollapsed ? 1 : 1.5,
-              py: 1,
+              py: 1.2,
               cursor: 'pointer',
-              minHeight: 44,
+              minHeight: 48,
               borderRadius: 2.5,
               position: 'relative',
+              transition: 'all 0.2s ease',
             }}
           >
             {/* Selected accent bar */}
@@ -193,37 +194,45 @@ export default function SidebarProjectItem({
                     noWrap
                     sx={{
                       fontWeight: isSelected ? 700 : 500,
-                      fontSize: '0.85rem',
+                      fontSize: '0.87rem',
                       color: isSelected ? 'text.primary' : 'text.primary',
                       letterSpacing: '-0.01em',
+                      transition: 'all 0.2s ease',
                     }}
                   >
                     {project.name}
                   </Typography>
                   {notes.length > 0 && (
-                    <Box
-                      sx={{
-                        minWidth: 18,
-                        height: 18,
-                        borderRadius: '50%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        bgcolor: `${accentColor}18`,
-                        flexShrink: 0,
-                      }}
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ type: 'spring', stiffness: 300, delay: 0.1 }}
                     >
-                      <Typography sx={{ fontSize: '0.6rem', fontWeight: 700, color: accentColor, lineHeight: 1 }}>
-                        {notes.length}
-                      </Typography>
-                    </Box>
+                      <Box
+                        sx={{
+                          minWidth: 20,
+                          height: 20,
+                          borderRadius: '10px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          bgcolor: `${accentColor}20`,
+                          flexShrink: 0,
+                          border: `1px solid ${accentColor}30`,
+                        }}
+                      >
+                        <Typography sx={{ fontSize: '0.62rem', fontWeight: 700, color: accentColor, lineHeight: 1 }}>
+                          {notes.length}
+                        </Typography>
+                      </Box>
+                    </motion.div>
                   )}
                 </Box>
                 {project.description && (
                   <Typography
                     variant="caption"
                     noWrap
-                    sx={{ fontSize: '0.68rem', color: 'text.disabled', display: 'block', mt: -0.2 }}
+                    sx={{ fontSize: '0.7rem', color: 'text.disabled', display: 'block', mt: -0.1 }}
                   >
                     {project.description}
                   </Typography>
@@ -307,24 +316,33 @@ export default function SidebarProjectItem({
                     Sin notas
                   </Typography>
                 ) : (
-                  recentNotes.map((note) => {
+                  recentNotes.map((note, index) => {
                     const excerpt = getPlainText(note.content);
                     return (
-                      <Box
+                      <motion.div
                         key={note.id}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.03, duration: 0.2 }}
+                      >
+                      <Box
                         onClick={() => onOpenNote(project, note)}
                         sx={{
                           display: 'flex',
                           alignItems: 'flex-start',
                           gap: 0.8,
-                          px: 1,
-                          py: 0.55,
-                          borderRadius: 1.5,
+                          px: 1.2,
+                          py: 0.7,
+                          borderRadius: 2,
                           cursor: 'pointer',
-                          transition: 'all 0.15s ease',
+                          transition: 'all 0.2s ease',
+                          minHeight: 40,
                           '&:hover': {
-                            bgcolor: `${accentColor}0a`,
-                            transform: 'translateX(3px)',
+                            bgcolor: `${accentColor}12`,
+                            transform: 'translateX(4px)',
+                          },
+                          '&:active': {
+                            transform: 'scale(0.98)',
                           },
                         }}
                       >
@@ -359,37 +377,51 @@ export default function SidebarProjectItem({
                           })}
                         </Typography>
                       </Box>
+                      </motion.div>
                     );
                   })
                 )}
 
                 {/* "Crear nota" button */}
                 {onCreateNote && (
-                  <Box
-                    onClick={() => onCreateNote(project.id)}
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 0.8,
-                      px: 1,
-                      py: 0.5,
-                      mt: 0.5,
-                      borderRadius: 1.5,
-                      cursor: 'pointer',
-                      color: 'text.disabled',
-                      transition: 'all 0.15s ease',
-                      '&:hover': {
-                        bgcolor: `${accentColor}10`,
-                        color: 'primary.main',
-                        transform: 'translateX(3px)',
-                      },
-                    }}
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.2 }}
                   >
-                    <AddIcon sx={{ fontSize: 13 }} />
-                    <Typography variant="caption" sx={{ fontSize: '0.7rem', fontWeight: 500 }}>
-                      Nueva nota
-                    </Typography>
-                  </Box>
+                    <Box
+                      onClick={() => onCreateNote(project.id)}
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 0.8,
+                        px: 1.2,
+                        py: 0.7,
+                        mt: 0.5,
+                        borderRadius: 2,
+                        cursor: 'pointer',
+                        color: 'text.disabled',
+                        transition: 'all 0.2s ease',
+                        minHeight: 36,
+                        border: '1px dashed',
+                        borderColor: 'divider',
+                        '&:hover': {
+                          bgcolor: `${accentColor}10`,
+                          color: 'primary.main',
+                          borderColor: `${accentColor}40`,
+                          transform: 'translateX(4px)',
+                        },
+                        '&:active': {
+                          transform: 'scale(0.98)',
+                        },
+                      }}
+                    >
+                      <AddIcon sx={{ fontSize: 14 }} />
+                      <Typography variant="caption" sx={{ fontSize: '0.72rem', fontWeight: 500 }}>
+                        Nueva nota
+                      </Typography>
+                    </Box>
+                  </motion.div>
                 )}
               </Box>
             </motion.div>

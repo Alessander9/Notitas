@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Box,
   List,
@@ -309,6 +309,44 @@ export default function Sidebar({ embedded = false }) {
     toast.success('Enlace de invitación copiado');
   };
 
+// Animaciones staggered para items de navegación
+const navItemVariants = {
+  hidden: { opacity: 0, x: -20 },
+  visible: (i) => ({
+    opacity: 1,
+    x: 0,
+    transition: {
+      delay: 0.1 + i * 0.06,
+      type: 'spring',
+      stiffness: 250,
+      damping: 22,
+    },
+  }),
+};
+
+// Variantes para la sección de proyectos
+const sectionVariants = {
+  hidden: { opacity: 0, height: 0 },
+  visible: {
+    opacity: 1,
+    height: 'auto',
+    transition: { duration: 0.3, ease: 'easeOut' },
+  },
+};
+
+// Variantes para items de lista de notas
+const noteItemVariants = {
+  hidden: { opacity: 0, x: -10 },
+  visible: (i) => ({
+    opacity: 1,
+    x: 0,
+    transition: {
+      delay: i * 0.04,
+      duration: 0.2,
+    },
+  }),
+};
+
   return (
     <Box
       component={motion.div}
@@ -321,11 +359,13 @@ export default function Sidebar({ embedded = false }) {
         display: 'flex',
         flexDirection: 'column',
         bgcolor: (theme) =>
-          theme.palette.mode === 'dark' ? 'rgba(26, 26, 53, 0.75)' : 'rgba(255, 255, 255, 0.75)',
-        backdropFilter: 'blur(18px) saturate(140%)',
-        WebkitBackdropFilter: 'blur(18px) saturate(140%)',
+          theme.palette.mode === 'dark' ? 'rgba(26, 26, 53, 0.92)' : 'rgba(255, 255, 255, 0.92)',
+        backdropFilter: 'blur(24px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(24px) saturate(180%)',
         position: 'relative',
         overflow: 'hidden',
+        // Safe area para dispositivos con notch (iPhone)
+        pb: 'env(safe-area-inset-bottom, 0px)',
       }}
     >
       {isLoading ? (
@@ -333,74 +373,151 @@ export default function Sidebar({ embedded = false }) {
       ) : (
         <>
       {/* Sidebar Collapse Toggle & Header */}
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: effectiveCollapsed ? 'center' : 'space-between',
-          p: 1.5,
-          borderBottom: '1px solid',
-          borderColor: 'divider',
-          minHeight: '52px',
-        }}
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.05 }}
       >
-        {!effectiveCollapsed && (
-          <Typography variant="subtitle2" fontWeight="bold" color="text.secondary" sx={{ ml: 1 }}>
-            NAVEGACIÓN
-          </Typography>
-        )}
-        {!embedded && (
-          <IconButton size="small" onClick={handleToggleCollapse}>
-            {isCollapsed ? <ChevronRightIcon /> : <ChevronLeftIcon />}
-          </IconButton>
-        )}
-        {embedded && (
-          <Tooltip title="Cerrar menú">
-            <IconButton
-              size="small"
-              onClick={() => setSidebarMobileOpen(false)}
-              sx={{
-                bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
-                '&:hover': { bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.1)' },
-              }}
-            >
-              <CloseIcon sx={{ fontSize: 18 }} />
-            </IconButton>
-          </Tooltip>
-        )}
-      </Box>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: effectiveCollapsed ? 'center' : 'space-between',
+            p: embedded ? 2 : 1.5,
+            px: embedded ? 2.5 : 1.5,
+            borderBottom: '1px solid',
+            borderColor: 'divider',
+            minHeight: '56px',
+          }}
+        >
+          {!effectiveCollapsed && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              {/* Logo para móvil */}
+              {embedded && (
+                <Box
+                  sx={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 2,
+                    background: 'linear-gradient(135deg, #386c5f 0%, #264e44 100%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 2px 8px rgba(56, 108, 95, 0.3)',
+                  }}
+                >
+                  <Typography sx={{ color: '#fff', fontWeight: 900, fontSize: '1rem', lineHeight: 1 }}>
+                    N
+                  </Typography>
+                </Box>
+              )}
+              <Typography
+                variant="subtitle2"
+                fontWeight={800}
+                color="text.secondary"
+                sx={{
+                  letterSpacing: '0.5px',
+                  fontSize: '0.7rem',
+                  textTransform: 'uppercase',
+                }}
+              >
+                {embedded ? 'Notitas' : 'NAVEGACIÓN'}
+              </Typography>
+            </Box>
+          )}
+          {!embedded && (
+            <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+              <IconButton size="small" onClick={handleToggleCollapse} sx={{ borderRadius: 1.5 }}>
+                {isCollapsed ? <ChevronRightIcon /> : <ChevronLeftIcon />}
+              </IconButton>
+            </motion.div>
+          )}
+          {embedded && (
+            <Tooltip title="Cerrar menú">
+              <motion.div whileHover={{ scale: 1.1, rotate: 90 }} whileTap={{ scale: 0.9 }}>
+                <IconButton
+                  size="small"
+                  onClick={() => setSidebarMobileOpen(false)}
+                  sx={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 2,
+                    bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
+                    '&:hover': {
+                      bgcolor: 'error.main',
+                      color: '#fff',
+                    },
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <CloseIcon sx={{ fontSize: 18 }} />
+                </IconButton>
+              </motion.div>
+            </Tooltip>
+          )}
+        </Box>
+      </motion.div>
 
       {/* Action Button: Nuevo Proyecto */}
-      <Box sx={{ p: effectiveCollapsed ? 1.5 : 2, display: 'flex', justifyContent: 'center' }}>
-        {effectiveCollapsed ? (
-          <Tooltip title="Nuevo Proyecto" placement="right">
-            <IconButton
-              color="primary"
-              variant="contained"
-              onClick={handleOpenCreateModal}
-              sx={{
-                bgcolor: 'primary.main',
-                color: 'primary.contrastText',
-                width: 42,
-                height: 42,
-                '&:hover': { bgcolor: 'primary.dark' },
-              }}
-            >
-              <AddIcon />
-            </IconButton>
-          </Tooltip>
-        ) : (
-          <Button
-            fullWidth
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={handleOpenCreateModal}
-            sx={{ borderRadius: 2.5, textTransform: 'none', fontWeight: 'bold', py: 1 }}
-          >
-            Nuevo Proyecto
-          </Button>
-        )}
-      </Box>
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.25, type: 'spring', stiffness: 200 }}
+      >
+        <Box sx={{ p: effectiveCollapsed ? 1.5 : 2, px: effectiveCollapsed ? 1.5 : 2.5, display: 'flex', justifyContent: 'center' }}>
+          {effectiveCollapsed ? (
+            <Tooltip title="Nuevo Proyecto" placement="right">
+              <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
+                <IconButton
+                  color="primary"
+                  variant="contained"
+                  onClick={handleOpenCreateModal}
+                  sx={{
+                    background: 'linear-gradient(135deg, #386c5f 0%, #264e44 100%)',
+                    color: '#fff',
+                    width: 44,
+                    height: 44,
+                    boxShadow: '0 4px 14px rgba(56, 108, 95, 0.35)',
+                    '&:hover': {
+                      background: 'linear-gradient(135deg, #6a968c 0%, #386c5f 100%)',
+                      boxShadow: '0 6px 20px rgba(56, 108, 95, 0.45)',
+                    },
+                    transition: 'all 0.25s ease',
+                  }}
+                >
+                  <AddIcon sx={{ fontSize: 24 }} />
+                </IconButton>
+              </motion.div>
+            </Tooltip>
+          ) : (
+            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} style={{ width: '100%' }}>
+              <Button
+                fullWidth
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={handleOpenCreateModal}
+                sx={{
+                  borderRadius: 3,
+                  textTransform: 'none',
+                  fontWeight: 700,
+                  py: 1.2,
+                  fontSize: '0.9rem',
+                  background: 'linear-gradient(135deg, #386c5f 0%, #264e44 100%)',
+                  boxShadow: '0 4px 16px rgba(56, 108, 95, 0.3)',
+                  '&:hover': {
+                    background: 'linear-gradient(135deg, #6a968c 0%, #386c5f 100%)',
+                    boxShadow: '0 6px 24px rgba(56, 108, 95, 0.4)',
+                    transform: 'translateY(-1px)',
+                  },
+                  transition: 'all 0.25s ease',
+                }}
+              >
+                Nuevo Proyecto
+              </Button>
+            </motion.div>
+          )}
+        </Box>
+      </motion.div>
 
       <Divider />
 
@@ -408,65 +525,104 @@ export default function Sidebar({ embedded = false }) {
       <List dense sx={{ px: effectiveCollapsed ? 1 : 1.5, py: 1 }}>
         {/* Navigation Option: Dashboard */}
         <ListItem disablePadding sx={{ mb: 0.5 }}>
-          <Tooltip title={effectiveCollapsed ? "Panel de Proyectos" : ""} placement="right">
-            <ListItemButton
-              selected={currentProjectId === null}
-              onClick={() => selectAndClose(null)}
-              sx={{
-                borderRadius: 2,
-                justifyContent: effectiveCollapsed ? 'center' : 'flex-start',
-                px: effectiveCollapsed ? 1.5 : 2,
-                minHeight: 40,
-              }}
-            >
-              <ListItemIcon sx={{ minWidth: effectiveCollapsed ? 0 : 36, justifyContent: 'center' }}>
-                <DashboardIcon color={currentProjectId === null ? 'primary' : 'action'} />
-              </ListItemIcon>
-              {!effectiveCollapsed && <ListItemText primary="Panel de Proyectos" primaryTypographyProps={{ fontWeight: 500 }} />}
-            </ListItemButton>
-          </Tooltip>
+          <motion.div custom={0} variants={navItemVariants} initial="hidden" animate="visible">
+            <Tooltip title={effectiveCollapsed ? "Panel de Proyectos" : ""} placement="right">
+              <ListItemButton
+                selected={currentProjectId === null}
+                onClick={() => selectAndClose(null)}
+                sx={{
+                  borderRadius: 2.5,
+                  justifyContent: effectiveCollapsed ? 'center' : 'flex-start',
+                  px: effectiveCollapsed ? 1.5 : 2,
+                  minHeight: 44,
+                  transition: 'all 0.2s ease',
+                  '&.Mui-selected': {
+                    bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(56, 108, 95, 0.15)' : 'rgba(56, 108, 95, 0.1)',
+                    '&:hover': {
+                      bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(56, 108, 95, 0.2)' : 'rgba(56, 108, 95, 0.15)',
+                    },
+                  },
+                  '&:hover': {
+                    bgcolor: 'action.hover',
+                    transform: 'translateX(4px)',
+                  },
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: effectiveCollapsed ? 0 : 36, justifyContent: 'center' }}>
+                  <DashboardIcon sx={{ color: currentProjectId === null ? 'primary.main' : 'action.active', fontSize: 22 }} />
+                </ListItemIcon>
+                {!effectiveCollapsed && <ListItemText primary="Panel de Proyectos" primaryTypographyProps={{ fontWeight: currentProjectId === null ? 700 : 500, fontSize: '0.88rem' }} />}
+              </ListItemButton>
+            </Tooltip>
+          </motion.div>
         </ListItem>
 
         {/* Navigation Option: Favorites */}
         <ListItem disablePadding sx={{ mb: 0.5 }}>
-          <Tooltip title={effectiveCollapsed ? "Favoritos" : ""} placement="right">
-            <ListItemButton
-              selected={currentProjectId === 'favorites'}
-              onClick={() => selectAndClose('favorites')}
-              sx={{
-                borderRadius: 2,
-                justifyContent: effectiveCollapsed ? 'center' : 'flex-start',
-                px: effectiveCollapsed ? 1.5 : 2,
-                minHeight: 40,
-              }}
-            >
-              <ListItemIcon sx={{ minWidth: effectiveCollapsed ? 0 : 36, justifyContent: 'center' }}>
-                <StarIcon sx={{ color: '#fbc02d' }} />
-              </ListItemIcon>
-              {!effectiveCollapsed && <ListItemText primary="Favoritos" primaryTypographyProps={{ fontWeight: 500 }} />}
-            </ListItemButton>
-          </Tooltip>
+          <motion.div custom={1} variants={navItemVariants} initial="hidden" animate="visible">
+            <Tooltip title={effectiveCollapsed ? "Favoritos" : ""} placement="right">
+              <ListItemButton
+                selected={currentProjectId === 'favorites'}
+                onClick={() => selectAndClose('favorites')}
+                sx={{
+                  borderRadius: 2.5,
+                  justifyContent: effectiveCollapsed ? 'center' : 'flex-start',
+                  px: effectiveCollapsed ? 1.5 : 2,
+                  minHeight: 44,
+                  transition: 'all 0.2s ease',
+                  '&.Mui-selected': {
+                    bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(251, 192, 45, 0.12)' : 'rgba(251, 192, 45, 0.1)',
+                    '&:hover': {
+                      bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(251, 192, 45, 0.18)' : 'rgba(251, 192, 45, 0.15)',
+                    },
+                  },
+                  '&:hover': {
+                    bgcolor: 'action.hover',
+                    transform: 'translateX(4px)',
+                  },
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: effectiveCollapsed ? 0 : 36, justifyContent: 'center' }}>
+                  <StarIcon sx={{ color: currentProjectId === 'favorites' ? '#fbc02d' : 'action.active', fontSize: 22 }} />
+                </ListItemIcon>
+                {!effectiveCollapsed && <ListItemText primary="Favoritos" primaryTypographyProps={{ fontWeight: currentProjectId === 'favorites' ? 700 : 500, fontSize: '0.88rem' }} />}
+              </ListItemButton>
+            </Tooltip>
+          </motion.div>
         </ListItem>
 
         {/* Navigation Option: Trash */}
         <ListItem disablePadding>
-          <Tooltip title={effectiveCollapsed ? "Papelera" : ""} placement="right">
-            <ListItemButton
-              selected={currentProjectId === 'trash'}
-              onClick={() => selectAndClose('trash')}
-              sx={{
-                borderRadius: 2,
-                justifyContent: effectiveCollapsed ? 'center' : 'flex-start',
-                px: effectiveCollapsed ? 1.5 : 2,
-                minHeight: 40,
-              }}
-            >
-              <ListItemIcon sx={{ minWidth: effectiveCollapsed ? 0 : 36, justifyContent: 'center' }}>
-                <TrashIcon color="action" />
-              </ListItemIcon>
-              {!effectiveCollapsed && <ListItemText primary="Papelera" primaryTypographyProps={{ fontWeight: 500 }} />}
-            </ListItemButton>
-          </Tooltip>
+          <motion.div custom={2} variants={navItemVariants} initial="hidden" animate="visible">
+            <Tooltip title={effectiveCollapsed ? "Papelera" : ""} placement="right">
+              <ListItemButton
+                selected={currentProjectId === 'trash'}
+                onClick={() => selectAndClose('trash')}
+                sx={{
+                  borderRadius: 2.5,
+                  justifyContent: effectiveCollapsed ? 'center' : 'flex-start',
+                  px: effectiveCollapsed ? 1.5 : 2,
+                  minHeight: 44,
+                  transition: 'all 0.2s ease',
+                  '&.Mui-selected': {
+                    bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(239, 68, 68, 0.12)' : 'rgba(239, 68, 68, 0.08)',
+                    '&:hover': {
+                      bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(239, 68, 68, 0.18)' : 'rgba(239, 68, 68, 0.12)',
+                    },
+                  },
+                  '&:hover': {
+                    bgcolor: 'action.hover',
+                    transform: 'translateX(4px)',
+                  },
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: effectiveCollapsed ? 0 : 36, justifyContent: 'center' }}>
+                  <TrashIcon sx={{ color: currentProjectId === 'trash' ? 'error.main' : 'action.active', fontSize: 22 }} />
+                </ListItemIcon>
+                {!effectiveCollapsed && <ListItemText primary="Papelera" primaryTypographyProps={{ fontWeight: currentProjectId === 'trash' ? 700 : 500, fontSize: '0.88rem' }} />}
+              </ListItemButton>
+            </Tooltip>
+          </motion.div>
         </ListItem>
       </List>
 
@@ -474,22 +630,45 @@ export default function Sidebar({ embedded = false }) {
 
       {/* Projects Title Header */}
       {!effectiveCollapsed && (
-        <Box sx={{ px: 2, py: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
-          <Typography variant="caption" fontWeight="bold" color="text.secondary" sx={{ letterSpacing: '0.5px' }}>
-            PROYECTOS ({projects.length})
-          </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <Tooltip title={expandMode === 'accordion' ? 'Permitir expandir varios proyectos a la vez' : 'Modo acordeón: solo un proyecto abierto a la vez'}>
-              <IconButton
-                size="small"
-                onClick={handleToggleExpandMode}
-                sx={{ p: 0.4, color: 'text.secondary', '&:hover': { color: 'primary.main' } }}
-              >
-                {expandMode === 'accordion' ? <ViewStreamIcon sx={{ fontSize: 16 }} /> : <ViewDayIcon sx={{ fontSize: 16 }} />}
-              </IconButton>
-            </Tooltip>
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
+        >
+          <Box sx={{ px: 2.5, py: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+            <Typography
+              variant="caption"
+              fontWeight={800}
+              color="text.secondary"
+              sx={{
+                letterSpacing: '0.8px',
+                fontSize: '0.68rem',
+                textTransform: 'uppercase',
+              }}
+            >
+              PROYECTOS ({projects.length})
+            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Tooltip title={expandMode === 'accordion' ? 'Permitir expandir varios proyectos a la vez' : 'Modo acordeón: solo un proyecto abierto a la vez'}>
+                <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                  <IconButton
+                    size="small"
+                    onClick={handleToggleExpandMode}
+                    sx={{
+                      p: 0.5,
+                      color: 'text.secondary',
+                      borderRadius: 1.5,
+                      transition: 'all 0.2s ease',
+                      '&:hover': { color: 'primary.main', bgcolor: 'action.hover' },
+                    }}
+                  >
+                    {expandMode === 'accordion' ? <ViewStreamIcon sx={{ fontSize: 16 }} /> : <ViewDayIcon sx={{ fontSize: 16 }} />}
+                  </IconButton>
+                </motion.div>
+              </Tooltip>
+            </Box>
           </Box>
-        </Box>
+        </motion.div>
       )}
 
       {/* Projects List (ordered by most recent activity) */}
