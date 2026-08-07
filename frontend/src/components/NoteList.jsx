@@ -28,6 +28,8 @@ import {
   PushPinOutlined as PinOutlinedIcon,
   CalendarMonth as DateIcon,
   Schedule as TimeIcon,
+  OpenInFull as MaximizeIcon,
+  Description as NoteIcon,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
@@ -218,48 +220,67 @@ export default function NoteList() {
       {/* Header */}
       <Box sx={{ p: isCollapsed ? 1 : 2, display: 'flex', alignItems: 'center', justifyContent: isCollapsed ? 'center' : 'space-between', borderBottom: '1px solid', borderColor: 'divider', minHeight: 56 }}>
         {isCollapsed ? (
-          <Tooltip title={`${getHeaderTitle()} (${notes.length} notas)`} placement="right">
-            <motion.div
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setIsCollapsed(false)}
-              style={{ cursor: 'pointer' }}
-            >
-              <Badge
-                badgeContent={notes.length}
-                color="primary"
-                sx={{
-                  '& .MuiBadge-badge': {
-                    fontSize: '0.6rem',
-                    height: 18,
-                    minWidth: 18,
-                    fontWeight: 700,
-                  },
-                }}
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+            <Tooltip title={`${getHeaderTitle()} (${notes.length} notas) - Click para expandir`} placement="right">
+              <motion.div
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setIsCollapsed(false)}
+                style={{ cursor: 'pointer' }}
               >
-                <Avatar
-                  src={user?.avatar ? getAssetUrl(user.avatar) : undefined}
+                <Badge
+                  badgeContent={notes.length}
+                  color="primary"
                   sx={{
-                    width: 40,
-                    height: 40,
-                    bgcolor: 'primary.main',
-                    border: '2px solid',
-                    borderColor: 'divider',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                    '& .MuiBadge-badge': {
+                      fontSize: '0.6rem',
+                      height: 18,
+                      minWidth: 18,
+                      fontWeight: 700,
+                    },
                   }}
                 >
-                  {user?.name?.charAt(0)?.toUpperCase() || 'U'}
-                </Avatar>
-              </Badge>
-            </motion.div>
-          </Tooltip>
+                  <Avatar
+                    src={user?.avatar ? getAssetUrl(user.avatar) : undefined}
+                    sx={{
+                      width: 40,
+                      height: 40,
+                      bgcolor: 'primary.main',
+                      border: '2px solid',
+                      borderColor: 'divider',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                    }}
+                  >
+                    {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                  </Avatar>
+                </Badge>
+              </motion.div>
+            </Tooltip>
+            <Tooltip title="Expandir panel" placement="right">
+              <motion.div whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.9 }}>
+                <IconButton
+                  size="small"
+                  onClick={() => setIsCollapsed(false)}
+                  sx={{
+                    p: 0.5,
+                    borderRadius: 1.5,
+                    bgcolor: 'action.hover',
+                    '&:hover': { bgcolor: 'primary.main', color: '#fff' },
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <MaximizeIcon sx={{ fontSize: 14 }} />
+                </IconButton>
+              </motion.div>
+            </Tooltip>
+          </Box>
         ) : (
           <>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <Typography variant="subtitle1" fontWeight="bold" color="text.secondary" sx={{ fontSize: '0.85rem' }}>
                 {getHeaderTitle().toUpperCase()} ({notes.length})
               </Typography>
-              <Tooltip title={isCollapsed ? 'Expandir panel' : 'Colapsar panel'}>
+              <Tooltip title="Colapsar panel">
                 <IconButton size="small" onClick={() => setIsCollapsed(!isCollapsed)} sx={{ p: 0.5 }}>
                   <Box sx={{ width: 16, height: 2, bgcolor: 'text.secondary', borderRadius: 1, transition: 'all 0.2s', transform: isCollapsed ? 'rotate(90deg)' : 'none' }} />
                 </IconButton>
@@ -284,7 +305,7 @@ export default function NoteList() {
       </Box>
 
       {/* Notes Cards List */}
-      <Box sx={{ flexGrow: 1, overflowY: 'auto', px: 2, pt: 2, pb: { xs: 10, md: 2 } }}>
+      <Box sx={{ flexGrow: 1, overflowY: 'auto', px: isCollapsed ? 0 : 2, pt: isCollapsed ? 1 : 2, pb: { xs: 10, md: 2 } }}>
         {!currentProjectId ? (
           <Box sx={{ textAlign: 'center', mt: 4, color: 'text.secondary', p: 2 }}>
             <Typography variant="body2">
@@ -294,6 +315,60 @@ export default function NoteList() {
         ) : notes.length === 0 ? (
           <Box sx={{ textAlign: 'center', mt: 4, color: 'text.secondary' }}>
             <Typography variant="body2">No hay notas.</Typography>
+          </Box>
+        ) : isCollapsed ? (
+          /* Collapsed view: circular note avatars */
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, px: 0.5 }}>
+            {sortedNotes.slice(0, 10).map((note, index) => {
+              const isSelected = currentNoteId === note.id;
+              const project = projects.find((p) => p.id === note.projectId);
+              const color = project?.color || '#386c5f';
+              const hasCover = Boolean(note.coverImage);
+              const coverUrl = hasCover ? getAssetUrl(note.coverImage) : null;
+
+              return (
+                <motion.div
+                  key={note.id}
+                  initial={{ opacity: 0, scale: 0.5 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: index * 0.05, type: 'spring', stiffness: 300 }}
+                  whileHover={{ scale: 1.15, x: 4 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <Tooltip title={note.title || 'Sin título'} placement="right" arrow>
+                    <Avatar
+                      src={coverUrl || undefined}
+                      onClick={() => setCurrentNote(note.id)}
+                      sx={{
+                        width: 36,
+                        height: 36,
+                        cursor: 'pointer',
+                        bgcolor: coverUrl ? 'transparent' : `${color}20`,
+                        border: '2px solid',
+                        borderColor: isSelected ? color : `${color}40`,
+                        boxShadow: isSelected ? `0 0 0 2px ${color}40` : 'none',
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                          borderColor: color,
+                          boxShadow: `0 2px 8px ${color}30`,
+                        },
+                      }}
+                    >
+                      {coverUrl ? null : (
+                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color }}>
+                          {(note.title || 'N').charAt(0).toUpperCase()}
+                        </Typography>
+                      )}
+                    </Avatar>
+                  </Tooltip>
+                </motion.div>
+              );
+            })}
+            {sortedNotes.length > 10 && (
+              <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.6rem', mt: 0.5 }}>
+                +{sortedNotes.length - 10} más
+              </Typography>
+            )}
           </Box>
         ) : (
           <AnimatePresence mode="popLayout">
