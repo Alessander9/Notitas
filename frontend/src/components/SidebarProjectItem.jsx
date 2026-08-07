@@ -191,15 +191,15 @@ export default function SidebarProjectItem({
 
             {/* Project name + note count */}
             {!isCollapsed && (
-              <Box sx={{ minWidth: 0, flexGrow: 1, ml: 0.5 }}>
+              <Box sx={{ minWidth: 0, flexGrow: 1, ml: 0.5, overflow: 'hidden' }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
                   <Typography
                     variant="body2"
                     noWrap
                     sx={{
-                      fontWeight: isSelected ? 700 : 500,
-                      fontSize: '0.87rem',
-                      color: isSelected ? 'text.primary' : 'text.primary',
+                      fontWeight: isSelected ? 700 : 600,
+                      fontSize: '0.88rem',
+                      color: 'text.primary',
                       letterSpacing: '-0.01em',
                       transition: 'all 0.2s ease',
                     }}
@@ -214,18 +214,18 @@ export default function SidebarProjectItem({
                     >
                       <Box
                         sx={{
-                          minWidth: 20,
-                          height: 20,
-                          borderRadius: '10px',
+                          minWidth: 22,
+                          height: 22,
+                          borderRadius: '11px',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          bgcolor: `${accentColor}20`,
+                          bgcolor: `${accentColor}18`,
                           flexShrink: 0,
-                          border: `1px solid ${accentColor}30`,
+                          border: `1px solid ${accentColor}28`,
                         }}
                       >
-                        <Typography sx={{ fontSize: '0.62rem', fontWeight: 700, color: accentColor, lineHeight: 1 }}>
+                        <Typography sx={{ fontSize: '0.65rem', fontWeight: 700, color: accentColor, lineHeight: 1 }}>
                           {notes.length}
                         </Typography>
                       </Box>
@@ -236,7 +236,13 @@ export default function SidebarProjectItem({
                   <Typography
                     variant="caption"
                     noWrap
-                    sx={{ fontSize: '0.7rem', color: 'text.disabled', display: 'block', mt: -0.1 }}
+                    sx={{
+                      fontSize: '0.72rem',
+                      color: 'text.secondary',
+                      display: 'block',
+                      mt: 0.1,
+                      opacity: 0.7,
+                    }}
                   >
                     {project.description}
                   </Typography>
@@ -252,46 +258,91 @@ export default function SidebarProjectItem({
             className="project-hover-actions"
             sx={{
               position: 'absolute',
-              right: 6,
+              right: 8,
               top: '50%',
               transform: 'translateY(-50%)',
               display: 'flex',
-              gap: 0.1,
+              gap: 0.2,
               opacity: 0,
               pointerEvents: 'none',
-              transition: 'opacity 0.15s ease',
-              bgcolor: 'background.paper',
+              transition: 'all 0.2s ease',
+              bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(26, 26, 53, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+              backdropFilter: 'blur(8px)',
               border: '1px solid',
               borderColor: 'divider',
-              borderRadius: 1.5,
-              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-              p: 0.15,
+              borderRadius: 2,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+              p: 0.25,
               zIndex: 2,
             }}
           >
-            <Tooltip title={isPinned ? 'Desfijar proyecto' : 'Fijar proyecto'}>
-              <IconButton
-                size="small"
-                onClick={(e) => { e.stopPropagation(); onTogglePin(project.id); }}
-                sx={{ p: 0.4, color: isPinned ? 'primary.main' : 'text.secondary', '&:hover': { color: 'primary.main' } }}
-              >
-                {isPinned ? <PinIcon sx={{ fontSize: 14, transform: 'rotate(45deg)' }} /> : <PinOutlinedIcon sx={{ fontSize: 14 }} />}
-              </IconButton>
+            <Tooltip title={isPinned ? 'Desfijar' : 'Fijar'} placement="top" arrow>
+              <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                <IconButton
+                  size="small"
+                  onClick={(e) => { e.stopPropagation(); onTogglePin(project.id); }}
+                  sx={{
+                    p: 0.5,
+                    color: isPinned ? 'primary.main' : 'text.secondary',
+                    borderRadius: 1.5,
+                    transition: 'all 0.15s ease',
+                    '&:hover': { bgcolor: `${accentColor}15`, color: 'primary.main' },
+                  }}
+                >
+                  {isPinned ? <PinIcon sx={{ fontSize: 15, transform: 'rotate(45deg)' }} /> : <PinOutlinedIcon sx={{ fontSize: 15 }} />}
+                </IconButton>
+              </motion.div>
             </Tooltip>
-            <Tooltip title="Compartir">
-              <IconButton size="small" onClick={(e) => { e.stopPropagation(); onShare(project, e); }} sx={{ p: 0.4, color: 'text.secondary', '&:hover': { color: 'primary.main' } }}>
-                <ShareIcon sx={{ fontSize: 14 }} />
-              </IconButton>
+            <Tooltip title="Compartir" placement="top" arrow>
+              <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                <IconButton
+                  size="small"
+                  onClick={(e) => { e.stopPropagation(); onShare(project, e); }}
+                  sx={{
+                    p: 0.5,
+                    color: 'text.secondary',
+                    borderRadius: 1.5,
+                    transition: 'all 0.15s ease',
+                    '&:hover': { bgcolor: `${accentColor}15`, color: 'primary.main' },
+                  }}
+                >
+                  <ShareIcon sx={{ fontSize: 15 }} />
+                </IconButton>
+              </motion.div>
             </Tooltip>
-            <Tooltip title="Editar">
-              <IconButton size="small" onClick={(e) => { e.stopPropagation(); onEdit(project, e); }} sx={{ p: 0.4, color: 'text.secondary', '&:hover': { color: 'primary.main' } }}>
-                <EditIcon sx={{ fontSize: 14 }} />
-              </IconButton>
+            <Tooltip title="Editar" placement="top" arrow>
+              <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                <IconButton
+                  size="small"
+                  onClick={(e) => { e.stopPropagation(); onEdit(project, e); }}
+                  sx={{
+                    p: 0.5,
+                    color: 'text.secondary',
+                    borderRadius: 1.5,
+                    transition: 'all 0.15s ease',
+                    '&:hover': { bgcolor: `${accentColor}15`, color: 'primary.main' },
+                  }}
+                >
+                  <EditIcon sx={{ fontSize: 15 }} />
+                </IconButton>
+              </motion.div>
             </Tooltip>
-            <Tooltip title="Eliminar">
-              <IconButton size="small" onClick={(e) => onDelete(project, e)} sx={{ p: 0.4, color: 'text.secondary', '&:hover': { color: 'error.main' } }}>
-                <DeleteIcon sx={{ fontSize: 14 }} />
-              </IconButton>
+            <Tooltip title="Eliminar" placement="top" arrow>
+              <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                <IconButton
+                  size="small"
+                  onClick={(e) => onDelete(project, e)}
+                  sx={{
+                    p: 0.5,
+                    color: 'text.secondary',
+                    borderRadius: 1.5,
+                    transition: 'all 0.15s ease',
+                    '&:hover': { bgcolor: 'rgba(239, 68, 68, 0.1)', color: 'error.main' },
+                  }}
+                >
+                  <DeleteIcon sx={{ fontSize: 15 }} />
+                </IconButton>
+              </motion.div>
             </Tooltip>
           </Box>
         )}
@@ -306,18 +357,18 @@ export default function SidebarProjectItem({
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.22, ease: 'easeInOut' }}
+              transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
               style={{ overflow: 'hidden' }}
             >
               <Box
                 sx={{
-                  ml: 3.8,
+                  ml: 4,
                   pl: 1.5,
-                  borderLeft: '2px solid',
-                  borderColor: `${accentColor}25`,
-                  mt: 0.3,
-                  mb: 0.8,
+                  borderLeft: `2px solid ${accentColor}30`,
+                  mt: 0.5,
+                  mb: 1,
                   pr: 0.5,
+                  '& > div:last-child': { mb: 0 },
                 }}
               >
                 {notesLoading ? (
@@ -343,39 +394,64 @@ export default function SidebarProjectItem({
                         sx={{
                           display: 'flex',
                           alignItems: 'flex-start',
-                          gap: 0.8,
+                          gap: 1,
                           px: 1.2,
-                          py: 0.7,
+                          py: 0.8,
                           borderRadius: 2,
                           cursor: 'pointer',
                           transition: 'all 0.2s ease',
-                          minHeight: 40,
+                          minHeight: 44,
+                          bgcolor: 'transparent',
                           '&:hover': {
-                            bgcolor: `${accentColor}12`,
+                            bgcolor: `${accentColor}10`,
                             transform: 'translateX(4px)',
+                            '& .note-icon': {
+                              color: accentColor,
+                              transform: 'scale(1.1)',
+                            },
                           },
                           '&:active': {
                             transform: 'scale(0.98)',
                           },
                         }}
                       >
-                        <NoteIcon sx={{ fontSize: 13, color: 'text.disabled', flexShrink: 0, mt: 0.3 }} />
+                        <NoteIcon
+                          className="note-icon"
+                          sx={{
+                            fontSize: 14,
+                            color: `${accentColor}80`,
+                            flexShrink: 0,
+                            mt: 0.25,
+                            transition: 'all 0.2s ease',
+                          }}
+                        />
                         <Box sx={{ minWidth: 0, flexGrow: 1 }}>
                           <Typography
                             variant="body2"
                             noWrap
-                            sx={{ fontSize: '0.76rem', fontWeight: 500, lineHeight: 1.3 }}
+                            sx={{
+                              fontSize: '0.78rem',
+                              fontWeight: 500,
+                              lineHeight: 1.3,
+                              color: 'text.primary',
+                            }}
                           >
                             {note.title || 'Sin título'}
                           </Typography>
                           {excerpt && (
                             <Typography
                               variant="caption"
-                              color="text.disabled"
+                              color="text.secondary"
                               noWrap
-                              sx={{ fontSize: '0.62rem', display: 'block', lineHeight: 1.2, mt: 0.1 }}
+                              sx={{
+                                fontSize: '0.65rem',
+                                display: 'block',
+                                lineHeight: 1.2,
+                                mt: 0.2,
+                                opacity: 0.7,
+                              }}
                             >
-                              {excerpt.slice(0, 50)}
+                              {excerpt.slice(0, 45)}
                             </Typography>
                           )}
                         </Box>
@@ -400,37 +476,45 @@ export default function SidebarProjectItem({
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    transition={{ delay: 0.2 }}
+                    transition={{ delay: 0.15 }}
                   >
                     <Box
                       onClick={() => onCreateNote(project.id)}
                       sx={{
                         display: 'flex',
                         alignItems: 'center',
+                        justifyContent: 'center',
                         gap: 0.8,
                         px: 1.2,
-                        py: 0.7,
+                        py: 0.8,
                         mt: 0.5,
                         borderRadius: 2,
                         cursor: 'pointer',
-                        color: 'text.disabled',
+                        color: 'text.secondary',
                         transition: 'all 0.2s ease',
-                        minHeight: 36,
+                        minHeight: 38,
                         border: '1px dashed',
-                        borderColor: 'divider',
+                        borderColor: `${accentColor}30`,
+                        bgcolor: `${accentColor}08`,
                         '&:hover': {
-                          bgcolor: `${accentColor}10`,
-                          color: 'primary.main',
-                          borderColor: `${accentColor}40`,
+                          bgcolor: `${accentColor}15`,
+                          color: accentColor,
+                          borderColor: `${accentColor}50`,
                           transform: 'translateX(4px)',
+                          '& .add-icon': {
+                            transform: 'rotate(90deg)',
+                          },
                         },
                         '&:active': {
                           transform: 'scale(0.98)',
                         },
                       }}
                     >
-                      <AddIcon sx={{ fontSize: 14 }} />
-                      <Typography variant="caption" sx={{ fontSize: '0.72rem', fontWeight: 500 }}>
+                      <AddIcon
+                        className="add-icon"
+                        sx={{ fontSize: 15, transition: 'transform 0.2s ease' }}
+                      />
+                      <Typography variant="caption" sx={{ fontSize: '0.74rem', fontWeight: 600 }}>
                         Nueva nota
                       </Typography>
                     </Box>
