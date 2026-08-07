@@ -6,6 +6,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MvcResult;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -167,6 +172,34 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
         mockMvc.perform(post("/api/auth/refresh")
                         .cookie(new Cookie("jwt", "invalid.token.value")))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void refresh_withWellFormedButWrongSignature_returnsUnauthorizedNot500() throws Exception {
+        // Regresión del bug de producción: un JWT con la estructura correcta
+        // (header.payload) pero firmado con OTRA clave lanza SignatureException
+        // en validateJwtToken. Antes del fix eso escapaba como excepción no
+        // controlada → 500 "Error interno del servidor" en lugar de 401.
+        String header = base64Url("{\"alg\":\"HS256\",\"typ\":\"JWT\"}");
+        String payload = base64Url("{\"sub\":\"nobody@test.com\",\"tv\":0,\"iat\":1,\"exp\":9999999999}");
+        String wrongSignature = hmacSha256(header + "." + payload, "clave-diferente-a-la-del-servidor");
+        String forgedToken = header + "." + payload + "." + wrongSignature;
+
+        mockMvc.perform(post("/api/auth/refresh")
+                        .cookie(new Cookie("jwt", forgedToken)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    private static String base64Url(String json) {
+        return Base64.getUrlEncoder().withoutPadding()
+                .encodeToString(json.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static String hmacSha256(String data, String key) throws Exception {
+        Mac mac = Mac.getInstance("HmacSHA256");
+        mac.init(new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+        return Base64.getUrlEncoder().withoutPadding()
+                .encodeToString(mac.doFinal(data.getBytes(StandardCharsets.UTF_8)));
     }
 
     @Test
