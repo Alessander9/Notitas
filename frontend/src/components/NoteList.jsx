@@ -257,21 +257,19 @@ export default function NoteList() {
               </motion.div>
             </Tooltip>
             <Tooltip title="Expandir panel" placement="right">
-              <motion.div whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.9 }}>
-                <IconButton
-                  size="small"
-                  onClick={() => setIsCollapsed(false)}
-                  sx={{
-                    p: 0.5,
-                    borderRadius: 1.5,
-                    bgcolor: 'action.hover',
-                    '&:hover': { bgcolor: 'primary.main', color: '#fff' },
-                    transition: 'all 0.2s ease',
-                  }}
-                >
-                  <MaximizeIcon sx={{ fontSize: 14 }} />
-                </IconButton>
-              </motion.div>
+              <IconButton
+                size="small"
+                onClick={() => setIsCollapsed(false)}
+                sx={{
+                  p: 0.8,
+                  borderRadius: 2,
+                  bgcolor: 'action.hover',
+                  '&:hover': { bgcolor: 'primary.main', color: '#fff' },
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <MaximizeIcon sx={{ fontSize: 16 }} />
+              </IconButton>
             </Tooltip>
           </Box>
         ) : (
@@ -281,8 +279,16 @@ export default function NoteList() {
                 {getHeaderTitle().toUpperCase()} ({notes.length})
               </Typography>
               <Tooltip title="Colapsar panel">
-                <IconButton size="small" onClick={() => setIsCollapsed(!isCollapsed)} sx={{ p: 0.5 }}>
-                  <Box sx={{ width: 16, height: 2, bgcolor: 'text.secondary', borderRadius: 1, transition: 'all 0.2s', transform: isCollapsed ? 'rotate(90deg)' : 'none' }} />
+                <IconButton
+                  size="small"
+                  onClick={() => setIsCollapsed(true)}
+                  sx={{
+                    p: 0.8,
+                    borderRadius: 2,
+                    '&:hover': { bgcolor: 'action.hover' },
+                  }}
+                >
+                  <Box sx={{ width: 16, height: 2, bgcolor: 'text.secondary', borderRadius: 1 }} />
                 </IconButton>
               </Tooltip>
             </Box>
