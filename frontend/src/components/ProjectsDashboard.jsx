@@ -167,54 +167,88 @@ function ProjectGridCard({ project, index, onSelect, onEdit, onShare, onDelete }
             className="project-card-actions"
             sx={{
               position: 'absolute',
-              top: 8,
-              right: 8,
+              top: 12,
+              right: 12,
               display: 'flex',
-              gap: 0.2,
+              alignItems: 'center',
+              gap: 0.5,
               opacity: 0,
               pointerEvents: 'none',
-              transition: 'opacity 0.18s ease',
-              bgcolor: 'rgba(15,15,35,0.55)',
-              backdropFilter: 'blur(10px)',
-              borderRadius: '20px',
-              p: 0.3,
+              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+              bgcolor: 'rgba(15, 15, 35, 0.85)',
+              backdropFilter: 'blur(16px) saturate(150%)',
+              borderRadius: 3,
+              p: 0.5,
               zIndex: 3,
+              boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+              border: '1px solid rgba(255,255,255,0.1)',
             }}
           >
-            <Tooltip title="Compartir proyecto">
+            <Tooltip title="Compartir proyecto" placement="bottom">
               <IconButton
                 size="small"
                 onClick={(e) => {
                   e.stopPropagation();
                   onShare(project);
                 }}
-                sx={{ color: '#fff', p: 0.7, '&:hover': { bgcolor: 'rgba(255,255,255,0.18)' } }}
+                sx={{ 
+                  color: 'rgba(255,255,255,0.8)', 
+                  p: 1, 
+                  borderRadius: 2,
+                  '&:hover': { 
+                    color: '#fff',
+                    bgcolor: 'rgba(53, 150, 181, 0.3)',
+                    transform: 'scale(1.1)',
+                  },
+                  transition: 'all 0.2s ease',
+                }}
               >
-                <ShareIcon sx={{ fontSize: 15 }} />
+                <ShareIcon sx={{ fontSize: 17 }} />
               </IconButton>
             </Tooltip>
-            <Tooltip title="Editar proyecto">
+            <Tooltip title="Editar proyecto" placement="bottom">
               <IconButton
                 size="small"
                 onClick={(e) => {
                   e.stopPropagation();
                   onEdit(project);
                 }}
-                sx={{ color: '#fff', p: 0.7, '&:hover': { bgcolor: 'rgba(255,255,255,0.18)' } }}
+                sx={{ 
+                  color: 'rgba(255,255,255,0.8)', 
+                  p: 1, 
+                  borderRadius: 2,
+                  '&:hover': { 
+                    color: '#fff',
+                    bgcolor: 'rgba(56, 108, 95, 0.35)',
+                    transform: 'scale(1.1)',
+                  },
+                  transition: 'all 0.2s ease',
+                }}
               >
-                <EditIcon sx={{ fontSize: 15 }} />
+                <EditIcon sx={{ fontSize: 17 }} />
               </IconButton>
             </Tooltip>
-            <Tooltip title="Eliminar proyecto">
+            <Box sx={{ width: 1, height: 18, bgcolor: 'rgba(255,255,255,0.2)', mx: 0.25 }} />
+            <Tooltip title="Eliminar proyecto" placement="bottom">
               <IconButton
                 size="small"
                 onClick={(e) => {
                   e.stopPropagation();
                   onDelete(project);
                 }}
-                sx={{ color: '#ff6b6b', p: 0.7, '&:hover': { bgcolor: 'rgba(255,107,107,0.2)' } }}
+                sx={{ 
+                  color: 'rgba(255, 107, 107, 0.8)', 
+                  p: 1, 
+                  borderRadius: 2,
+                  '&:hover': { 
+                    color: '#ff6b6b',
+                    bgcolor: 'rgba(255, 107, 107, 0.25)',
+                    transform: 'scale(1.1)',
+                  },
+                  transition: 'all 0.2s ease',
+                }}
               >
-                <DeleteIcon sx={{ fontSize: 15 }} />
+                <DeleteIcon sx={{ fontSize: 17 }} />
               </IconButton>
             </Tooltip>
           </Box>
@@ -694,34 +728,65 @@ export default function ProjectsDashboard() {
                     className="project-list-actions"
                     sx={{
                       position: 'absolute',
-                      right: 8,
+                      right: 12,
                       top: '50%',
                       transform: 'translateY(-50%)',
                       display: 'flex',
-                      gap: 0.2,
+                      alignItems: 'center',
+                      gap: 0.5,
                       opacity: 0,
                       pointerEvents: 'none',
-                      transition: 'opacity 0.18s ease',
-                      bgcolor: 'background.paper',
+                      transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                      bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(26, 26, 53, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+                      backdropFilter: 'blur(12px)',
                       border: '1px solid',
                       borderColor: 'divider',
-                      borderRadius: 2,
-                      boxShadow: '0 2px 10px rgba(0,0,0,0.14)',
-                      p: 0.2,
+                      borderRadius: 3,
+                      boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+                      p: 0.5,
                       zIndex: 2,
                     }}
                   >
-                    <Tooltip title="Compartir">
-                      <IconButton size="small" onClick={(e) => handleShareProject(project, e)} sx={{ p: 0.4, color: 'text.secondary', '&:hover': { color: 'primary.main' } }}>
-                        <ShareIcon sx={{ fontSize: 15 }} />
+                    <Tooltip title="Compartir" placement="top">
+                      <IconButton 
+                        size="small" 
+                        onClick={(e) => handleShareProject(project, e)} 
+                        sx={{ 
+                          p: 1, 
+                          color: 'text.secondary', 
+                          borderRadius: 2,
+                          '&:hover': { 
+                            color: 'info.main', 
+                            bgcolor: 'rgba(53, 150, 181, 0.12)',
+                            transform: 'scale(1.1)',
+                          },
+                          transition: 'all 0.2s ease',
+                        }}
+                      >
+                        <ShareIcon sx={{ fontSize: 18 }} />
                       </IconButton>
                     </Tooltip>
-                    <Tooltip title="Editar">
-                      <IconButton size="small" onClick={(e) => handleOpenEditModal(project, e)} sx={{ p: 0.4, color: 'text.secondary', '&:hover': { color: 'primary.main' } }}>
-                        <EditIcon sx={{ fontSize: 15 }} />
+                    <Tooltip title="Editar" placement="top">
+                      <IconButton 
+                        size="small" 
+                        onClick={(e) => handleOpenEditModal(project, e)} 
+                        sx={{ 
+                          p: 1, 
+                          color: 'text.secondary', 
+                          borderRadius: 2,
+                          '&:hover': { 
+                            color: 'primary.main', 
+                            bgcolor: 'rgba(56, 108, 95, 0.12)',
+                            transform: 'scale(1.1)',
+                          },
+                          transition: 'all 0.2s ease',
+                        }}
+                      >
+                        <EditIcon sx={{ fontSize: 18 }} />
                       </IconButton>
                     </Tooltip>
-                    <Tooltip title="Eliminar">
+                    <Box sx={{ width: 1, height: 20, bgcolor: 'divider', mx: 0.25 }} />
+                    <Tooltip title="Eliminar" placement="top">
                       <IconButton
                         size="small"
                         onClick={(e) => {
@@ -735,9 +800,19 @@ export default function ProjectsDashboard() {
                             onConfirm: () => deleteProjectMutation.mutate(project.id),
                           });
                         }}
-                        sx={{ p: 0.4, color: 'text.secondary', '&:hover': { color: 'error.main' } }}
+                        sx={{ 
+                          p: 1, 
+                          color: 'text.secondary', 
+                          borderRadius: 2,
+                          '&:hover': { 
+                            color: 'error.main', 
+                            bgcolor: 'rgba(239, 68, 68, 0.12)',
+                            transform: 'scale(1.1)',
+                          },
+                          transition: 'all 0.2s ease',
+                        }}
                       >
-                        <DeleteIcon sx={{ fontSize: 15 }} />
+                        <DeleteIcon sx={{ fontSize: 18 }} />
                       </IconButton>
                     </Tooltip>
                   </Box>
