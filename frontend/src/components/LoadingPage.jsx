@@ -1,8 +1,8 @@
 import React from 'react';
 import { Box, Typography, LinearProgress } from '@mui/material';
-import { EditNote as EditNoteIcon } from '@mui/icons-material';
 import { keyframes } from '@emotion/react';
 import { useUiStore } from '../store/uiStore';
+import logoImage from '../assets/logo notitas.png';
 
 const float = keyframes`
   0%, 100% { transform: translateY(0); }
@@ -50,20 +50,27 @@ export default function LoadingPage({ message = 'Preparando tu espacio de trabaj
       <Box sx={{ animation: `${float} 3s ease-in-out infinite`, '@media (prefers-reduced-motion: reduce)': { animation: 'none' } }}>
         <Box
           sx={{
-            width: 92,
-            height: 92,
-            borderRadius: '28%',
+            width: 100,
+            height: 100,
+            borderRadius: '24%',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: darkMode
-              ? 'linear-gradient(135deg, #6a968c, #386c5f)'
-              : 'linear-gradient(135deg, #386c5f, #264e44)',
             animation: `${glow} 2.6s ease-in-out infinite`,
             '@media (prefers-reduced-motion: reduce)': { animation: 'none' },
+            p: 1,
           }}
         >
-          <EditNoteIcon sx={{ fontSize: 52, color: '#ffffff' }} />
+          <img
+            src={logoImage}
+            alt="Notitas Logo"
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'contain',
+              filter: 'drop-shadow(0 4px 12px rgba(56,108,95,0.4))',
+            }}
+          />
         </Box>
       </Box>
 

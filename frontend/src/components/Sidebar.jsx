@@ -38,6 +38,7 @@ import SidebarSkeleton from './skeletons/SidebarSkeleton';
 import ProjectFormDialog, { COLOR_OPTIONS } from './ProjectFormDialog';
 import SidebarProjectItem from './SidebarProjectItem';
 import { getAssetUrl } from '../utils/text';
+import logoImage from '../assets/logo notitas.png';
 
 export default function Sidebar({ embedded = false }) {
   const { currentProjectId, setCurrentNote, setCurrentProject, setSidebarMobileOpen } = useUiStore();
@@ -416,23 +417,28 @@ const noteItemVariants = {
         >
           {!effectiveCollapsed && (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              {/* Logo para móvil */}
+              {/* Logo oficial de Notitas */}
               {embedded && (
                 <Box
                   sx={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: 2,
-                    background: 'linear-gradient(135deg, #386c5f 0%, #264e44 100%)',
+                    width: 36,
+                    height: 36,
+                    flexShrink: 0,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    boxShadow: '0 2px 8px rgba(56, 108, 95, 0.3)',
                   }}
                 >
-                  <Typography sx={{ color: '#fff', fontWeight: 900, fontSize: '1rem', lineHeight: 1 }}>
-                    N
-                  </Typography>
+                  <img
+                    src={logoImage}
+                    alt="Notitas Logo"
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'contain',
+                      filter: 'drop-shadow(0 2px 4px rgba(56,108,95,0.25))',
+                    }}
+                  />
                 </Box>
               )}
               <Typography

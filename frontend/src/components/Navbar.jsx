@@ -32,6 +32,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import CoverImage from './CoverImage';
 import ProfileDialog from './ProfileDialog';
 import { getAvatarUrl } from '../utils/text';
+import logoImage from '../assets/logo notitas.png';
 
 const Search = styled('div')(({ theme }) => ({
   position: 'relative',
@@ -205,23 +206,27 @@ export default function Navbar() {
             sx={{ display: 'flex', alignItems: 'center', gap: 1, cursor: 'pointer', minWidth: 0 }}
             onClick={() => setCurrentProject(null)}
           >
-            {/* Marca: icono con gradiente + nombre */}
+            {/* Logo oficial de Notitas */}
             <Box
               sx={{
-                width: 34,
-                height: 34,
-                borderRadius: '10px',
-                background: 'linear-gradient(135deg, #386c5f 0%, #00C9A7 100%)',
+                width: 40,
+                height: 40,
+                flexShrink: 0,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: '0 4px 14px rgba(56,108,95,0.35)',
-                flexShrink: 0,
               }}
             >
-              <Typography sx={{ color: '#fff', fontWeight: 900, fontSize: '1.05rem', lineHeight: 1 }}>
-                N
-              </Typography>
+              <img
+                src={logoImage}
+                alt="Notitas Logo"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'contain',
+                  filter: 'drop-shadow(0 2px 6px rgba(56,108,95,0.3))',
+                }}
+              />
             </Box>
             <Typography variant="h5" fontWeight="bold" color="primary" sx={{ letterSpacing: '0.5px', whiteSpace: 'nowrap' }}>
               Notitas

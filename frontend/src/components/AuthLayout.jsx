@@ -1,6 +1,7 @@
 import React from 'react';
 import { Box, Typography } from '@mui/material';
 import { motion } from 'framer-motion';
+import logoImage from '../assets/logo notitas.png';
 
 const FEATURES = [
   { icon: '📁', text: 'Organiza proyectos y notas en un solo lugar' },
@@ -108,6 +109,18 @@ export default function AuthLayout({ children }) {
         <Box sx={{ width: '100%', maxWidth: 420 }}>
           {/* Logo compacto solo en móvil */}
           <Box sx={{ textAlign: 'center', mb: 3, display: { xs: 'block', md: 'none' } }}>
+            <Box sx={{ display: 'flex', justifyContent: 'center', mb: 1.5 }}>
+              <img
+                src={logoImage}
+                alt="Notitas Logo"
+                style={{
+                  width: 64,
+                  height: 64,
+                  objectFit: 'contain',
+                  filter: 'drop-shadow(0 2px 8px rgba(56,108,95,0.3))',
+                }}
+              />
+            </Box>
             <Typography variant="h4" fontWeight={800} color="primary">
               Notitas
             </Typography>
