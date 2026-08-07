@@ -121,6 +121,13 @@ export default function ProjectFormDialog({
 }) {
   const fileRef = useRef(null);
 
+  // Los padres pasan setters de useState (setName/setDescription) directamente
+  // como onNameChange/onDescriptionChange. MUI invoca onChange(event), así que
+  // sin esta normalización el estado recibiría el objeto SyntheticEvent y
+  // name.trim() explotaría en el render (ErrorBoundary -> "Algo salió mal").
+  const handleNameChange = (e) => onNameChange(e.target.value);
+  const handleDescriptionChange = (e) => onDescriptionChange(e.target.value);
+
   return (
     <Dialog
       open={open}
@@ -198,7 +205,7 @@ export default function ProjectFormDialog({
                 required
                 autoFocus
                 value={name}
-                onChange={onNameChange}
+                onChange={handleNameChange}
                 placeholder="Ej. Plan de estudios 2026"
               />
               <TextField
@@ -208,7 +215,7 @@ export default function ProjectFormDialog({
                 minRows={2}
                 maxRows={4}
                 value={description}
-                onChange={onDescriptionChange}
+                onChange={handleDescriptionChange}
                 placeholder="¿De qué trata este proyecto?"
               />
             </Box>
