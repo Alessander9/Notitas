@@ -256,21 +256,20 @@ export default function NoteList() {
                 </Badge>
               </motion.div>
             </Tooltip>
-            <Tooltip title="Expandir panel" placement="right">
-              <IconButton
-                size="small"
-                onClick={() => setIsCollapsed(false)}
-                sx={{
-                  p: 0.8,
-                  borderRadius: 2,
-                  bgcolor: 'action.hover',
-                  '&:hover': { bgcolor: 'primary.main', color: '#fff' },
-                  transition: 'all 0.2s ease',
-                }}
-              >
-                <MaximizeIcon sx={{ fontSize: 16 }} />
-              </IconButton>
-            </Tooltip>
+            <IconButton
+              size="small"
+              onClick={() => setIsCollapsed(false)}
+              title="Expandir panel"
+              sx={{
+                p: 1,
+                borderRadius: 2,
+                bgcolor: 'action.hover',
+                '&:hover': { bgcolor: 'primary.main', color: '#fff' },
+                transition: 'all 0.2s ease',
+              }}
+            >
+              <MaximizeIcon sx={{ fontSize: 18 }} />
+            </IconButton>
           </Box>
         ) : (
           <>
