@@ -22,6 +22,10 @@ import {
   Delete as DeleteIcon,
   Restore as RestoreIcon,
   EditNote as EditNoteIcon,
+  PushPin as PinIcon,
+  PushPinOutlined as PinOutlinedIcon,
+  CalendarMonth as DateIcon,
+  Schedule as TimeIcon,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
@@ -36,6 +40,15 @@ import { getPlainText, getAssetUrl, formatRelativeTime } from '../utils/text';
 export default function NoteList() {
   const { currentProjectId, currentNoteId, setCurrentNote, searchQuery } = useUiStore();
   const queryClient = useQueryClient();
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [pinnedNotes, setPinnedNotes] = useState(() => {
+    try {
+      const stored = localStorage.getItem('pinned-notes');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
 
   // Determine API endpoint based on selected sidebar view or search
   const isProjectView = typeof currentProjectId === 'number';
@@ -159,18 +172,39 @@ export default function NoteList() {
     return 'Notas';
   };
 
+  const togglePin = (noteId) => {
+    setPinnedNotes((prev) => {
+      const next = prev.includes(noteId) ? prev.filter((id) => id !== noteId) : [...prev, noteId];
+      localStorage.setItem('pinned-notes', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  // Sort notes: pinned first, then by date
+  const sortedNotes = [...notes].sort((a, b) => {
+    const aPinned = pinnedNotes.includes(a.id);
+    const bPinned = pinnedNotes.includes(b.id);
+    if (aPinned && !bPinned) return -1;
+    if (!aPinned && bPinned) return 1;
+    return new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt);
+  });
+
   return (
+    <motion.div
+      animate={{ width: isCollapsed ? 60 : { xs: '100%', md: 320 } }}
+      transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+      style={{ height: '100%', flexShrink: 0 }}
+    >
     <Box
       sx={{
-        width: { xs: '100%', md: 320 },
-        minWidth: { md: 320 },
-        flexShrink: 0,
+        width: '100%',
         height: '100%',
         borderRight: '1px solid',
         borderColor: 'divider',
         display: 'flex',
         flexDirection: 'column',
         bgcolor: 'background.default',
+        overflow: 'hidden',
       }}
     >
       {isLoading ? (
@@ -178,22 +212,40 @@ export default function NoteList() {
       ) : (
         <>
       {/* Header */}
-      <Box sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid', borderColor: 'divider' }}>
-        <Typography variant="subtitle1" fontWeight="bold" color="text.secondary">
-          {getHeaderTitle().toUpperCase()} ({notes.length})
-        </Typography>
-
-        {isProjectView && (
-          <Button
-            size="small"
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => createNoteMutation.mutate()}
-            disabled={createNoteMutation.isPending}
-            sx={{ textTransform: 'none', borderRadius: 2, py: 0.5 }}
-          >
-            Añadir
-          </Button>
+      <Box sx={{ p: isCollapsed ? 1 : 2, display: 'flex', alignItems: 'center', justifyContent: isCollapsed ? 'center' : 'space-between', borderBottom: '1px solid', borderColor: 'divider', minHeight: 56 }}>
+        {isCollapsed ? (
+          <Tooltip title={getHeaderTitle()} placement="right">
+            <IconButton onClick={() => setIsCollapsed(false)} size="small">
+              <EditNoteIcon />
+            </IconButton>
+          </Tooltip>
+        ) : (
+          <>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="subtitle1" fontWeight="bold" color="text.secondary" sx={{ fontSize: '0.85rem' }}>
+                {getHeaderTitle().toUpperCase()} ({notes.length})
+              </Typography>
+              <Tooltip title={isCollapsed ? 'Expandir panel' : 'Colapsar panel'}>
+                <IconButton size="small" onClick={() => setIsCollapsed(!isCollapsed)} sx={{ p: 0.5 }}>
+                  <Box sx={{ width: 16, height: 2, bgcolor: 'text.secondary', borderRadius: 1, transition: 'all 0.2s', transform: isCollapsed ? 'rotate(90deg)' : 'none' }} />
+                </IconButton>
+              </Tooltip>
+            </Box>
+            {isProjectView && (
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                <Button
+                  size="small"
+                  variant="contained"
+                  startIcon={<AddIcon />}
+                  onClick={() => createNoteMutation.mutate()}
+                  disabled={createNoteMutation.isPending}
+                  sx={{ textTransform: 'none', borderRadius: 2, py: 0.5, fontSize: '0.78rem' }}
+                >
+                  Añadir
+                </Button>
+              </motion.div>
+            )}
+          </>
         )}
       </Box>
 
@@ -211,8 +263,8 @@ export default function NoteList() {
           </Box>
         ) : (
           <AnimatePresence mode="popLayout">
-            <Stack spacing={2}>
-              {notes.map((note) => {
+            <Stack spacing={isCollapsed ? 0.5 : 2}>
+              {sortedNotes.map((note) => {
                 const isSelected = currentNoteId === note.id;
                 const project = projects.find((p) => p.id === note.projectId);
                 const color = project?.color || '#386c5f';
@@ -319,8 +371,24 @@ export default function NoteList() {
                             {note.title || 'Sin Título'}
                           </Typography>
 
-                          {/* Favorite star + hover actions (trash / restore) */}
+                          {/* Favorite star + Pin + hover actions */}
                           <Box sx={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                            <Tooltip title={pinnedNotes.includes(note.id) ? 'Desfijar nota' : 'Fijar nota'}>
+                              <IconButton
+                                size="small"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  togglePin(note.id);
+                                }}
+                                sx={{ p: 0.4, flexShrink: 0 }}
+                              >
+                                {pinnedNotes.includes(note.id) ? (
+                                  <PinIcon fontSize="small" sx={{ color: 'primary.main', transform: 'rotate(45deg)' }} />
+                                ) : (
+                                  <PinOutlinedIcon fontSize="small" color="action" />
+                                )}
+                              </IconButton>
+                            </Tooltip>
                             <Tooltip title={note.favorite ? 'Quitar Favorito' : 'Marcar Favorito'}>
                               <IconButton
                                 size="small"
@@ -328,7 +396,7 @@ export default function NoteList() {
                                   e.stopPropagation();
                                   toggleFavoriteMutation.mutate({ id: note.id, favorite: note.favorite });
                                 }}
-                                sx={{ p: 0.4, ml: 0.5, flexShrink: 0 }}
+                                sx={{ p: 0.4, flexShrink: 0 }}
                               >
                                 {note.favorite ? (
                                   <StarIcon fontSize="small" sx={{ color: '#fbc02d' }} />
@@ -413,6 +481,16 @@ export default function NoteList() {
                           {getPlainText(note.content, 'Sin contenido...')}
                         </Typography>
 
+                        {/* Pinned indicator */}
+                        {pinnedNotes.includes(note.id) && (
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
+                            <PinIcon sx={{ fontSize: 12, color: 'primary.main', transform: 'rotate(45deg)' }} />
+                            <Typography variant="caption" color="primary.main" sx={{ fontSize: '0.62rem', fontWeight: 600 }}>
+                              Fijada
+                            </Typography>
+                          </Box>
+                        )}
+
                         {/* Tags (soft chips tinted with the project color) */}
                         {note.tags && note.tags.length > 0 && (
                           <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', overflow: 'hidden', mb: 1.25 }}>
@@ -452,7 +530,9 @@ export default function NoteList() {
                             justifyContent: 'space-between',
                             gap: 1,
                             mt: 'auto',
-                            pt: 0.25,
+                            pt: 0.5,
+                            borderTop: '1px solid',
+                            borderColor: 'divider',
                           }}
                         >
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
@@ -533,5 +613,6 @@ export default function NoteList() {
         </DialogActions>
       </Dialog>
     </Box>
+    </motion.div>
   );
 }

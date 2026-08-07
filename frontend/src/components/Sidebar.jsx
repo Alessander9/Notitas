@@ -111,9 +111,33 @@ export default function Sidebar({ embedded = false }) {
     },
   });
 
-  // All projects shown in the sidebar
+  // Pinned projects state (persisted in localStorage)
+  const [pinnedProjects, setPinnedProjects] = useState(() => {
+    try {
+      const stored = localStorage.getItem('pinned-projects');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const togglePinProject = (projectId) => {
+    setPinnedProjects((prev) => {
+      const next = prev.includes(projectId) ? prev.filter((id) => id !== projectId) : [...prev, projectId];
+      localStorage.setItem('pinned-projects', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  // All projects shown in the sidebar, pinned first
   const allProjects = [...projects]
-    .sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt));
+    .sort((a, b) => {
+      const aPinned = pinnedProjects.includes(a.id);
+      const bPinned = pinnedProjects.includes(b.id);
+      if (aPinned && !bPinned) return -1;
+      if (!aPinned && bPinned) return 1;
+      return new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt);
+    });
 
   const toggleProject = (id) => {
     setExpandedProjects((prev) => {
@@ -711,6 +735,8 @@ const noteItemVariants = {
                   });
                 }}
                 onCreateNote={createNoteMutation.mutate}
+                isPinned={pinnedProjects.includes(project.id)}
+                onTogglePin={togglePinProject}
               />
             ))}
           </List>

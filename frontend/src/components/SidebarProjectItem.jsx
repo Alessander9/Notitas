@@ -15,6 +15,8 @@ import {
   ChevronRight as ChevronRightIcon,
   Description as NoteIcon,
   Add as AddIcon,
+  PushPin as PinIcon,
+  PushPinOutlined as PinOutlinedIcon,
 } from '@mui/icons-material';
 import CoverImage from './CoverImage';
 import { getProjectIcon } from './ProjectFormDialog';
@@ -35,6 +37,8 @@ export default function SidebarProjectItem({
   onEdit,
   onDelete,
   onCreateNote,
+  isPinned,
+  onTogglePin,
 }) {
   const hasCover = Boolean(project.coverImage);
   const coverUrl = hasCover ? getAssetUrl(project.coverImage) : null;
@@ -265,6 +269,15 @@ export default function SidebarProjectItem({
               zIndex: 2,
             }}
           >
+            <Tooltip title={isPinned ? 'Desfijar proyecto' : 'Fijar proyecto'}>
+              <IconButton
+                size="small"
+                onClick={(e) => { e.stopPropagation(); onTogglePin(project.id); }}
+                sx={{ p: 0.4, color: isPinned ? 'primary.main' : 'text.secondary', '&:hover': { color: 'primary.main' } }}
+              >
+                {isPinned ? <PinIcon sx={{ fontSize: 14, transform: 'rotate(45deg)' }} /> : <PinOutlinedIcon sx={{ fontSize: 14 }} />}
+              </IconButton>
+            </Tooltip>
             <Tooltip title="Compartir">
               <IconButton size="small" onClick={(e) => { e.stopPropagation(); onShare(project, e); }} sx={{ p: 0.4, color: 'text.secondary', '&:hover': { color: 'primary.main' } }}>
                 <ShareIcon sx={{ fontSize: 14 }} />
