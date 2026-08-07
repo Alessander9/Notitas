@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import {
   Box,
   Typography,
@@ -8,6 +8,8 @@ import {
   ListItemText,
   InputBase,
   CircularProgress,
+  Chip,
+  Divider,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -21,6 +23,7 @@ import {
   KeyboardReturn as ReturnIcon,
   NoteAdd as NoteAddIcon,
   FolderOpen as FolderOpenIcon,
+  Bolt as ActionIcon,
 } from '@mui/icons-material';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -53,6 +56,46 @@ function Hint({ kbd, label }) {
     </Box>
   );
 }
+
+// Resalta el texto que coincide con la búsqueda
+function HighlightedText({ text, query }) {
+  if (!query) return text;
+  const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+  const parts = text.split(regex);
+  return (
+    <>
+      {parts.map((part, i) =>
+        regex.test(part) ? (
+          <Box
+            key={i}
+            component="span"
+            sx={{
+              color: 'primary.main',
+              fontWeight: 700,
+              bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(109, 74, 255, 0.2)' : 'rgba(56, 108, 95, 0.15)',
+              borderRadius: 0.5,
+              px: 0.3,
+            }}
+          >
+            {part}
+          </Box>
+        ) : (
+          part
+        )
+      )}
+    </>
+  );
+}
+
+// Animación staggered para listas
+const staggerItem = {
+  hidden: { opacity: 0, y: 8 },
+  visible: (i) => ({
+    opacity: 1,
+    y: 0,
+    transition: { delay: i * 0.03, duration: 0.2, ease: 'easeOut' },
+  }),
+};
 
 /**
  * Paleta de comandos (Ctrl/Cmd+K): busca notas y proyectos globalmente y
@@ -377,51 +420,86 @@ export default function CommandPalette() {
               {/* Resultados */}
               <Box sx={{ overflowY: 'auto', py: 1, minHeight: 120 }}>
                 {searching && trimmed ? (
-                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
-                    <CircularProgress size={22} />
+                  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 4, gap: 1.5 }}>
+                    <CircularProgress size={18} thickness={3} />
+                    <Typography variant="body2" color="text.secondary">Buscando...</Typography>
+                  </Box>
+                ) : items.length === 0 ? (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 4, gap: 1 }}>
+                    <SearchIcon sx={{ fontSize: 32, color: 'text.disabled' }} />
+                    <Typography variant="body2" color="text.secondary">
+                      Sin resultados para "{trimmed}"
+                    </Typography>
                   </Box>
                 ) : (
                   <List dense disablePadding>
                     {items.map((item, i) => (
-                      <ListItemButton
+                      <motion.div
                         key={item.key}
-                        selected={i === active}
-                        onMouseEnter={() => setActive(i)}
-                        onClick={() => {
-                          if (item.run) {
-                            setOpen(false);
-                            item.run();
-                          }
-                        }}
-                        sx={{
-                          borderRadius: 2,
-                          mx: 1,
-                          px: 1.5,
-                          py: 0.9,
-                          '&.Mui-selected': {
-                            bgcolor: 'action.selected',
-                          },
-                          '&.Mui-selected:hover': {
-                            bgcolor: 'action.selected',
-                          },
-                        }}
+                        custom={i}
+                        variants={staggerItem}
+                        initial="hidden"
+                        animate="visible"
                       >
-                        <ListItemIcon
+                        <ListItemButton
+                          selected={i === active}
+                          onMouseEnter={() => setActive(i)}
+                          onClick={() => {
+                            if (item.run) {
+                              setOpen(false);
+                              item.run();
+                            }
+                          }}
                           sx={{
-                            minWidth: 38,
-                            color: item.color || 'action',
+                            borderRadius: 2,
+                            mx: 1,
+                            px: 1.5,
+                            py: 0.9,
+                            transition: 'all 0.15s ease-out',
+                            '&.Mui-selected': {
+                              bgcolor: (theme) =>
+                                theme.palette.mode === 'dark' ? 'rgba(109, 74, 255, 0.12)' : 'rgba(56, 108, 95, 0.08)',
+                              '&:hover': {
+                                bgcolor: (theme) =>
+                                  theme.palette.mode === 'dark' ? 'rgba(109, 74, 255, 0.18)' : 'rgba(56, 108, 95, 0.12)',
+                              },
+                            },
+                            '&:hover': {
+                              transform: 'translateX(4px)',
+                            },
                           }}
                         >
-                          <Box sx={{ fontSize: '1.15rem', lineHeight: 1, display: 'flex' }}>{item.icon}</Box>
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={item.label}
-                          secondary={item.hint}
-                          primaryTypographyProps={{ fontWeight: 600, fontSize: '0.9rem', noWrap: true }}
-                          secondaryTypographyProps={{ fontSize: '0.72rem', noWrap: true }}
-                        />
-                        {i === active && <ReturnIcon sx={{ fontSize: 15, color: 'text.disabled' }} />}
-                      </ListItemButton>
+                          <ListItemIcon
+                            sx={{
+                              minWidth: 38,
+                              color: item.color || 'action',
+                            }}
+                          >
+                            <Box sx={{ fontSize: '1.15rem', lineHeight: 1, display: 'flex' }}>{item.icon}</Box>
+                          </ListItemIcon>
+                          <ListItemText
+                            primary={<HighlightedText text={item.label} query={trimmed} />}
+                            secondary={item.hint}
+                            primaryTypographyProps={{ fontWeight: 600, fontSize: '0.9rem', noWrap: true }}
+                            secondaryTypographyProps={{ fontSize: '0.72rem', noWrap: true, color: 'text.secondary' }}
+                          />
+                          {i === active && (
+                            <Box
+                              sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 0.5,
+                                px: 0.8,
+                                py: 0.3,
+                                borderRadius: 1,
+                                bgcolor: 'action.hover',
+                              }}
+                            >
+                              <ReturnIcon sx={{ fontSize: 13, color: 'text.secondary' }} />
+                            </Box>
+                          )}
+                        </ListItemButton>
+                      </motion.div>
                     ))}
                   </List>
                 )}

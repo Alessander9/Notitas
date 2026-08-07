@@ -1097,34 +1097,46 @@ export default function NoteEditor() {
               boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
             }}
           >
-            <IconButton
-              size="small"
-              onClick={() => editor.chain().focus().toggleBold().run()}
-              color={editor.isActive('bold') ? 'primary' : 'default'}
-            >
-              <BoldIcon fontSize="small" />
-            </IconButton>
-            <IconButton
-              size="small"
-              onClick={() => editor.chain().focus().toggleItalic().run()}
-              color={editor.isActive('italic') ? 'primary' : 'default'}
-            >
-              <ItalicIcon fontSize="small" />
-            </IconButton>
-            <IconButton
-              size="small"
-              onClick={() => editor.chain().focus().toggleStrike().run()}
-              color={editor.isActive('strike') ? 'primary' : 'default'}
-            >
-              <StrikeIcon fontSize="small" />
-            </IconButton>
-            <IconButton
-              size="small"
-              onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-              color={editor.isActive('codeBlock') ? 'primary' : 'default'}
-            >
-              <CodeIcon fontSize="small" />
-            </IconButton>
+            <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+              <IconButton
+                size="small"
+                onClick={() => editor.chain().focus().toggleBold().run()}
+                color={editor.isActive('bold') ? 'primary' : 'default'}
+                sx={{ transition: 'all 0.15s ease' }}
+              >
+                <BoldIcon fontSize="small" />
+              </IconButton>
+            </motion.div>
+            <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+              <IconButton
+                size="small"
+                onClick={() => editor.chain().focus().toggleItalic().run()}
+                color={editor.isActive('italic') ? 'primary' : 'default'}
+                sx={{ transition: 'all 0.15s ease' }}
+              >
+                <ItalicIcon fontSize="small" />
+              </IconButton>
+            </motion.div>
+            <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+              <IconButton
+                size="small"
+                onClick={() => editor.chain().focus().toggleStrike().run()}
+                color={editor.isActive('strike') ? 'primary' : 'default'}
+                sx={{ transition: 'all 0.15s ease' }}
+              >
+                <StrikeIcon fontSize="small" />
+              </IconButton>
+            </motion.div>
+            <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+              <IconButton
+                size="small"
+                onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+                color={editor.isActive('codeBlock') ? 'primary' : 'default'}
+                sx={{ transition: 'all 0.15s ease' }}
+              >
+                <CodeIcon fontSize="small" />
+              </IconButton>
+            </motion.div>
             <Divider orientation="vertical" flexItem />
             <IconButton
               size="small"
@@ -1229,23 +1241,51 @@ export default function NoteEditor() {
             </IconButton>
 
             {/* Auto-save status (always visible thanks to the sticky bar) */}
-            <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', pl: 1 }}>
-              <Chip
-                size="small"
-                label={saveStatus === 'saved' ? 'Guardado' : saveStatus === 'saving' ? 'Guardando...' : 'Sin guardar'}
-                color={saveStatus === 'saved' ? 'success' : saveStatus === 'saving' ? 'secondary' : 'warning'}
-                variant="outlined"
-                sx={{
-                  height: 22,
-                  fontSize: '0.66rem',
-                  '& .MuiChip-label': { px: 1 },
-                  animation: saveStatus === 'unsaved' ? 'pulse 1.5s ease-in-out infinite' : 'none',
-                  '@keyframes pulse': {
-                    '0%, 100%': { opacity: 1 },
-                    '50%': { opacity: 0.5 },
-                  },
-                }}
-              />
+            <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1, pl: 1 }}>
+              {/* Indicador de estado con animación */}
+              <motion.div
+                key={saveStatus}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+              >
+                <Chip
+                  size="small"
+                  icon={
+                    saveStatus === 'saved' ? (
+                      <motion.div
+                        initial={{ rotate: -180, scale: 0 }}
+                        animate={{ rotate: 0, scale: 1 }}
+                        transition={{ type: 'spring', stiffness: 200 }}
+                      >
+                        <CheckIcon sx={{ fontSize: 14 }} />
+                      </motion.div>
+                    ) : saveStatus === 'saving' ? (
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                      >
+                        <Box sx={{ width: 14, height: 14, borderRadius: '50%', border: '2px solid', borderColor: 'secondary.main', borderTopColor: 'transparent' }} />
+                      </motion.div>
+                    ) : null
+                  }
+                  label={saveStatus === 'saved' ? 'Guardado' : saveStatus === 'saving' ? 'Guardando...' : 'Sin guardar'}
+                  color={saveStatus === 'saved' ? 'success' : saveStatus === 'saving' ? 'secondary' : 'warning'}
+                  variant={saveStatus === 'saved' ? 'filled' : 'outlined'}
+                  sx={{
+                    height: 24,
+                    fontSize: '0.68rem',
+                    fontWeight: 600,
+                    '& .MuiChip-label': { px: 1 },
+                    transition: 'all 0.3s ease',
+                    animation: saveStatus === 'unsaved' ? 'pulse 2s ease-in-out infinite' : 'none',
+                    '@keyframes pulse': {
+                      '0%, 100%': { opacity: 1, boxShadow: 'none' },
+                      '50%': { opacity: 0.8, boxShadow: '0 0 8px rgba(245, 158, 11, 0.4)' },
+                    },
+                  }}
+                />
+              </motion.div>
             </Box>
           </Paper>
         )}
