@@ -100,12 +100,6 @@ export default function CommandPalette() {
     return () => clearTimeout(t);
   }, [query]);
 
-  // Reiniciar la selección cuando cambian los resultados
-  // (searching se incluye para re-posicionar al llegar las notas asíncronas)
-  useEffect(() => {
-    setActive(0);
-  }, [debounced, open, searching]);
-
   // Proyectos (caché compartida con sidebar/dashboard)
   const { data: projects = [] } = useQuery({
     queryKey: ['projects'],
@@ -127,6 +121,12 @@ export default function CommandPalette() {
     },
     enabled: open && trimmed.length > 0,
   });
+
+  // Reiniciar la selección cuando cambian los resultados
+  // (searching se incluye para re-posicionar al llegar las notas asíncronas)
+  useEffect(() => {
+    setActive(0);
+  }, [debounced, open, searching]);
 
   const createNote = async () => {
     if (typeof currentProjectId !== 'number') return;
