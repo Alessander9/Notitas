@@ -221,45 +221,40 @@ export default function NoteList() {
       <Box sx={{ p: isCollapsed ? 1 : 2, display: 'flex', alignItems: 'center', justifyContent: isCollapsed ? 'center' : 'space-between', borderBottom: '1px solid', borderColor: 'divider', minHeight: 56 }}>
         {isCollapsed ? (
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-            <Tooltip title={`${getHeaderTitle()} (${notes.length} notas) - Click para expandir`} placement="right">
-              <motion.div
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setIsCollapsed(false)}
-                style={{ cursor: 'pointer' }}
+            <Box
+              onClick={() => setIsCollapsed(false)}
+              sx={{ cursor: 'pointer', '&:hover': { transform: 'scale(1.05)' }, transition: 'transform 0.2s ease' }}
+            >
+              <Badge
+                badgeContent={notes.length}
+                color="primary"
+                sx={{
+                  '& .MuiBadge-badge': {
+                    fontSize: '0.6rem',
+                    height: 18,
+                    minWidth: 18,
+                    fontWeight: 700,
+                  },
+                }}
               >
-                <Badge
-                  badgeContent={notes.length}
-                  color="primary"
+                <Avatar
+                  src={user?.avatar ? getAssetUrl(user.avatar) : undefined}
                   sx={{
-                    '& .MuiBadge-badge': {
-                      fontSize: '0.6rem',
-                      height: 18,
-                      minWidth: 18,
-                      fontWeight: 700,
-                    },
+                    width: 40,
+                    height: 40,
+                    bgcolor: 'primary.main',
+                    border: '2px solid',
+                    borderColor: 'divider',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
                   }}
                 >
-                  <Avatar
-                    src={user?.avatar ? getAssetUrl(user.avatar) : undefined}
-                    sx={{
-                      width: 40,
-                      height: 40,
-                      bgcolor: 'primary.main',
-                      border: '2px solid',
-                      borderColor: 'divider',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-                    }}
-                  >
-                    {user?.name?.charAt(0)?.toUpperCase() || 'U'}
-                  </Avatar>
-                </Badge>
-              </motion.div>
-            </Tooltip>
+                  {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                </Avatar>
+              </Badge>
+            </Box>
             <IconButton
               size="small"
               onClick={() => setIsCollapsed(false)}
-              title="Expandir panel"
               sx={{
                 p: 1,
                 borderRadius: 2,
