@@ -552,10 +552,10 @@ const noteItemVariants = {
       <Divider />
 
       {/* Primary Navigation */}
-      <List dense sx={{ px: effectiveCollapsed ? 1 : 1.5, py: 1 }}>
+      <List dense sx={{ px: 1.5, py: 1 }}>
         {/* Navigation Option: Dashboard */}
         <ListItem disablePadding sx={{ mb: 0.5 }}>
-          <motion.div custom={0} variants={navItemVariants} initial="hidden" animate="visible">
+          <motion.div custom={0} variants={navItemVariants} initial="hidden" animate="visible" style={{ width: '100%' }}>
             <Tooltip title={effectiveCollapsed ? "Panel de Proyectos" : ""} placement="right">
               <ListItemButton
                 selected={currentProjectId === null}
@@ -563,7 +563,7 @@ const noteItemVariants = {
                 sx={{
                   borderRadius: 2.5,
                   justifyContent: effectiveCollapsed ? 'center' : 'flex-start',
-                  px: effectiveCollapsed ? 1.5 : 2,
+                  px: effectiveCollapsed ? 0 : 2,
                   minHeight: 44,
                   transition: 'all 0.2s ease',
                   '&.Mui-selected': {
@@ -578,7 +578,7 @@ const noteItemVariants = {
                   },
                 }}
               >
-                <ListItemIcon sx={{ minWidth: effectiveCollapsed ? 0 : 36, justifyContent: 'center' }}>
+                <ListItemIcon sx={{ minWidth: 40, justifyContent: 'center' }}>
                   <DashboardIcon sx={{ color: currentProjectId === null ? 'primary.main' : 'action.active', fontSize: 22 }} />
                 </ListItemIcon>
                 {!effectiveCollapsed && <ListItemText primary="Panel de Proyectos" primaryTypographyProps={{ fontWeight: currentProjectId === null ? 700 : 500, fontSize: '0.88rem' }} />}
@@ -589,7 +589,7 @@ const noteItemVariants = {
 
         {/* Navigation Option: Favorites */}
         <ListItem disablePadding sx={{ mb: 0.5 }}>
-          <motion.div custom={1} variants={navItemVariants} initial="hidden" animate="visible">
+          <motion.div custom={1} variants={navItemVariants} initial="hidden" animate="visible" style={{ width: '100%' }}>
             <Tooltip title={effectiveCollapsed ? "Favoritos" : ""} placement="right">
               <ListItemButton
                 selected={currentProjectId === 'favorites'}
@@ -597,7 +597,7 @@ const noteItemVariants = {
                 sx={{
                   borderRadius: 2.5,
                   justifyContent: effectiveCollapsed ? 'center' : 'flex-start',
-                  px: effectiveCollapsed ? 1.5 : 2,
+                  px: effectiveCollapsed ? 0 : 2,
                   minHeight: 44,
                   transition: 'all 0.2s ease',
                   '&.Mui-selected': {
@@ -612,7 +612,7 @@ const noteItemVariants = {
                   },
                 }}
               >
-                <ListItemIcon sx={{ minWidth: effectiveCollapsed ? 0 : 36, justifyContent: 'center' }}>
+                <ListItemIcon sx={{ minWidth: 40, justifyContent: 'center' }}>
                   <StarIcon sx={{ color: currentProjectId === 'favorites' ? '#fbc02d' : 'action.active', fontSize: 22 }} />
                 </ListItemIcon>
                 {!effectiveCollapsed && <ListItemText primary="Favoritos" primaryTypographyProps={{ fontWeight: currentProjectId === 'favorites' ? 700 : 500, fontSize: '0.88rem' }} />}
@@ -623,7 +623,7 @@ const noteItemVariants = {
 
         {/* Navigation Option: Trash */}
         <ListItem disablePadding>
-          <motion.div custom={2} variants={navItemVariants} initial="hidden" animate="visible">
+          <motion.div custom={2} variants={navItemVariants} initial="hidden" animate="visible" style={{ width: '100%' }}>
             <Tooltip title={effectiveCollapsed ? "Papelera" : ""} placement="right">
               <ListItemButton
                 selected={currentProjectId === 'trash'}
@@ -631,7 +631,7 @@ const noteItemVariants = {
                 sx={{
                   borderRadius: 2.5,
                   justifyContent: effectiveCollapsed ? 'center' : 'flex-start',
-                  px: effectiveCollapsed ? 1.5 : 2,
+                  px: effectiveCollapsed ? 0 : 2,
                   minHeight: 44,
                   transition: 'all 0.2s ease',
                   '&.Mui-selected': {
@@ -646,7 +646,7 @@ const noteItemVariants = {
                   },
                 }}
               >
-                <ListItemIcon sx={{ minWidth: effectiveCollapsed ? 0 : 36, justifyContent: 'center' }}>
+                <ListItemIcon sx={{ minWidth: 40, justifyContent: 'center' }}>
                   <TrashIcon sx={{ color: currentProjectId === 'trash' ? 'error.main' : 'action.active', fontSize: 22 }} />
                 </ListItemIcon>
                 {!effectiveCollapsed && <ListItemText primary="Papelera" primaryTypographyProps={{ fontWeight: currentProjectId === 'trash' ? 700 : 500, fontSize: '0.88rem' }} />}
@@ -702,7 +702,7 @@ const noteItemVariants = {
       )}
 
       {/* Projects List (ordered by most recent activity) */}
-      <Box sx={{ flexGrow: 1, overflowY: 'auto', px: effectiveCollapsed ? 1 : 1.5, pb: 2 }}>
+      <Box sx={{ flexGrow: 1, overflowY: 'auto', px: 1.5, pb: 2 }}>
         {projects.length === 0 ? (
           !effectiveCollapsed && (
             <Box sx={{ p: 2, textAlign: 'center' }}>
