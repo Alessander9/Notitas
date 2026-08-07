@@ -1,9 +1,34 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { NodeViewWrapper } from '@tiptap/react';
+import {
+  Box,
+  IconButton,
+  TextField,
+  Tooltip,
+  Typography,
+  Divider,
+} from '@mui/material';
+import {
+  Delete as DeleteIcon,
+  Height as ResizeIcon,
+  AspectRatio as AspectRatioIcon,
+  Close as CloseIcon,
+  Check as CheckIcon,
+  ZoomIn as ZoomInIcon,
+  ZoomOut as ZoomOutIcon,
+} from '@mui/icons-material';
 
 const MIN_WIDTH = 80;
 const MAX_WIDTH = 1400;
 const HANDLE_ZONE = 18; // área alrededor de la esquina donde el clic redimensiona
+
+// Presets de tamaño de imagen
+const SIZE_PRESETS = [
+  { label: 'Pequeña', width: 200 },
+  { label: 'Mediana', width: 400 },
+  { label: 'Grande', width: 600 },
+  { label: 'Original', width: null },
+];
 
 /**
  * NodeView para las imágenes de las notas:
@@ -12,17 +37,30 @@ const HANDLE_ZONE = 18; // área alrededor de la esquina donde el clic redimensi
  *   y la ancla en su posición actual.
  * - Redimensionar desde la esquina manteniendo las proporciones (solo
  *   cambia el ancho; el alto se deriva del ratio).
+ * - Menú flotante con opciones de redimensionar y borrar.
  * La posición/el tamaño se persisten como atributos del nodo (HTML).
  */
 export default function FloatingImageNodeView({ node, updateAttributes, selected, editor, getPos }) {
   const imgRef = useRef(null);
   const dragRef = useRef(null);
   const handlersRef = useRef(null);
+  const [showToolbar, setShowToolbar] = useState(false);
+  const [customWidth, setCustomWidth] = useState('');
 
   const { src, alt, alignment, width, left, top } = node.attrs || {};
   const isFloating = left != null && top != null;
 
   const container = editor?.view?.dom || null;
+
+  // Mostrar toolbar cuando se selecciona la imagen
+  useEffect(() => {
+    if (selected) {
+      setShowToolbar(true);
+      setCustomWidth(width ? String(width) : '');
+    } else {
+      setShowToolbar(false);
+    }
+  }, [selected, width]);
 
   // Estira el alto del lienzo para que la imagen arrastrada no quede cortada
   const bumpCanvas = (imgEl) => {
@@ -164,6 +202,49 @@ export default function FloatingImageNodeView({ node, updateAttributes, selected
     };
   }, []);
 
+  // Handlers para el toolbar
+  const handleDelete = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const pos = typeof getPos === 'function' ? getPos() : undefined;
+    if (pos != null) {
+      editor.chain().focus().deleteRange({ from: pos, to: pos + 1 }).run();
+    }
+  };
+
+  const handleResize = (newWidth) => {
+    if (newWidth === null || newWidth === '') {
+      updateAttributes({ width: null });
+    } else {
+      const w = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, parseInt(newWidth, 10)));
+      if (Number.isFinite(w)) {
+        updateAttributes({ width: w });
+      }
+    }
+  };
+
+  const handleZoomIn = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const currentWidth = width || imgRef.current?.offsetWidth || 400;
+    const newWidth = Math.min(MAX_WIDTH, currentWidth + 50);
+    updateAttributes({ width: newWidth });
+  };
+
+  const handleZoomOut = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const currentWidth = width || imgRef.current?.offsetWidth || 400;
+    const newWidth = Math.max(MIN_WIDTH, currentWidth - 50);
+    updateAttributes({ width: newWidth });
+  };
+
+  const handleApplyWidth = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    handleResize(customWidth);
+  };
+
   const className = [
     'notitas-float-img',
     !isFloating && alignment && alignment !== 'center' ? `align-${alignment}` : '',
@@ -198,6 +279,153 @@ export default function FloatingImageNodeView({ node, updateAttributes, selected
           userSelect: 'none',
         }}
       />
+      
+      {/* Toolbar flotante cuando la imagen está seleccionada */}
+      {selected && showToolbar && (
+        <Box
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+          sx={{
+            position: 'absolute',
+            top: -48,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 0.5,
+            p: 0.5,
+            bgcolor: 'rgba(15, 15, 35, 0.92)',
+            backdropFilter: 'blur(12px)',
+            borderRadius: 3,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            zIndex: 100,
+            animation: 'fadeInUp 0.15s ease-out',
+            '@keyframes fadeInUp': {
+              from: { opacity: 0, transform: 'translateX(-50%) translateY(8px)' },
+              to: { opacity: 1, transform: 'translateX(-50%) translateY(0)' },
+            },
+          }}
+        >
+          {/* Zoom out */}
+          <Tooltip title="Reducir tamaño">
+            <IconButton
+              size="small"
+              onClick={handleZoomOut}
+              sx={{ color: '#fff', p: 0.5, '&:hover': { bgcolor: 'rgba(255,255,255,0.15)' } }}
+            >
+              <ZoomOutIcon sx={{ fontSize: 18 }} />
+            </IconButton>
+          </Tooltip>
+
+          {/* Input de ancho */}
+          <TextField
+            size="small"
+            value={customWidth}
+            onChange={(e) => setCustomWidth(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleApplyWidth(e)}
+            placeholder="px"
+            sx={{
+              width: 60,
+              '& .MuiOutlinedInput-root': {
+                height: 28,
+                fontSize: '0.75rem',
+                color: '#fff',
+                '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' },
+                '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.4)' },
+                '&.Mui-focused fieldset': { borderColor: '#386c5f' },
+              },
+              '& .MuiOutlinedInput-input': {
+                p: '4px 8px',
+                textAlign: 'center',
+              },
+            }}
+          />
+          
+          {/* Apply width */}
+          <Tooltip title="Aplicar ancho">
+            <IconButton
+              size="small"
+              onClick={handleApplyWidth}
+              sx={{ color: '#fff', p: 0.5, '&:hover': { bgcolor: 'rgba(56, 108, 95, 0.5)' } }}
+            >
+              <CheckIcon sx={{ fontSize: 16 }} />
+            </IconButton>
+          </Tooltip>
+
+          {/* Zoom in */}
+          <Tooltip title="Aumentar tamaño">
+            <IconButton
+              size="small"
+              onClick={handleZoomIn}
+              sx={{ color: '#fff', p: 0.5, '&:hover': { bgcolor: 'rgba(255,255,255,0.15)' } }}
+            >
+              <ZoomInIcon sx={{ fontSize: 18 }} />
+            </IconButton>
+          </Tooltip>
+
+          <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(255,255,255,0.2)', mx: 0.25 }} />
+
+          {/* Presets de tamaño */}
+          <Tooltip title="Tamaño pequeño (200px)">
+            <IconButton
+              size="small"
+              onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleResize(200); }}
+              sx={{ color: '#fff', p: 0.5, fontSize: '0.65rem', '&:hover': { bgcolor: 'rgba(255,255,255,0.15)' } }}
+            >
+              <Typography sx={{ fontSize: '0.6rem', fontWeight: 600 }}>S</Typography>
+            </IconButton>
+          </Tooltip>
+          
+          <Tooltip title="Tamaño mediano (400px)">
+            <IconButton
+              size="small"
+              onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleResize(400); }}
+              sx={{ color: '#fff', p: 0.5, '&:hover': { bgcolor: 'rgba(255,255,255,0.15)' } }}
+            >
+              <Typography sx={{ fontSize: '0.6rem', fontWeight: 600 }}>M</Typography>
+            </IconButton>
+          </Tooltip>
+          
+          <Tooltip title="Tamaño grande (600px)">
+            <IconButton
+              size="small"
+              onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleResize(600); }}
+              sx={{ color: '#fff', p: 0.5, '&:hover': { bgcolor: 'rgba(255,255,255,0.15)' } }}
+            >
+              <Typography sx={{ fontSize: '0.6rem', fontWeight: 600 }}>L</Typography>
+            </IconButton>
+          </Tooltip>
+
+          <Tooltip title="Tamaño original">
+            <IconButton
+              size="small"
+              onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleResize(null); }}
+              sx={{ color: '#fff', p: 0.5, '&:hover': { bgcolor: 'rgba(255,255,255,0.15)' } }}
+            >
+              <AspectRatioIcon sx={{ fontSize: 16 }} />
+            </IconButton>
+          </Tooltip>
+
+          <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(255,255,255,0.2)', mx: 0.25 }} />
+
+          {/* Eliminar imagen */}
+          <Tooltip title="Eliminar imagen">
+            <IconButton
+              size="small"
+              onClick={handleDelete}
+              sx={{
+                color: '#ff6b6b',
+                p: 0.5,
+                '&:hover': { bgcolor: 'rgba(255, 107, 107, 0.25)' },
+              }}
+            >
+              <DeleteIcon sx={{ fontSize: 18 }} />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      )}
+
       {/* Asa de redimensionamiento visible cuando la imagen está seleccionada */}
       {selected && (
         <div
