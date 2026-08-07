@@ -887,7 +887,7 @@ export default function NoteEditor() {
       </Box>
 
       {/* Note Content Area */}
-      <Box sx={{ p: { xs: 2, sm: 4 }, maxWidth: 850, width: '100%', mx: 'auto' }}>
+      <Box sx={{ p: { xs: 2, sm: 4 }, pb: { xs: 12, sm: 4 }, maxWidth: 850, width: '100%', mx: 'auto' }}>
         {/* Cover Image Banner */}
         {coverUrl && (
           <Box sx={{ position: 'relative', mb: 3.5 }}>
@@ -1086,7 +1086,11 @@ export default function NoteEditor() {
               mb: 2,
               display: 'flex',
               gap: 0.25,
-              flexWrap: 'wrap',
+              flexWrap: { xs: 'nowrap', sm: 'wrap' },
+              overflowX: 'auto',
+              maxWidth: '100%',
+              scrollbarWidth: 'none',
+              '&::-webkit-scrollbar': { display: 'none' },
               borderRadius: 2.5,
               bgcolor: 'background.default',
               backdropFilter: 'blur(10px)',

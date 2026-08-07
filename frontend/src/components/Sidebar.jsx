@@ -25,6 +25,7 @@ import {
   GridView as DashboardIcon,
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
+  Close as CloseIcon,
   ViewStream as ViewStreamIcon,
   ViewDay as ViewDayIcon,
 } from '@mui/icons-material';
@@ -319,7 +320,10 @@ export default function Sidebar({ embedded = false }) {
         borderColor: 'divider',
         display: 'flex',
         flexDirection: 'column',
-        bgcolor: 'background.paper',
+        bgcolor: (theme) =>
+          theme.palette.mode === 'dark' ? 'rgba(26, 26, 53, 0.75)' : 'rgba(255, 255, 255, 0.75)',
+        backdropFilter: 'blur(18px) saturate(140%)',
+        WebkitBackdropFilter: 'blur(18px) saturate(140%)',
         position: 'relative',
         overflow: 'hidden',
       }}
@@ -349,6 +353,20 @@ export default function Sidebar({ embedded = false }) {
           <IconButton size="small" onClick={handleToggleCollapse}>
             {isCollapsed ? <ChevronRightIcon /> : <ChevronLeftIcon />}
           </IconButton>
+        )}
+        {embedded && (
+          <Tooltip title="Cerrar menú">
+            <IconButton
+              size="small"
+              onClick={() => setSidebarMobileOpen(false)}
+              sx={{
+                bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
+                '&:hover': { bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.1)' },
+              }}
+            >
+              <CloseIcon sx={{ fontSize: 18 }} />
+            </IconButton>
+          </Tooltip>
         )}
       </Box>
 

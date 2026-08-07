@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { motion } from 'framer-motion';
 import {
   AppBar,
   Toolbar,
@@ -71,7 +72,7 @@ const StyledInputBase = styled(InputBase)(({ theme }) => ({
 
 export default function Navbar() {
   const { user, logout, updateAvatar } = useAuthStore();
-  const { darkMode, toggleDarkMode, searchQuery, setSearchQuery, setCurrentProject, setShowWelcome, setWelcomeUser, setSidebarMobileOpen } = useUiStore();
+  const { darkMode, toggleDarkMode, searchQuery, setSearchQuery, setCurrentProject, setShowWelcome, setWelcomeUser, sidebarMobileOpen, setSidebarMobileOpen } = useUiStore();
   const [anchorEl, setAnchorEl] = useState(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const avatarInputRef = useRef(null);
@@ -146,15 +147,58 @@ export default function Navbar() {
   );
 
   return (
-    <AppBar position="static" color="default" elevation={1} sx={{ zIndex: 1201 }}>
+    <AppBar
+      position="static"
+      color="default"
+      elevation={0}
+      sx={{
+        zIndex: 1201,
+        bgcolor: (theme) =>
+          theme.palette.mode === 'dark' ? 'rgba(26, 26, 53, 0.75)' : 'rgba(255, 255, 255, 0.75)',
+        backdropFilter: 'blur(18px) saturate(140%)',
+        WebkitBackdropFilter: 'blur(18px) saturate(140%)',
+        borderBottom: '1px solid',
+        borderColor: 'divider',
+      }}
+    >
       <Toolbar sx={{ justifyContent: 'space-between', minHeight: '64px', flexWrap: 'wrap', py: isMobile ? 1 : 0 }}>
         {/* Fila principal: hamburguesa (móvil) + logo + acciones */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flex: 1, minWidth: 0 }}>
           {isMobile && (
-            <Tooltip title="Menú">
-              <IconButton edge="start" color="inherit" onClick={() => setSidebarMobileOpen(true)} aria-label="Abrir menú">
-                <MenuIcon />
-              </IconButton>
+            <Tooltip title={sidebarMobileOpen ? "Cerrar menú" : "Abrir menú"}>
+              <motion.div whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }}>
+                <IconButton
+                  edge="start"
+                  color="inherit"
+                  onClick={() => setSidebarMobileOpen(!sidebarMobileOpen)}
+                  aria-label="Menú de navegación"
+                  sx={{
+                    mr: 0.5,
+                    p: 1,
+                    borderRadius: '12px',
+                    bgcolor: (theme) =>
+                      sidebarMobileOpen
+                        ? (theme.palette.mode === 'dark' ? 'rgba(56, 108, 95, 0.28)' : 'rgba(56, 108, 95, 0.14)')
+                        : (theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)'),
+                    border: '1px solid',
+                    borderColor: (theme) =>
+                      sidebarMobileOpen
+                        ? 'primary.main'
+                        : (theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(230, 232, 242, 0.8)'),
+                    color: sidebarMobileOpen ? 'primary.main' : 'text.primary',
+                    boxShadow: sidebarMobileOpen ? '0 4px 14px rgba(56, 108, 95, 0.25)' : 'none',
+                    transition: 'all 0.22s cubic-bezier(0.4, 0, 0.2, 1)',
+                  }}
+                >
+                  <motion.div
+                    animate={{ rotate: sidebarMobileOpen ? 90 : 0 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    <MenuIcon sx={{ fontSize: 22 }} />
+                  </motion.div>
+                </IconButton>
+              </motion.div>
             </Tooltip>
           )}
           <Box

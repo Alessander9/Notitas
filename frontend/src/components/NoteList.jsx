@@ -162,7 +162,9 @@ export default function NoteList() {
   return (
     <Box
       sx={{
-        width: 320,
+        width: { xs: '100%', md: 320 },
+        minWidth: { md: 320 },
+        flexShrink: 0,
         height: '100%',
         borderRight: '1px solid',
         borderColor: 'divider',
@@ -196,7 +198,7 @@ export default function NoteList() {
       </Box>
 
       {/* Notes Cards List */}
-      <Box sx={{ flexGrow: 1, overflowY: 'auto', px: 2, py: 2 }}>
+      <Box sx={{ flexGrow: 1, overflowY: 'auto', px: 2, pt: 2, pb: { xs: 10, md: 2 } }}>
         {!currentProjectId ? (
           <Box sx={{ textAlign: 'center', mt: 4, color: 'text.secondary', p: 2 }}>
             <Typography variant="body2">
@@ -229,7 +231,7 @@ export default function NoteList() {
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -30 }}
                     transition={{ type: 'spring', stiffness: 200, damping: 24 }}
-                    whileHover={{ scale: 1.01 }}
+                    whileHover={{ scale: 1.01, y: -2 }}
                     whileTap={{ scale: 0.99 }}
                   >
                     <Card
@@ -249,6 +251,18 @@ export default function NoteList() {
                           : '0 1px 3px rgba(0,0,0,0.05)',
                         overflow: 'hidden',
                         position: 'relative',
+                        '&::after': !hasCover ? {
+                          content: '""',
+                          position: 'absolute',
+                          top: 0,
+                          right: 0,
+                          width: 24,
+                          height: 24,
+                          background: 'linear-gradient(225deg, transparent 50%, rgba(0,0,0,0.06) 50%)',
+                          borderBottomLeftRadius: 6,
+                          pointerEvents: 'none',
+                          zIndex: 1,
+                        } : {},
                         '&:hover .note-card-actions': { opacity: 1, pointerEvents: 'auto', visibility: 'visible' },
                         '&:hover': {
                           boxShadow: isSelected

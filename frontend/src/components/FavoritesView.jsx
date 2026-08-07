@@ -116,7 +116,7 @@ export default function FavoritesView() {
       <Box
         sx={{
           px: { xs: 2, sm: 4 },
-          pb: 4,
+          pb: { xs: 12, sm: 4 },
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
           gap: 2,

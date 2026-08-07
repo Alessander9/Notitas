@@ -49,6 +49,7 @@ import ProjectFormDialog, { COLOR_OPTIONS, getProjectIcon } from './ProjectFormD
 import FavoritesSection from './FavoritesSection';
 import CollaboratorsChip from './CollaboratorsChip';
 import { useProjectNotes } from '../hooks/useProjectNotes';
+import { useTiltHover } from '../hooks/useTiltHover';
 import { formatShortDate, getAssetUrl } from '../utils/text';
 
 // Note count pill used on project cards and list rows
@@ -78,6 +79,205 @@ function NoteCountChip({ projectId, color }) {
         {isLoading ? '…' : notes.length}
       </Box>
     </Tooltip>
+  );
+}
+
+// Componente de tarjeta individual con efecto micro-tilt 2.5D
+function ProjectGridCard({ project, index, onSelect, onEdit, onShare, onDelete }) {
+  const { rotateX, rotateY, handleMouseMove, handleMouseLeave } = useTiltHover(2.5);
+  const hasCover = Boolean(project.coverImage);
+  const coverUrl = hasCover ? getAssetUrl(project.coverImage) : null;
+
+  return (
+    <Grid item xs={12} sm={6} md={4} lg={3}>
+      <motion.div
+        layout
+        layoutId={`project-${project.id}`}
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.9 }}
+        transition={{ type: 'spring', stiffness: 200, damping: 22, delay: Math.min(index * 0.045, 0.4) }}
+        whileHover={{ y: -6, scale: 1.01 }}
+        whileTap={{ scale: 0.98 }}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        style={{
+          height: '100%',
+          rotateX,
+          rotateY,
+          transformPerspective: 900,
+        }}
+      >
+        <Card
+          variant="outlined"
+          sx={{
+            position: 'relative',
+            height: '100%',
+            borderRadius: '24px',
+            border: '1px solid',
+            borderColor: 'divider',
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+            cursor: 'pointer',
+            transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+            '&:hover': {
+              borderColor: `${project.color || '#1976d2'}88`,
+              boxShadow: `0 20px 48px ${project.color || '#1976d2'}33`,
+              '& .project-card-actions': { opacity: 1, pointerEvents: 'auto' },
+            },
+          }}
+          onClick={() => onSelect(project.id)}
+        >
+          {coverUrl ? (
+            <CoverImage
+              src={coverUrl}
+              alt={project.name}
+              objectFit="contain"
+              sx={{
+                width: '100%',
+                height: 210,
+                background: `linear-gradient(135deg, ${project.color || '#1976d2'}1F 0%, transparent 70%)`,
+                bgcolor: 'background.paper',
+              }}
+              zoomOnHover
+            />
+          ) : (
+            <Box
+              sx={{
+                position: 'relative',
+                height: 210,
+                background: `linear-gradient(135deg, ${project.color || '#1976d2'} 0%, ${project.color || '#1976d2'}cc 55%, ${project.color || '#1976d2'}66 100%)`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                overflow: 'hidden',
+              }}
+            >
+              <Box sx={{ position: 'absolute', top: -28, right: -20, width: 110, height: 110, borderRadius: '50%', bgcolor: 'rgba(255,255,255,0.14)' }} />
+              <Box sx={{ position: 'absolute', bottom: -36, left: -24, width: 120, height: 120, borderRadius: '50%', bgcolor: 'rgba(255,255,255,0.09)' }} />
+              <Typography sx={{ position: 'relative', fontSize: '3.1rem', lineHeight: 1, filter: 'drop-shadow(0 6px 14px rgba(0,0,0,0.22))' }}>
+                {getProjectIcon(project.icon)}
+              </Typography>
+            </Box>
+          )}
+
+          {/* Hover actions overlay */}
+          <Box
+            className="project-card-actions"
+            sx={{
+              position: 'absolute',
+              top: 8,
+              right: 8,
+              display: 'flex',
+              gap: 0.2,
+              opacity: 0,
+              pointerEvents: 'none',
+              transition: 'opacity 0.18s ease',
+              bgcolor: 'rgba(15,15,35,0.55)',
+              backdropFilter: 'blur(10px)',
+              borderRadius: '20px',
+              p: 0.3,
+              zIndex: 3,
+            }}
+          >
+            <Tooltip title="Compartir proyecto">
+              <IconButton
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onShare(project);
+                }}
+                sx={{ color: '#fff', p: 0.7, '&:hover': { bgcolor: 'rgba(255,255,255,0.18)' } }}
+              >
+                <ShareIcon sx={{ fontSize: 15 }} />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Editar proyecto">
+              <IconButton
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(project);
+                }}
+                sx={{ color: '#fff', p: 0.7, '&:hover': { bgcolor: 'rgba(255,255,255,0.18)' } }}
+              >
+                <EditIcon sx={{ fontSize: 15 }} />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Eliminar proyecto">
+              <IconButton
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(project);
+                }}
+                sx={{ color: '#ff6b6b', p: 0.7, '&:hover': { bgcolor: 'rgba(255,107,107,0.2)' } }}
+              >
+                <DeleteIcon sx={{ fontSize: 15 }} />
+              </IconButton>
+            </Tooltip>
+          </Box>
+
+          <CardContent sx={{ p: 2.5, flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+            <Box sx={{ width: '100%' }}>
+              {/* Icon + Title */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 1 }}>
+                <Box
+                  sx={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: '12px',
+                    bgcolor: `${project.color || '#1976d2'}1A`,
+                    boxShadow: `0 4px 12px ${project.color || '#1976d2'}26, inset 0 0 0 1px ${project.color || '#1976d2'}33`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  <Typography sx={{ fontSize: '1.45rem', lineHeight: 1 }}>
+                    {getProjectIcon(project.icon)}
+                  </Typography>
+                </Box>
+                <Typography variant="h6" fontWeight={700} noWrap sx={{ flexGrow: 1, minWidth: 0 }}>
+                  {project.name}
+                </Typography>
+              </Box>
+
+              {/* Description */}
+              {project.description && (
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{
+                    mb: 1.5,
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                    minHeight: '2.6em',
+                  }}
+                >
+                  {project.description}
+                </Typography>
+              )}
+            </Box>
+
+            {/* Footer info: Colaboradores + Total de notas + Fecha */}
+            <Box sx={{ pt: 1.5, borderTop: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
+              <CollaboratorsChip project={project} size="small" />
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <NoteCountChip projectId={project.id} color={project.color} />
+                <Typography variant="caption" color="text.secondary">
+                  {formatShortDate(project.createdAt)}
+                </Typography>
+              </Box>
+            </Box>
+          </CardContent>
+        </Card>
+      </motion.div>
+    </Grid>
   );
 }
 
@@ -188,7 +388,7 @@ export default function ProjectsDashboard() {
   };
 
   const handleOpenEditModal = (project, e) => {
-    e.stopPropagation();
+    e?.stopPropagation();
     setIsEditing(true);
     setSelectedProjectId(project.id);
     setName(project.name);
@@ -204,7 +404,7 @@ export default function ProjectsDashboard() {
   };
 
   const handleShareProject = async (project, e) => {
-    e.stopPropagation();
+    e?.stopPropagation();
     try {
       const res = await api.post(`/projects/${project.id}/invite-token`);
       setShareToken(res.data.inviteToken);
@@ -215,6 +415,17 @@ export default function ProjectsDashboard() {
       console.error('Error generating project invite token', err);
       toast.error('Error al generar el enlace de invitación del proyecto.');
     }
+  };
+
+  const handleDeleteProject = (project, e) => {
+    e?.stopPropagation();
+    confirm({
+      title: 'Eliminar Proyecto',
+      message: `¿Estás seguro de eliminar el proyecto "${project.name}"? Esta acción borrará todas sus notas asociadas.`,
+      confirmText: 'Eliminar',
+      confirmColor: 'error',
+      onConfirm: () => deleteProjectMutation.mutate(project.id),
+    });
   };
 
   const handleCopyProjectLink = () => {
@@ -275,7 +486,7 @@ export default function ProjectsDashboard() {
   });
 
   return (
-    <Box sx={{ flexGrow: 1, height: '100%', p: { xs: 2, sm: 4 }, overflowY: 'auto' }}>
+    <Box sx={{ flexGrow: 1, height: '100%', p: { xs: 2, sm: 4 }, pb: { xs: 12, sm: 4 }, overflowY: 'auto' }}>
       {/* Header section */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4, flexWrap: 'wrap', gap: 2 }}>
         <Box>
@@ -358,220 +569,22 @@ export default function ProjectsDashboard() {
         /* GRID VIEW (CUADRILLA) */
         <AnimatePresence mode="popLayout">
           <Grid container spacing={3}>
-            {filteredProjects.map((project, index) => {
-              const hasCover = Boolean(project.coverImage);
-              const coverUrl = hasCover ? getAssetUrl(project.coverImage) : null;
-
-              return (
-                <Grid item xs={12} sm={6} md={4} lg={3} key={project.id}>
-                  <motion.div
-                    layout
-                    initial={{ opacity: 0, y: 30 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
-                    // Entrada en cascada: cada tarjeta aparece un instante después de la anterior
-                    transition={{ type: 'spring', stiffness: 200, damping: 22, delay: Math.min(index * 0.045, 0.4) }}
-                    whileHover={{ y: -6, scale: 1.01 }}
-                    whileTap={{ scale: 0.98 }}
-                    style={{ height: '100%' }}
-                  >
-                    <Card
-                      variant="outlined"
-                      sx={{
-                        position: 'relative',
-                        height: '100%',
-                        borderRadius: 4,
-                        border: '1px solid',
-                        borderColor: 'divider',
-                        overflow: 'hidden',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        cursor: 'pointer',
-                        transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-                        '&:hover': {
-                          borderColor: `${project.color || '#1976d2'}88`,
-                          boxShadow: `0 14px 34px ${project.color || '#1976d2'}26`,
-                        },
-                        '&:hover .project-card-actions': { opacity: 1, pointerEvents: 'auto' },
-                      }}
-                      onClick={() => setCurrentProject(project.id)}
-                    >
-                      {/* Card Cover Image (Supports animated GIFs natively) */}
-                      {coverUrl ? (
-                        <CoverImage
-                          src={coverUrl}
-                          alt={project.name}
-                          // 'contain' muestra la imagen completa sin recortarla; el fondo tintado
-                          // hace que las franjas laterales luzcan premium e intencionales
-                          objectFit="contain"
-                          sx={{
-                            width: '100%',
-                            height: 210,
-                            background: `linear-gradient(135deg, ${project.color || '#1976d2'}1F 0%, transparent 70%)`,
-                            bgcolor: 'background.paper',
-                          }}
-                          zoomOnHover
-                        />
-                      ) : (
-                        <Box
-                          sx={{
-                            position: 'relative',
-                            height: 210,
-                            background: `linear-gradient(135deg, ${project.color || '#1976d2'} 0%, ${project.color || '#1976d2'}cc 55%, ${project.color || '#1976d2'}66 100%)`,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            overflow: 'hidden',
-                          }}
-                        >
-                          <Box sx={{ position: 'absolute', top: -28, right: -20, width: 110, height: 110, borderRadius: '50%', bgcolor: 'rgba(255,255,255,0.14)' }} />
-                          <Box sx={{ position: 'absolute', bottom: -36, left: -24, width: 120, height: 120, borderRadius: '50%', bgcolor: 'rgba(255,255,255,0.09)' }} />
-                          <Typography sx={{ position: 'relative', fontSize: '3.1rem', lineHeight: 1, filter: 'drop-shadow(0 6px 14px rgba(0,0,0,0.22))' }}>
-                            {getProjectIcon(project.icon)}
-                          </Typography>
-                        </Box>
-                      )}
-
-                      {/* Hover actions overlay */}                        <Box
-                        className="project-card-actions"
-                        sx={{
-                          position: 'absolute',
-                          top: 8,
-                          right: 8,
-                          display: 'flex',
-                          gap: 0.2,
-                          opacity: 0,
-                          pointerEvents: 'none',
-                          transition: 'opacity 0.18s ease',
-                          bgcolor: 'rgba(15,15,35,0.55)',
-                          backdropFilter: 'blur(6px)',
-                          borderRadius: 2,
-                          p: 0.2,
-                          zIndex: 2,
-                        }}
-                      >
-                        <Tooltip title="Compartir Proyecto">
-                          <IconButton size="small" onClick={(e) => handleShareProject(project, e)} sx={{ p: 0.4, color: '#fff', '&:hover': { color: 'primary.light' } }}>
-                            <ShareIcon sx={{ fontSize: 15 }} />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Editar Proyecto">
-                          <IconButton size="small" onClick={(e) => handleOpenEditModal(project, e)} sx={{ p: 0.4, color: '#fff', '&:hover': { color: 'primary.light' } }}>
-                            <EditIcon sx={{ fontSize: 15 }} />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Eliminar Proyecto">
-                          <IconButton
-                            size="small"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              confirm({
-                                title: 'Eliminar proyecto',
-                                message: `¿Seguro que deseas eliminar el proyecto "${project.name}"? Se perderán todas sus notas.`,
-                                confirmLabel: 'Eliminar',
-                                cancelLabel: 'Cancelar',
-                                color: 'error',
-                                onConfirm: () => deleteProjectMutation.mutate(project.id),
-                              });
-                            }}
-                            sx={{ p: 0.4, color: '#fff', '&:hover': { color: 'error.light' } }}
-                          >
-                            <DeleteIcon sx={{ fontSize: 15 }} />
-                          </IconButton>
-                        </Tooltip>
-                      </Box>
-
-                      <CardContent sx={{ p: 2.5, flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                        <Box sx={{ width: '100%' }}>
-                          {/* Icon + Title */}
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 1 }}>
-                            <Box
-                              sx={{
-                                width: 40,
-                                height: 40,
-                                borderRadius: '12px',
-                                bgcolor: `${project.color || '#1976d2'}1A`,
-                                boxShadow: `inset 0 0 0 1px ${project.color || '#1976d2'}26`,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                flexShrink: 0,
-                              }}
-                            >
-                              <Typography sx={{ fontSize: '1.45rem', lineHeight: 1 }}>
-                                {getProjectIcon(project.icon)}
-                              </Typography>
-                            </Box>
-                            <Typography variant="h6" fontWeight={700} noWrap sx={{ flexGrow: 1, minWidth: 0 }}>
-                              {project.name}
-                            </Typography>
-                          </Box>
-
-                          {/* Description */}
-                          <Typography
-                            variant="body2"
-                            color="text.secondary"
-                            sx={{
-                              display: '-webkit-box',
-                              WebkitLineClamp: 2,
-                              WebkitBoxOrient: 'vertical',
-                              overflow: 'hidden',
-                              minHeight: 38,
-                              fontSize: '0.8rem',
-                              lineHeight: 1.4,
-                            }}
-                          >
-                            {project.description || 'Sin descripción.'}
-                          </Typography>
-                        </Box>
-
-                        {/* Footer */}
-                        <Box sx={{ width: '100%', mt: 2 }}>
-                          <Divider sx={{ mb: 1.4, mt: 1.2 }} />
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <NoteCountChip projectId={project.id} color={project.color} />
-                              <CollaboratorsChip project={project} />
-                              <Tooltip title="Última actividad">
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.6 }}>
-                                  <ScheduleIcon sx={{ fontSize: 13, color: 'text.disabled' }} />
-                                  <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.7rem' }}>
-                                  {formatShortDate(project.updatedAt || project.createdAt)}
-                                </Typography>
-                                </Box>
-                              </Tooltip>
-                            </Box>
-
-                            {/* Avatars of Creator and Collaborators in a Stack */}
-                            <AvatarGroup max={4} sx={{ '& .MuiAvatar-root': { width: 24, height: 24, fontSize: '0.725rem' } }}>
-                              {project.creator && (
-                                <Tooltip title={`Creador: ${project.creator.name}`}>
-                                  <Avatar
-                                    alt={project.creator.name}
-                                    src={getAssetUrl(project.creator.avatar)}
-                                    sx={{ border: `2.5px solid ${project.color || '#1976d2'} !important` }}
-                                  />
-                                </Tooltip>
-                              )}
-                              {project.collaborators && project.collaborators.map((collab) => (
-                                <Tooltip key={collab.id} title={`Colaborador: ${collab.name}`}>
-                                  <Avatar
-                                    alt={collab.name}
-                                    src={getAssetUrl(collab.avatar)}
-                                  />
-                                </Tooltip>
-                              ))}
-                            </AvatarGroup>
-                          </Box>
-                        </Box>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                </Grid>
-              );
-            })}
+            {filteredProjects.map((project, index) => (
+              <ProjectGridCard
+                key={project.id}
+                project={project}
+                index={index}
+                onSelect={setCurrentProject}
+                onEdit={handleOpenEditModal}
+                onShare={handleShareProject}
+                onDelete={handleDeleteProject}
+              />
+            ))}
           </Grid>
         </AnimatePresence>
+
+
+
       ) : (
         /* LIST VIEW */
         <Card variant="outlined" sx={{ borderRadius: 3, bgcolor: 'background.paper', p: 1.25 }}>

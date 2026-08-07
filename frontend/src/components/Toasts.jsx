@@ -67,14 +67,14 @@ export default function Toasts() {
       aria-live="polite"
       sx={{
         position: 'fixed',
-        bottom: 20,
-        right: 20,
+        bottom: { xs: 88, sm: 20 },
+        right: { xs: 12, sm: 20 },
         zIndex: 10000,
         display: 'flex',
         flexDirection: 'column',
         gap: 1,
         maxWidth: 380,
-        width: 'calc(100% - 40px)',
+        width: { xs: 'calc(100% - 24px)', sm: 'calc(100% - 40px)' },
         pointerEvents: 'none',
       }}
     >

@@ -71,11 +71,28 @@ export default function Workspace() {
             ModalProps={{ keepMounted: true }}
             sx={{
               display: { xs: 'block', md: 'none' },
+              '& .MuiBackdrop-root': {
+                backdropFilter: 'blur(6px)',
+                bgcolor: (theme) =>
+                  theme.palette.mode === 'dark' ? 'rgba(10, 10, 25, 0.65)' : 'rgba(20, 30, 45, 0.28)',
+                transition: 'all 0.3s ease-out !important',
+              },
               '& .MuiDrawer-paper': {
                 width: 300,
-                bgcolor: 'background.paper',
+                bgcolor: (theme) =>
+                  theme.palette.mode === 'dark' ? 'rgba(26, 26, 53, 0.88)' : 'rgba(255, 255, 255, 0.88)',
+                backdropFilter: 'blur(24px) saturate(160%)',
+                WebkitBackdropFilter: 'blur(24px) saturate(160%)',
                 borderRight: '1px solid',
-                borderColor: 'divider',
+                borderColor: (theme) =>
+                  theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(230, 232, 242, 0.8)',
+                borderTopRightRadius: '24px',
+                borderBottomRightRadius: '24px',
+                boxShadow: (theme) =>
+                  theme.palette.mode === 'dark'
+                    ? '0 24px 60px rgba(0, 0, 0, 0.75)'
+                    : '0 24px 60px rgba(56, 108, 95, 0.22)',
+                overflow: 'hidden',
               },
             }}
           >
@@ -99,22 +116,32 @@ export default function Workspace() {
             {showDashboard && <ProjectsDashboard />}
             {showTrashList && <TrashView />}
             {showFavorites && <FavoritesView />}
-            {/* Búsqueda global: lista de resultados + editor (antes los
-                resultados nunca se mostraban: la vista caía en el editor vacío) */}
-            {showSearch && (
+            {/* Vista de Proyecto o Búsqueda / Favoritos en detalle */}
+            {!showDashboard && !showTrashList && !showFavorites && (
               <>
-                <Suspense fallback={null}>
-                  <NoteList />
-                </Suspense>
-                <Suspense fallback={null}>
-                  <NoteEditor />
-                </Suspense>
+                {/* En móvil: si no hay nota seleccionada, muestra la lista de notas; si hay nota, muestra el editor */}
+                {isMobile ? (
+                  !currentNoteId ? (
+                    <Suspense fallback={null}>
+                      <NoteList />
+                    </Suspense>
+                  ) : (
+                    <Suspense fallback={null}>
+                      <NoteEditor />
+                    </Suspense>
+                  )
+                ) : (
+                  /* En escritorio: muestra lista de notas + editor lado a lado */
+                  <>
+                    <Suspense fallback={null}>
+                      <NoteList />
+                    </Suspense>
+                    <Suspense fallback={null}>
+                      <NoteEditor />
+                    </Suspense>
+                  </>
+                )}
               </>
-            )}
-            {!showDashboard && !showTrashList && !showFavorites && !showSearch && (
-              <Suspense fallback={null}>
-                <NoteEditor />
-              </Suspense>
             )}
           </motion.div>
         </AnimatePresence>

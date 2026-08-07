@@ -87,7 +87,7 @@ export default function TrashView() {
       </Box>
 
       {/* Deleted Notes List */}
-      <Box sx={{ px: { xs: 2, sm: 4 }, pb: 4 }}>
+      <Box sx={{ px: { xs: 2, sm: 4 }, pb: { xs: 12, sm: 4 } }}>
         {deletedNotes.length > 0 && (
           <Stack spacing={2}>
             <AnimatePresence mode="popLayout">

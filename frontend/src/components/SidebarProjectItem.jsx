@@ -50,6 +50,7 @@ export default function SidebarProjectItem({
   return (
     <motion.div
       layout
+      layoutId={`project-${project.id}`}
       initial={{ opacity: 0, x: -16 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ type: 'spring', stiffness: 260, damping: 26 }}
