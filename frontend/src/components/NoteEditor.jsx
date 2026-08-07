@@ -1354,24 +1354,12 @@ export default function NoteEditor() {
                 userSelect: 'none',
                 '&:hover': { outline: 'none' },
               },
-              '& .notitas-image-selected .notitas-float-img': {
-                cursor: 'move',
+              // Todas las imágenes seleccionadas muestran indicador visual
+              '& .notitas-image-selected img': {
                 boxShadow: '0 0 0 2px #386c5f',
               },
-              // Asa de redimensionado en la esquina de la imagen seleccionada
-              '& .notitas-image-selected .notitas-float-img::after': {
-                content: '""',
-                position: 'absolute',
-                right: -7,
-                bottom: -7,
-                width: 14,
-                height: 14,
-                borderRadius: '50%',
-                background: '#386c5f',
-                border: '2px solid #fff',
-                boxShadow: '0 2px 6px rgba(0,0,0,0.35)',
-                cursor: 'nwse-resize',
-                zIndex: 5,
+              '& .notitas-image-selected .notitas-float-img': {
+                cursor: 'move',
               },
               // Table styles
               '& table': {

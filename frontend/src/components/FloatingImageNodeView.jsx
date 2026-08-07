@@ -198,6 +198,25 @@ export default function FloatingImageNodeView({ node, updateAttributes, selected
           userSelect: 'none',
         }}
       />
+      {/* Asa de redimensionamiento visible cuando la imagen está seleccionada */}
+      {selected && (
+        <div
+          style={{
+            position: 'absolute',
+            right: -8,
+            bottom: -8,
+            width: 16,
+            height: 16,
+            borderRadius: '50%',
+            background: '#386c5f',
+            border: '2px solid #fff',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+            cursor: 'nwse-resize',
+            zIndex: 10,
+            pointerEvents: 'auto',
+          }}
+        />
+      )}
     </NodeViewWrapper>
   );
 }
