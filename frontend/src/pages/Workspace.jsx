@@ -9,6 +9,7 @@ import Sidebar from '../components/Sidebar';
 import ProjectsDashboard from '../components/ProjectsDashboard';
 import TrashView from '../components/TrashView';
 import FavoritesView from '../components/FavoritesView';
+import MobileFab from '../components/MobileFab';
 
 // NoteList + NoteEditor se cargan bajo demanda: TipTap y el editor son el
 // chunk más pesado de la app y no hacen falta al abrir el dashboard.
@@ -81,6 +82,9 @@ export default function Workspace() {
             <Sidebar embedded />
           </Drawer>
         )}
+
+        {/* Acciones rápidas flotantes (solo móvil) */}
+        {isMobile && <MobileFab />}
 
         {/* Transición de vistas */}
         <AnimatePresence mode="wait" initial={false}>

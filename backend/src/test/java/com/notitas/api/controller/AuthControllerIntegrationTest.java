@@ -1,9 +1,12 @@
 package com.notitas.api.controller;
 
 import com.notitas.api.BaseIntegrationTest;
+import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MvcResult;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -116,6 +119,76 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
     @Test
     void protectedEndpoint_withInvalidToken_returnsUnauthorized() throws Exception {
         mockMvc.perform(get("/api/projects").header("Authorization", "Bearer invalid.token.value"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void me_returnsCurrentUserWithValidToken() throws Exception {
+        String token = register("me@test.com", "secret123", "Me");
+
+        mockMvc.perform(get("/api/users/me").header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value("me@test.com"))
+                .andExpect(jsonPath("$.name").value("Me"));
+    }
+
+    @Test
+    void me_withoutToken_returnsUnauthorized() throws Exception {
+        mockMvc.perform(get("/api/users/me"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void refresh_withValidCookie_renewsSessionAndSetsNewCookie() throws Exception {
+        String token = register("refresh@test.com", "secret123", "Refresh");
+
+        // Simula el navegador: el JWT viaja en la cookie httpOnly
+        MvcResult result = mockMvc.perform(post("/api/auth/refresh")
+                        .cookie(new Cookie("jwt", token)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value("refresh@test.com"))
+                .andReturn();
+
+        // Se renueva la cookie (el JWT puede ser idéntico si se genera en el
+        // mismo milisegundo, lo importante es que se vuelve a emitir)
+        Cookie renewed = result.getResponse().getCookie("jwt");
+        assertThat(renewed).isNotNull();
+        assertThat(renewed.getValue()).isNotBlank();
+        assertThat(renewed.getMaxAge()).isPositive();
+
+        // La cookie renovada funciona en un endpoint protegido (ciclo completo)
+        mockMvc.perform(get("/api/users/me").cookie(new Cookie("jwt", renewed.getValue())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value("refresh@test.com"));
+    }
+
+    @Test
+    void refresh_withInvalidToken_returnsUnauthorized() throws Exception {
+        mockMvc.perform(post("/api/auth/refresh")
+                        .cookie(new Cookie("jwt", "invalid.token.value")))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void refresh_withoutToken_returnsUnauthorized() throws Exception {
+        mockMvc.perform(post("/api/auth/refresh"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void logout_revokesAllPreviouslyIssuedTokens() throws Exception {
+        String token = register("logout@test.com", "secret123", "Logout");
+
+        // El token funciona antes del logout
+        mockMvc.perform(get("/api/projects").header("Authorization", bearer(token)))
+                .andExpect(status().isOk());
+
+        // Logout con el token en la cookie (como hace el navegador)
+        mockMvc.perform(post("/api/auth/logout").cookie(new Cookie("jwt", token)))
+                .andExpect(status().isOk());
+
+        // El token emitido antes queda revocado → 401 aunque no haya expirado
+        mockMvc.perform(get("/api/projects").header("Authorization", bearer(token)))
                 .andExpect(status().isUnauthorized());
     }
 }

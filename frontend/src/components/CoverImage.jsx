@@ -5,7 +5,7 @@ import { Box, Skeleton } from '@mui/material';
 // fade-in once ready. Use it for cover images of notes and projects.
 // `sx` applies to the wrapper (dimensions, borderRadius, shadow, etc.).
 // `fallback` (optional) renders when there is no src or the image fails.
-export default function CoverImage({ src, alt = '', sx, fallback = null, objectFit = 'cover' }) {
+export default function CoverImage({ src, alt = '', sx, fallback = null, objectFit = 'cover', zoomOnHover = false }) {
   const [currentSrc, setCurrentSrc] = useState(src);
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -20,8 +20,16 @@ export default function CoverImage({ src, alt = '', sx, fallback = null, objectF
   const showImage = Boolean(currentSrc) && !failed;
 
   return (
-    <Box sx={{ position: 'relative', overflow: 'hidden', flexShrink: 0, ...sx }}>
-      {showImage ? (
+    <Box
+      sx={{
+        position: 'relative',
+        overflow: 'hidden',
+        flexShrink: 0,
+        // Zoom suave de la imagen al pasar el cursor (detalle premium)
+        ...(zoomOnHover ? { '&:hover img': { transform: 'scale(1.07)' } } : {}),
+        ...sx,
+      }}
+    >      {showImage ? (
         <>
           {!loaded && (
             <Skeleton
@@ -47,7 +55,10 @@ export default function CoverImage({ src, alt = '', sx, fallback = null, objectF
               objectFit,
               opacity: loaded ? 1 : 0,
               pointerEvents: loaded ? 'auto' : 'none',
-              transition: 'opacity 0.35s ease-in-out',
+              transition: zoomOnHover
+                ? 'opacity 0.35s ease-in-out, transform 0.6s cubic-bezier(0.22, 1, 0.36, 1)'
+                : 'opacity 0.35s ease-in-out',
+              ...(zoomOnHover ? { willChange: 'transform' } : {}),
             }}
           />
         </>

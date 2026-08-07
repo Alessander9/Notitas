@@ -26,6 +26,14 @@ public class User {
 
     private String avatar;
 
+    /**
+     * Versión de sesión del usuario. Se incrementa al cerrar sesión para
+     * invalidar (revocar) todos los JWT emitidos anteriormente: el filtro de
+     * autenticación compara esta versión con la embebida en el token.
+     */
+    @Column(name = "token_version")
+    private int tokenVersion;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -38,12 +46,13 @@ public class User {
         this.password = password;
     }
 
-    public User(Long id, String email, String password, String name, String avatar, LocalDateTime createdAt) {
+    public User(Long id, String email, String password, String name, String avatar, int tokenVersion, LocalDateTime createdAt) {
         this.id = id;
         this.email = email;
         this.password = password;
         this.name = name;
         this.avatar = avatar;
+        this.tokenVersion = tokenVersion;
         this.createdAt = createdAt;
     }
 
@@ -69,6 +78,8 @@ public class User {
     public void setAvatar(String avatar) { this.avatar = avatar; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public int getTokenVersion() { return tokenVersion; }
+    public void setTokenVersion(int tokenVersion) { this.tokenVersion = tokenVersion; }
 
     // Simple Builder Pattern
     public static class UserBuilder {
@@ -77,6 +88,7 @@ public class User {
         private String password;
         private String name;
         private String avatar;
+        private int tokenVersion;
         private LocalDateTime createdAt;
 
         public UserBuilder id(Long id) { this.id = id; return this; }
@@ -84,10 +96,11 @@ public class User {
         public UserBuilder password(String password) { this.password = password; return this; }
         public UserBuilder name(String name) { this.name = name; return this; }
         public UserBuilder avatar(String avatar) { this.avatar = avatar; return this; }
+        public UserBuilder tokenVersion(int tokenVersion) { this.tokenVersion = tokenVersion; return this; }
         public UserBuilder createdAt(LocalDateTime createdAt) { this.createdAt = createdAt; return this; }
 
         public User build() {
-            return new User(id, email, password, name, avatar, createdAt);
+            return new User(id, email, password, name, avatar, tokenVersion, createdAt);
         }
     }
 }

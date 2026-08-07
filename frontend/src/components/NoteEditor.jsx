@@ -51,7 +51,8 @@ import {
   EditNote as EditNoteIcon,
   History as HistoryIcon,
 } from '@mui/icons-material';
-import { useEditor, EditorContent } from '@tiptap/react';
+import { useEditor, EditorContent, ReactNodeViewRenderer } from '@tiptap/react';
+import { mergeAttributes } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import Image from '@tiptap/extension-image';
@@ -71,10 +72,15 @@ import CoverImage from './CoverImage';
 import AuthorAvatars from './AuthorAvatars';
 import MemberProfileDialog from './MemberProfileDialog';
 import NoteHistoryDialog from './NoteHistoryDialog';
+import FloatingImageNodeView from './FloatingImageNodeView';
 import { getAssetUrl } from '../utils/text';
 
-// Extend TipTap Image to support alignment classes dynamically
+// Imágenes con posición libre (arrastrar a cualquier punto del lienzo) y
+// redimensionables desde la esquina (mantienen proporciones). La posición y
+// el tamaño se persisten como atributos del nodo y se serializan a style/data
+// en el HTML de la nota.
 const CustomImage = Image.extend({
+  draggable: false, // el NodeView gestiona el arrastre (evita el drag nativo de ProseMirror)
   addAttributes() {
     return {
       ...this.parent?.(),
@@ -91,7 +97,52 @@ const CustomImage = Image.extend({
           return match ? match[1] : 'center';
         },
       },
+      width: {
+        default: null,
+        parseHTML: (element) => {
+          const v = parseFloat(element.style.width);
+          return Number.isFinite(v) && v > 0 ? Math.round(v) : null;
+        },
+      },
+      left: {
+        default: null,
+        parseHTML: (element) => {
+          const v = parseFloat(element.style.left);
+          return Number.isFinite(v) ? Math.round(v) : null;
+        },
+      },
+      top: {
+        default: null,
+        parseHTML: (element) => {
+          const v = parseFloat(element.style.top);
+          return Number.isFinite(v) ? Math.round(v) : null;
+        },
+      },
+      ratio: {
+        default: null,
+        parseHTML: (element) => {
+          const v = parseFloat(element.dataset.ratio);
+          return Number.isFinite(v) && v > 0 ? v : null;
+        },
+      },
     };
+  },
+  renderHTML({ HTMLAttributes }) {
+    // `width` se extrae para que no se serialice además como atributo HTML
+    const { width, left, top, ratio, ...rest } = HTMLAttributes;
+    const style = [];
+    if (width) style.push(`width:${width}px`);
+    if (left != null) style.push(`left:${left}px`);
+    if (top != null) style.push(`top:${top}px`);
+
+    const attrs = { ...rest };
+    if (style.length) attrs.style = style.join(';');
+    if (ratio) attrs['data-ratio'] = ratio;
+    if (left != null && top != null) attrs['data-notitas-float'] = 'true';
+    return ['img', mergeAttributes(attrs)];
+  },
+  addNodeView() {
+    return ReactNodeViewRenderer(FloatingImageNodeView);
   },
 });
 
@@ -179,6 +230,23 @@ export default function NoteEditor() {
     }
   };
 
+  // Expande el alto del lienzo del editor para que las imágenes flotantes
+  // colocadas bajo el texto no queden cortadas al hacer scroll.
+  const updateCanvasHeight = (ed) => {
+    if (!ed?.view?.dom) return;
+    const dom = ed.view.dom;
+    let maxBottom = 400;
+    ed.state.doc.descendants((node) => {
+      if (node.type.name === 'image' && node.attrs.left != null && node.attrs.top != null) {
+        const w = node.attrs.width || 300;
+        const r = node.attrs.ratio || 0.66;
+        maxBottom = Math.max(maxBottom, (node.attrs.top || 0) + w * r + 48);
+      }
+    });
+    // Se recalcula siempre (también puede encoger al borrar imágenes)
+    dom.style.minHeight = `${Math.ceil(maxBottom)}px`;
+  };
+
   // Initialize TipTap Editor with all advanced extensions
   const editor = useEditor({
     extensions: [
@@ -236,6 +304,10 @@ export default function NoteEditor() {
         scheduleSave(titleRef.current, editor.getHTML());
       }
     },
+    // Mantiene el lienzo a la altura de las imágenes flotantes
+    onTransaction: ({ editor: ed }) => {
+      updateCanvasHeight(ed);
+    },
   });
 
   // Update title and editor content when note changes. El segundo argumento
@@ -249,6 +321,7 @@ export default function NoteEditor() {
       if (editor && editor.getHTML() !== note.content) {
         editor.commands.setContent(note.content || '', false);
       }
+      updateCanvasHeight(editor);
     }
   }, [note, editor]);
 
@@ -351,10 +424,22 @@ export default function NoteEditor() {
       await api.delete(`/notes/${currentNoteId}`);
     },
     onSuccess: () => {
+      const deletedNoteId = currentNoteId;
       queryClient.invalidateQueries({ queryKey: ['notes'] });
       queryClient.invalidateQueries({ queryKey: ['notes', 'trash'] });
       setCurrentNote(null);
-      toast.success('Nota movida a la papelera');
+      toast.success('Nota movida a la papelera', {
+        duration: 6000,
+        action: {
+          label: 'Deshacer',
+          onClick: () => {
+            api
+              .put(`/notes/${deletedNoteId}`, { deleted: false })
+              .then(() => queryClient.invalidateQueries({ queryKey: ['notes'] }))
+              .catch(() => {});
+          },
+        },
+      });
     },
     onError: () => toast.error('No se pudo eliminar la nota'),
   });
@@ -541,7 +626,8 @@ export default function NoteEditor() {
 
   const changeSelectedImageAlignment = (alignment) => {
     if (editor) {
-      editor.chain().focus().updateAttributes('image', { alignment }).run();
+      // Alinear devuelve la imagen al flujo del texto (limpia la posición libre)
+      editor.chain().focus().updateAttributes('image', { alignment, left: null, top: null }).run();
     }
   };
 
@@ -555,7 +641,6 @@ export default function NoteEditor() {
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          bgcolor: 'background.paper',
           color: 'text.secondary',
           gap: 2,
         }}
@@ -614,7 +699,6 @@ export default function NoteEditor() {
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        bgcolor: 'background.paper',
         overflowY: 'auto',
       }}
     >
@@ -1166,11 +1250,13 @@ export default function NoteEditor() {
         <Box
           sx={{
             minHeight: 400,
-            '& .tiptap': {
-              outline: 'none',
-              minHeight: 400,
-              fontSize: '1.05rem',
-              lineHeight: 1.75,
+    '& .tiptap': {
+      outline: 'none',
+      minHeight: 400,
+      // Lienzo de referencia para las imágenes flotantes (posición absoluta)
+      position: 'relative',
+      fontSize: '1.05rem',
+      lineHeight: 1.75,
               '& p.is-editor-empty:first-of-type::before': {
                 color: 'text.disabled',
                 content: 'attr(data-placeholder)',
@@ -1214,6 +1300,33 @@ export default function NoteEditor() {
                 '&:hover': {
                   outline: '2px solid #0288d1',
                 },
+              },
+              // Imágenes con posición libre: arrastrables y redimensionables
+              '& img.notitas-float-img': {
+                position: 'relative',
+                transition: 'none',
+                cursor: 'grab',
+                userSelect: 'none',
+                '&:hover': { outline: 'none' },
+              },
+              '& .notitas-image-selected .notitas-float-img': {
+                cursor: 'move',
+                boxShadow: '0 0 0 2px #386c5f',
+              },
+              // Asa de redimensionado en la esquina de la imagen seleccionada
+              '& .notitas-image-selected .notitas-float-img::after': {
+                content: '""',
+                position: 'absolute',
+                right: -7,
+                bottom: -7,
+                width: 14,
+                height: 14,
+                borderRadius: '50%',
+                background: '#386c5f',
+                border: '2px solid #fff',
+                boxShadow: '0 2px 6px rgba(0,0,0,0.35)',
+                cursor: 'nwse-resize',
+                zIndex: 5,
               },
               // Table styles
               '& table': {

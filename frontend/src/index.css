@@ -69,3 +69,13 @@ body,
     transform: translateY(-10px) rotate(4deg);
   }
 }
+
+/* Fundido breve al cambiar de tema claro/oscuro */
+@keyframes themeFlashFade {
+  from {
+    opacity: 0.55;
+  }
+  to {
+    opacity: 0;
+  }
+}

@@ -64,9 +64,20 @@ export default function FavoritesView() {
     mutationFn: async (id) => {
       await api.delete(`/notes/${id}`);
     },
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
       queryClient.invalidateQueries({ queryKey: ['notes'] });
-      toast.success('Nota movida a la papelera');
+      toast.success('Nota movida a la papelera', {
+        duration: 6000,
+        action: {
+          label: 'Deshacer',
+          onClick: () => {
+            api
+              .put(`/notes/${id}`, { deleted: false })
+              .then(() => queryClient.invalidateQueries({ queryKey: ['notes'] }))
+              .catch(() => {});
+          },
+        },
+      });
     },
     onError: () => toast.error('No se pudo eliminar la nota'),
   });
@@ -78,14 +89,14 @@ export default function FavoritesView() {
 
   if (isLoading) {
     return (
-      <Box sx={{ flexGrow: 1, height: '100%', bgcolor: 'background.paper', overflowY: 'auto', pt: 4 }}>
+      <Box sx={{ flexGrow: 1, height: '100%', overflowY: 'auto', pt: 4 }}>
         <CardsGridSkeleton />
       </Box>
     );
   }
 
   return (
-    <Box sx={{ flexGrow: 1, height: '100%', bgcolor: 'background.paper', overflowY: 'auto' }}>
+    <Box sx={{ flexGrow: 1, height: '100%', overflowY: 'auto' }}>
       {/* Header */}
       <Box sx={{ px: { xs: 2, sm: 4 }, pt: { xs: 2.5, sm: 4 }, pb: 2, display: 'flex', alignItems: 'center', gap: 1.5 }}>
         <StarIcon sx={{ color: '#fbc02d', fontSize: 30 }} />
@@ -149,7 +160,7 @@ export default function FavoritesView() {
                   {/* Cover / gradient header */}
                   <Box sx={{ position: 'relative', height: 110, flexShrink: 0 }}>
                     {coverUrl ? (
-                      <CoverImage src={coverUrl} alt={note.title} sx={{ width: '100%', height: '100%' }} />
+                      <CoverImage src={coverUrl} alt={note.title} sx={{ width: '100%', height: '100%' }} zoomOnHover />
                     ) : (
                       <Box
                         sx={{

@@ -229,8 +229,37 @@ DB_USER='postgres.<ref>' DB_PASSWORD='<password>' \
   fija `NOTITAS_JWT_SECRET` propio. Genera uno con:
   `openssl rand -base64 48` (en Windows:
   `node -e "console.log(require('crypto').randomBytes(48).toString('base64'))"`).
-- **Almacenamiento de sesión:** los tokens JWT viven en `localStorage`; si
-  quieres máxima seguridad, migra a cookies `httpOnly` (pendiente).
+- **Sesión:** el JWT vive en una cookie `httpOnly` (no en localStorage);
+  `localStorage` solo guarda el perfil y el flag de sesión.
+
+## Sesión y autenticación (implementado + recomendaciones)
+
+Lo implementado en el backend y el frontend:
+
+- **JWT en cookie httpOnly** (`jwt`, Secure + SameSite=None en prod, 24 h) y,
+  para clientes API, en header `Authorization: Bearer`.
+- **Renovación deslizante:** `POST /api/auth/refresh` re-emite la cookie si el
+  JWT es válido. El frontend lo llama al arrancar, cada 6 h y al volver a la
+  pestaña: la sesión ya no se corta a las 24 h mientras la app está en uso.
+- **Validación al arrancar:** `GET /api/users/me`; si la cookie expiró o fue
+  revocada, el frontend cierra sesión limpiamente (adiós al "se cierra" por
+  sesión vencida).
+- **Logout por inactividad:** componente `IdleSessionGuard` — tras 60 min sin
+  actividad avisa con un diálogo y cierra la sesión en 60 s si no hay
+  interacción. Configurable con `notitas-idle-timeout-minutes` en localStorage.
+- **Revocación real de sesiones:** campo `users.token_version` (migración `V2`)
+  embebido en el JWT (claim `tv`); el logout lo incrementa e invalida todos los
+  tokens emitidos antes, en cualquier dispositivo.
+
+Recomendaciones pendientes (Nivel 2):
+
+- **Dominio propio** (p. ej. `app.tudominio.com` + `api.tudominio.com`): la
+  cookie pasaría a ser first-party y dejaría de depender del permiso de
+  third-party cookies de cada navegador (Safari ITP, bloqueos en Chrome). Al
+  hacerlo, fija `COOKIE_SAMESITE=Lax` (o `Strict`) — la propiedad
+  `app.cookie.samesite` ya es configurable por env var.
+- **Supabase Auth** como alternativa gestionada si algún día se quiere login
+  social (OAuth); ya se usa Supabase para la BD y el storage.
 
 ## Redeploy
 

@@ -8,7 +8,9 @@ import com.notitas.api.payload.RegisterRequest;
 import com.notitas.api.repository.UserRepository;
 import com.notitas.api.security.JwtUtils;
 import com.notitas.api.security.UserDetailsImpl;
+import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,6 +41,11 @@ public class AuthController {
 
     @Value("${app.cookie.secure:false}")
     private boolean cookieSecure;
+
+    /** SameSite de la cookie JWT (None en prod cross-site; Lax/Strict si la
+     *  API y el frontend comparten dominio). Configurable por env var. */
+    @Value("${app.cookie.samesite:None}")
+    private String cookieSameSite;
 
     @PostMapping("/login")
     public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest,
@@ -80,17 +87,65 @@ public class AuthController {
         return ResponseEntity.ok(new MessageResponse("Usuario registrado exitosamente"));
     }
 
+    /**
+     * Logout con revocación real: incrementa el token_version del usuario para
+     * invalidar todos los JWT emitidos antes (esta sesión y cualquier otra
+     * copia del token), y borra la cookie. Funciona también con tokens ya
+     * expirados (solo se necesita una firma válida para identificar al usuario).
+     */
     @PostMapping("/logout")
-    public ResponseEntity<?> logoutUser(HttpServletResponse response) {
+    public ResponseEntity<?> logoutUser(HttpServletRequest request, HttpServletResponse response) {
+        String jwt = JwtUtils.extractJwt(request);
+        if (jwt != null) {
+            Claims claims = jwtUtils.parseClaimsIgnoreExpiration(jwt);
+            if (claims != null) {
+                userRepository.findByEmail(claims.getSubject()).ifPresent(user -> {
+                    user.setTokenVersion(user.getTokenVersion() + 1);
+                    userRepository.save(user);
+                });
+            }
+        }
+
         Cookie cookie = new Cookie("jwt", "");
         cookie.setPath("/");
         cookie.setHttpOnly(true);
         cookie.setMaxAge(0);
         cookie.setSecure(cookieSecure);
-        cookie.setAttribute("SameSite", cookieSecure ? "None" : "Lax");
+        cookie.setAttribute("SameSite", cookieSameSite);
         response.addCookie(cookie);
 
         return ResponseEntity.ok(new MessageResponse("Sesión cerrada exitosamente"));
+    }
+
+    /**
+     * Renovación deslizante: si la cookie JWT es válida (firma + no expirado +
+     * versión de sesión vigente), emite un JWT nuevo y renueva la cookie.
+     * El frontend lo llama al arrancar y periódicamente, así la sesión no se
+     * corta a las 24 h mientras la app está en uso. Los tokens expirados o
+     * revocados reciben 401 (el frontend cierra sesión limpiamente).
+     */
+    @PostMapping("/refresh")
+    public ResponseEntity<?> refreshSession(HttpServletRequest request, HttpServletResponse response) {
+        String jwt = JwtUtils.extractJwt(request);
+        if (jwt == null || !jwtUtils.validateJwtToken(jwt)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new MessageResponse("Sesión no válida o expirada"));
+        }
+
+        String email = jwtUtils.getUserNameFromJwtToken(jwt);
+        User user = userRepository.findByEmail(email).orElse(null);
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new MessageResponse("Usuario no encontrado"));
+        }
+        if (jwtUtils.getTokenVersionFromJwtToken(jwt) != user.getTokenVersion()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new MessageResponse("Sesión revocada"));
+        }
+
+        String newToken = jwtUtils.generateTokenFromUsername(user.getEmail(), user.getTokenVersion());
+        addJwtCookie(response, newToken);
+        return ResponseEntity.ok(new JwtResponse(newToken, user.getId(), user.getEmail(), user.getName(), user.getAvatar()));
     }
 
     private void addJwtCookie(HttpServletResponse response, String jwt) {
@@ -99,7 +154,7 @@ public class AuthController {
         cookie.setHttpOnly(true);
         cookie.setMaxAge(24 * 60 * 60); // 24 hours
         cookie.setSecure(cookieSecure);
-        cookie.setAttribute("SameSite", cookieSecure ? "None" : "Lax");
+        cookie.setAttribute("SameSite", cookieSameSite);
         response.addCookie(cookie);
     }
 }

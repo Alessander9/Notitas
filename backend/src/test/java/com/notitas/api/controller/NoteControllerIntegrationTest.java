@@ -89,7 +89,7 @@ class NoteControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(status().isOk())
                 .andReturn();
 
-        JsonNode notes = objectMapper.readTree(result.getResponse().getContentAsString());
+        JsonNode notes = objectMapper.readTree(result.getResponse().getContentAsString()).get("content");
         assertThat(notes).hasSize(2);
         assertThat(notes).anyMatch(node -> "Nota 1".equals(node.get("title").asText()));
         assertThat(notes).anyMatch(node -> "Nota 2".equals(node.get("title").asText()));
@@ -157,7 +157,7 @@ class NoteControllerIntegrationTest extends BaseIntegrationTest {
         MvcResult result = mockMvc.perform(get("/api/notes/favorites").header("Authorization", bearer(token)))
                 .andExpect(status().isOk())
                 .andReturn();
-        JsonNode favorites = objectMapper.readTree(result.getResponse().getContentAsString());
+        JsonNode favorites = objectMapper.readTree(result.getResponse().getContentAsString()).get("content");
         assertThat(favorites).hasSize(1);
         assertThat(favorites).allMatch(node -> node.get("favorite").asBoolean());
         assertThat(favorites).anyMatch(node -> "Nota favorita".equals(node.get("title").asText()));
@@ -198,7 +198,7 @@ class NoteControllerIntegrationTest extends BaseIntegrationTest {
                         .header("Authorization", bearer(memberToken)))
                 .andExpect(status().isOk())
                 .andReturn();
-        JsonNode favorites = objectMapper.readTree(favoritesResult.getResponse().getContentAsString());
+        JsonNode favorites = objectMapper.readTree(favoritesResult.getResponse().getContentAsString()).get("content");
         assertThat(favorites).hasSize(1);
         assertThat(favorites).allMatch(node -> node.get("favorite").asBoolean());
         assertThat(favorites).anyMatch(node -> "Nota del equipo".equals(node.get("title").asText()));
@@ -208,7 +208,7 @@ class NoteControllerIntegrationTest extends BaseIntegrationTest {
                         .header("Authorization", bearer(memberToken)))
                 .andExpect(status().isOk())
                 .andReturn();
-        assertThat(objectMapper.readTree(projectNotes.getResponse().getContentAsString())).hasSize(2);
+        assertThat(objectMapper.readTree(projectNotes.getResponse().getContentAsString()).get("content")).hasSize(2);
     }
 
     @Test
@@ -241,7 +241,7 @@ class NoteControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(status().isOk())
                 .andReturn();
 
-        JsonNode results = objectMapper.readTree(result.getResponse().getContentAsString());
+        JsonNode results = objectMapper.readTree(result.getResponse().getContentAsString()).get("content");
         assertThat(results).hasSize(1);
         assertThat(results.get(0).get("title").asText()).isEqualTo("Guía de Spring Boot");
     }
@@ -256,7 +256,7 @@ class NoteControllerIntegrationTest extends BaseIntegrationTest {
                         .param("query", ""))
                 .andExpect(status().isOk())
                 .andReturn();
-        JsonNode results = objectMapper.readTree(result.getResponse().getContentAsString());
+        JsonNode results = objectMapper.readTree(result.getResponse().getContentAsString()).get("content");
         assertThat(results).isEmpty();
     }
 
@@ -274,13 +274,13 @@ class NoteControllerIntegrationTest extends BaseIntegrationTest {
                         .header("Authorization", bearer(token)))
                 .andExpect(status().isOk())
                 .andReturn();
-        assertThat(objectMapper.readTree(projectResult.getResponse().getContentAsString())).isEmpty();
+        assertThat(objectMapper.readTree(projectResult.getResponse().getContentAsString()).get("content")).isEmpty();
 
         // Sí aparece en la papelera
         MvcResult trashResult = mockMvc.perform(get("/api/notes/deleted").header("Authorization", bearer(token)))
                 .andExpect(status().isOk())
                 .andReturn();
-        assertThat(objectMapper.readTree(trashResult.getResponse().getContentAsString()))
+        assertThat(objectMapper.readTree(trashResult.getResponse().getContentAsString()).get("content"))
                 .anyMatch(node -> "Nota a la papelera".equals(node.get("title").asText()));
 
         // Restaurar la nota
@@ -297,7 +297,7 @@ class NoteControllerIntegrationTest extends BaseIntegrationTest {
                         .header("Authorization", bearer(token)))
                 .andExpect(status().isOk())
                 .andReturn();
-        assertThat(objectMapper.readTree(restoredResult.getResponse().getContentAsString()))
+        assertThat(objectMapper.readTree(restoredResult.getResponse().getContentAsString()).get("content"))
                 .anyMatch(node -> "Nota a la papelera".equals(node.get("title").asText()));
     }
 
@@ -316,7 +316,7 @@ class NoteControllerIntegrationTest extends BaseIntegrationTest {
         MvcResult trashResult = mockMvc.perform(get("/api/notes/deleted").header("Authorization", bearer(token)))
                 .andExpect(status().isOk())
                 .andReturn();
-        assertThat(objectMapper.readTree(trashResult.getResponse().getContentAsString())).isEmpty();
+        assertThat(objectMapper.readTree(trashResult.getResponse().getContentAsString()).get("content")).isEmpty();
 
         expectApiError(404, "Nota no encontrada",
                 get("/api/notes/" + noteId).header("Authorization", bearer(token)));
@@ -547,7 +547,7 @@ class NoteControllerIntegrationTest extends BaseIntegrationTest {
                         .param("query", "secreta"))
                 .andExpect(status().isOk())
                 .andReturn();
-        JsonNode results = objectMapper.readTree(result.getResponse().getContentAsString());
+        JsonNode results = objectMapper.readTree(result.getResponse().getContentAsString()).get("content");
         assertThat(results).anyMatch(node -> "Nota secreta del equipo".equals(node.get("title").asText()));
     }
 

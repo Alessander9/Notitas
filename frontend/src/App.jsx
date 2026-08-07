@@ -1,6 +1,6 @@
 import React, { Suspense, useMemo } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
+import { ThemeProvider, createTheme, CssBaseline, Box } from '@mui/material';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AnimatePresence } from 'framer-motion';
 import { useUiStore } from './store/uiStore';
@@ -11,6 +11,8 @@ import WelcomeScreen from './components/WelcomeScreen';
 import Toasts from './components/Toasts';
 import ConfirmDialog from './components/ConfirmDialog';
 import ErrorBoundary from './components/ErrorBoundary';
+import IdleSessionGuard from './components/IdleSessionGuard';
+import CommandPalette from './components/CommandPalette';
 
 const Login = React.lazy(() => import('./pages/Login'));
 const Register = React.lazy(() => import('./pages/Register'));
@@ -46,11 +48,59 @@ const DARK_THEME = {
 };
 
 export default function App() {
-  const { isAuthenticated, user, forceLogout } = useAuthStore();
+  const { isAuthenticated, user, forceLogout, refreshSession } = useAuthStore();
   const { darkMode, showWelcome, welcomeKind, welcomeUser, setShowWelcome, setWelcomeUser } = useUiStore();
 
   const [booting, setBooting] = React.useState(() => !sessionStorage.getItem('notitas-booted'));
   const [exiting, setExiting] = React.useState(false);
+  const [themeFlash, setThemeFlash] = React.useState(false);
+  const prevDarkRef = React.useRef(darkMode);
+
+  // Verificación de sesión al arrancar: el estado persistido en localStorage
+  // no sabe si la cookie JWT sigue siendo válida, así que se renueva contra el
+  // servidor. Si expiró/fue revocada, se fuerza un logout limpio en vez de
+  // mostrar el workspace roto (esto provocaba el "se cierra" al usar la app
+  // con la sesión vencida).
+  const [sessionReady, setSessionReady] = React.useState(!isAuthenticated);
+
+  React.useEffect(() => {
+    if (!isAuthenticated) {
+      setSessionReady(true);
+      return undefined;
+    }
+    let cancelled = false;
+    setSessionReady(false);
+    // Renueva la cookie y valida la sesión. Si expiró/fue revocada, el
+    // interceptor de axios (401) fuerza el logout y redirige al login; los
+    // fallos transitorios de red NO destruyen la sesión local.
+    refreshSession().finally(() => {
+      if (!cancelled) setSessionReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, refreshSession]);
+
+  // Renovación deslizante: mientras haya sesión, renueva la cookie cada 6 h y
+  // al volver a la pestaña, para que la sesión no expire con la app en uso.
+  React.useEffect(() => {
+    if (!isAuthenticated) return undefined;
+    const REFRESH_MS = 6 * 60 * 60 * 1000;
+    // Solo renueva: el interceptor 401 fuerza el logout si el token expiró o
+    // fue revocado; los errores de red se reintentan en el siguiente ciclo.
+    const renew = () => {
+      refreshSession();
+    };
+    const id = setInterval(renew, REFRESH_MS);
+    const onFocus = () => {
+      if (!document.hidden) renew();
+    };
+    window.addEventListener('focus', onFocus);
+    return () => {
+      clearInterval(id);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [isAuthenticated, refreshSession]);
 
   React.useEffect(() => {
     setUnauthorizedHandler(() => forceLogout());
@@ -83,6 +133,16 @@ export default function App() {
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [booting]);
 
+  // Fundido breve al cambiar de tema: evita el cambio brusco entre
+  // modo claro/oscuro (overlay que se desvanece sobre la app).
+  React.useEffect(() => {
+    if (prevDarkRef.current === darkMode) return;
+    prevDarkRef.current = darkMode;
+    setThemeFlash(true);
+    const t = setTimeout(() => setThemeFlash(false), 500);
+    return () => clearTimeout(t);
+  }, [darkMode]);
+
   const theme = useMemo(
     () =>
       createTheme({
@@ -104,6 +164,14 @@ export default function App() {
               body: {
                 scrollbarWidth: 'thin',
                 scrollbarColor: theme.palette.mode === 'dark' ? '#2a2a4a transparent' : '#e0e6ed transparent',
+                // Fondo ambiental: glows radiales del color de marca que se
+                // asoman por las vistas transparentes (dashboard, editor…).
+                backgroundColor: theme.palette.background.default,
+                backgroundImage:
+                  theme.palette.mode === 'dark'
+                    ? 'radial-gradient(1100px 700px at 88% -10%, rgba(56,108,95,0.28), transparent 60%), radial-gradient(900px 600px at -12% 28%, rgba(0,201,167,0.12), transparent 55%), radial-gradient(1000px 700px at 45% 115%, rgba(132,94,194,0.16), transparent 60%)'
+                    : 'radial-gradient(1100px 700px at 88% -10%, rgba(56,108,95,0.12), transparent 60%), radial-gradient(900px 600px at -12% 28%, rgba(0,201,167,0.10), transparent 55%), radial-gradient(1000px 700px at 45% 115%, rgba(132,94,194,0.08), transparent 60%)',
+                transition: 'background-color 0.35s ease',
               },
             }),
           },
@@ -194,9 +262,26 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider theme={theme}>
         <CssBaseline />
+        {/* Overlay de transición de tema (se desvanece solo) */}
+        {themeFlash && (
+          <Box
+            sx={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 20000,
+              pointerEvents: 'none',
+              bgcolor: darkMode ? '#0c0c1c' : '#ffffff',
+              animation: 'themeFlashFade 0.5s ease forwards',
+            }}
+          />
+        )}
         <AnimatePresence mode="wait">
           {booting && <LoadingPage key="boot" exiting={exiting} />}
         </AnimatePresence>
+        {/* Mientras se verifica/renueva la cookie no se muestra el workspace */}
+        {!sessionReady && isAuthenticated && (
+          <LoadingPage key="session" message="Verificando tu sesión..." />
+        )}
         {showWelcome && (welcomeKind === 'logout' || isAuthenticated) && (
           <WelcomeScreen
             key={`welcome-${welcomeKind}`}
@@ -221,6 +306,8 @@ export default function App() {
         </BrowserRouter>
         <Toasts />
         <ConfirmDialog />
+        <IdleSessionGuard />
+        <CommandPalette />
       </ThemeProvider>
     </QueryClientProvider>
   );

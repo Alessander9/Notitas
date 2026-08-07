@@ -160,7 +160,7 @@ export default function Sidebar({ embedded = false }) {
       handleCloseModal();
       toast.success('Proyecto creado');
     },
-    onError: () => toast.error('No se pudo crear el proyecto'),
+    onError: (err) => toast.error(typeof err.response?.data?.message === 'string' ? err.response.data.message : 'No se pudo crear el proyecto'),
   });
 
   // Update Project Mutation
@@ -177,7 +177,7 @@ export default function Sidebar({ embedded = false }) {
       handleCloseModal();
       toast.success('Proyecto actualizado');
     },
-    onError: () => toast.error('No se pudo actualizar el proyecto'),
+    onError: (err) => toast.error(typeof err.response?.data?.message === 'string' ? err.response.data.message : 'No se pudo actualizar el proyecto'),
   });
 
   // Delete Project Mutation
@@ -218,6 +218,14 @@ export default function Sidebar({ embedded = false }) {
     setOpenModal(true);
     if (embedded) setSidebarMobileOpen(false);
   };
+
+  // Abre el diálogo de nuevo proyecto desde fuera (FAB móvil / command palette)
+  useEffect(() => {
+    const openCreate = () => handleOpenCreateModal();
+    window.addEventListener('notitas:new-project', openCreate);
+    return () => window.removeEventListener('notitas:new-project', openCreate);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleOpenEditModal = (project, e) => {
     e.stopPropagation();

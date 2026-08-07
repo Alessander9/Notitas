@@ -68,9 +68,30 @@ public class UserController {
         response.put("email", user.getEmail());
         response.put("avatar", user.getAvatar());
         // If the email changed, the old JWT (subject = old email) becomes invalid,
-        // so return a fresh token for the new email.
-        response.put("token", jwtUtils.generateTokenFromUsername(user.getEmail()));
+        // so return a fresh token for the new email (with the current session version).
+        response.put("token", jwtUtils.generateTokenFromUsername(user.getEmail(), user.getTokenVersion()));
 
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Devuelve el perfil del usuario autenticado. El frontend lo usa al arrancar
+     * para validar que la cookie JWT sigue siendo válida (un 401 aquí significa
+     * sesión expirada/revocada y dispara el logout limpio) y para sincronizar
+     * nombre/avatar si cambiaron en otro dispositivo.
+     */
+    @GetMapping("/me")
+    public ResponseEntity<?> getCurrentUser(Authentication authentication) {
+        Long userId = getUserId(authentication);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // HashMap (no Map.of): el avatar puede ser null y Map.of lanza NPE con valores null.
+        Map<String, Object> response = new HashMap<>();
+        response.put("id", user.getId());
+        response.put("email", user.getEmail());
+        response.put("name", user.getName());
+        response.put("avatar", user.getAvatar());
         return ResponseEntity.ok(response);
     }
 

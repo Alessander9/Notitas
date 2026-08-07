@@ -65,14 +65,14 @@ export default function TrashView() {
 
   if (isLoading) {
     return (
-      <Box sx={{ flexGrow: 1, height: '100%', bgcolor: 'background.paper', overflowY: 'auto', px: { xs: 2, sm: 4 }, pt: 4 }}>
+      <Box sx={{ flexGrow: 1, height: '100%', overflowY: 'auto', px: { xs: 2, sm: 4 }, pt: 4 }}>
         <RowsSkeleton />
       </Box>
     );
   }
 
   return (
-    <Box sx={{ flexGrow: 1, height: '100%', bgcolor: 'background.paper', overflowY: 'auto' }}>
+    <Box sx={{ flexGrow: 1, height: '100%', overflowY: 'auto' }}>
       {/* Header */}
       <Box sx={{ px: { xs: 2, sm: 4 }, pt: { xs: 2.5, sm: 4 }, pb: 2 }}>
         <Typography variant="h5" fontWeight={700} gutterBottom>

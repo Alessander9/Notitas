@@ -40,9 +40,20 @@ export default function FavoritesSection({ projects, projectsLoading }) {
     mutationFn: async (id) => {
       await api.delete(`/notes/${id}`);
     },
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
       queryClient.invalidateQueries({ queryKey: ['notes'] });
-      toast.success('Nota movida a la papelera');
+      toast.success('Nota movida a la papelera', {
+        duration: 6000,
+        action: {
+          label: 'Deshacer',
+          onClick: () => {
+            api
+              .put(`/notes/${id}`, { deleted: false })
+              .then(() => queryClient.invalidateQueries({ queryKey: ['notes'] }))
+              .catch(() => {});
+          },
+        },
+      });
     },
     onError: () => toast.error('No se pudo eliminar la nota'),
   });
@@ -154,7 +165,7 @@ export default function FavoritesSection({ projects, projectsLoading }) {
 
               {/* Cover */}
               {coverUrl ? (
-                <CoverImage src={coverUrl} alt={note.title} sx={{ width: '100%', height: 100 }} />
+                <CoverImage src={coverUrl} alt={note.title} sx={{ width: '100%', height: 100 }} zoomOnHover />
               ) : (
                 <Box
                   sx={{

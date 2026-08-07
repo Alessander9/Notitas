@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Box, Alert } from '@mui/material';
+import { Box, Alert, Button } from '@mui/material';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useToastStore } from '../store/toastStore';
 
@@ -22,11 +22,33 @@ function ToastItem({ toast, onDismiss }) {
         severity={toast.severity}
         variant="filled"
         onClose={onDismiss}
+        action={
+          toast.action ? (
+            <Button
+              size="small"
+              color="inherit"
+              onClick={() => {
+                toast.action.onClick();
+                onDismiss();
+              }}
+              sx={{
+                color: 'inherit',
+                fontWeight: 800,
+                textTransform: 'none',
+                fontSize: '0.78rem',
+                '&:hover': { bgcolor: 'rgba(255,255,255,0.16)' },
+              }}
+            >
+              {toast.action.label}
+            </Button>
+          ) : undefined
+        }
         sx={{
           borderRadius: 2.5,
           boxShadow: 4,
           fontWeight: 500,
           '& .MuiAlert-message': { fontSize: '0.85rem' },
+          '& .MuiAlert-action': { alignItems: 'center', pl: 1.5 },
         }}
       >
         {toast.message}

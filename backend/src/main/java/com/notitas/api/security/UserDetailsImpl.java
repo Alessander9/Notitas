@@ -16,15 +16,17 @@ public class UserDetailsImpl implements UserDetails {
     private String email;
     private String name;
     private String avatar;
+    private int tokenVersion;
 
     @JsonIgnore
     private String password;
 
-    public UserDetailsImpl(Long id, String email, String name, String avatar, String password) {
+    public UserDetailsImpl(Long id, String email, String name, String avatar, int tokenVersion, String password) {
         this.id = id;
         this.email = email;
         this.name = name;
         this.avatar = avatar;
+        this.tokenVersion = tokenVersion;
         this.password = password;
     }
 
@@ -34,6 +36,7 @@ public class UserDetailsImpl implements UserDetails {
                 user.getEmail(),
                 user.getName(),
                 user.getAvatar(),
+                user.getTokenVersion(),
                 user.getPassword()
         );
     }
@@ -52,6 +55,10 @@ public class UserDetailsImpl implements UserDetails {
 
     public String getAvatar() {
         return avatar;
+    }
+
+    public int getTokenVersion() {
+        return tokenVersion;
     }
 
     @Override

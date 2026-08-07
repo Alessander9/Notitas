@@ -48,7 +48,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         if (window.counter.incrementAndGet() > maxRequests) {
             response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
             response.setContentType("application/json");
-            response.getWriter().write("{\"message\":\"Demasiadas solicitudes. Intenta de nuevo en1 minuto.\"}");
+            response.getWriter().write("{\"message\":\"Demasiadas solicitudes. Intenta de nuevo en 1 minuto.\"}");
             return;
         }
 

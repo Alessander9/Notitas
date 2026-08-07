@@ -20,7 +20,7 @@
 |---|---|---|
 | Frontend | **React 19** + **Vite 8** | JSX (no TypeScript), `type: module` |
 | UI | **MUI v6** (`@mui/material`, `@mui/icons-material`) + **Emotion** | Tema claro/oscuro custom |
-| Editor | **TipTap 2.11** (StarterKit + tablas, checklists, imágenes con alineación, placeholder) | Contenido guardado como **HTML** |
+| Editor | **TipTap 2.11** (StarterKit + tablas, checklists, imágenes flotantes/redimensionables con NodeView, placeholder) | Contenido guardado como **HTML** (posición/tamaño de imagen en `style` + `data-*`) |
 | Estado global | **Zustand 5** | 4 stores: auth, ui, toast, confirm |
 | Datos del servidor | **TanStack React Query 5** | Cache por claves; mutaciones con invalidación |
 | Animaciones | **framer-motion 13** | Transiciones de vistas, cards, pantallas de bienvenida |
@@ -129,7 +129,8 @@
 |---|---|---|
 | POST | `/login` | Autentica, devuelve `JwtResponse` + cookie httpOnly `jwt` (24h) |
 | POST | `/register` | Crea usuario (valida email único, password ≥ 6) |
-| POST | `/logout` | Invalida la cookie `jwt` |
+| POST | `/refresh` | Renovación deslizante: re-emite la cookie si el JWT es válido y la versión coincide |
+| POST | `/logout` | Borra la cookie **y revoca el token**: incrementa `users.token_version` (invalida todos los JWT anteriores, en cualquier dispositivo) |
 
 **ProjectController** (`/api/projects`):
 | Método | Ruta | Descripción |
@@ -167,6 +168,7 @@
 **UserController** (`/api/users`):
 | Método | Ruta | Descripción |
 |---|---|---|
+| GET | `/me` | Perfil del usuario actual (valida la sesión; lo usa el frontend al arrancar) |
 | PUT | `/profile` | Actualizar nombre/email (devuelve **token nuevo** si cambió el email, porque el JWT lleva el email como subject) |
 | PUT | `/profile/password` | Cambiar contraseña (valida la actual) |
 | POST | `/profile/avatar` | Subir avatar (borra el anterior si era local) |
@@ -174,8 +176,11 @@
 ### 4.5 Seguridad
 
 - **`WebSecurityConfig`**: CSRF desactivado, sesiones **stateless**, CORS configurable por env var (`app.cors.allowed-origins`, separados por coma). Rutas públicas: `/api/auth/**`, `/api/public/**`, `/uploads/**`, `/h2-console/**`; el resto requiere autenticación. H2 console con `frameOptions: sameOrigin`.
-- **`AuthTokenFilter`**: extrae el JWT primero del header `Authorization: Bearer ...` y luego de la cookie httpOnly `jwt`.
-- **`JwtUtils`**: jjwt 0.12.6, secreto desde `app.jwt.secret` (env `NOTITAS_JWT_SECRET`), expiración `app.jwt.expiration-ms` (24h por defecto).
+- **`AuthTokenFilter`**: extrae el JWT primero del header `Authorization: Bearer ...` y luego de la cookie httpOnly `jwt`; valida que el claim `tv` (token_version) coincida con el del usuario en BD (revocación).
+- **`JwtUtils`**: jjwt 0.12.6, secreto desde `app.jwt.secret` (env `NOTITAS_JWT_SECRET`), expiración `app.jwt.expiration-ms` (24h por defecto). El JWT lleva el claim `tv` = `users.token_version`.
+- **Revocación real**: `POST /api/auth/logout` incrementa `token_version`; los JWT anteriores dejan de ser válidos al instante.
+- **Cookie SameSite configurable**: `app.cookie.samesite` (env `COOKIE_SAMESITE`) — listo para cuando la cookie pase a first-party con dominio propio.
+- **Migraciones Flyway**: `V1__initial_schema.sql` (esquema base) + `V2__add_token_version.sql` (columna `token_version`), aplicadas automáticamente al arrancar.
 - **`RateLimitFilter`**: limita login/register a **10 peticiones por IP en 60s** (ventana en memoria con `ConcurrentHashMap`; respeta `X-Forwarded-For`). Desactivable con `app.rate-limit.enabled=false` (el perfil test lo hace).
 - **`AuthEntryPointJwt`**: respuestas 401 JSON.
 - Passwords con **BCrypt** (`BCryptPasswordEncoder`).
@@ -194,7 +199,7 @@
 |---|---|---|
 | default (dev) | **H2 en memoria** (`jdbc:h2:mem:notitasdb`) | Consola H2 apagada; subida de archivos `uploads/`; JWT default en el repo (⚠️ cambiar en prod) |
 | `dev` | H2 | Habilita consola H2 + SQL logging |
-| `prod` | **PostgreSQL** (`DB_URL`, `DB_USER`, `DB_PASSWORD` desde env) | Puerto `PORT` (env), CORS por defecto `https://notitas.vercel.app`, JWT **obligatorio** (sin fallback), cookie secure, consola H2 apagada |
+| `prod` | **PostgreSQL** (`DB_URL`, `DB_USER`, `DB_PASSWORD` desde env) | Puerto `PORT` (env), CORS por defecto con los 4 dominios de producción (`CORS_ALLOWED_ORIGINS`), JWT **obligatorio** (sin fallback), cookie secure, consola H2 apagada |
 | `test` | H2 | Rate limit desactivado |
 
 **`DatabaseInitializer`** (solo perfiles ≠ prod): si la BD está vacía siembra el usuario demo **`admin@notitas.com` / `password123`**, 2 proyectos (Backend Spring Boot, Frontend React) con 3 notas HTML de ejemplo, tags y versiones iniciales.
@@ -217,6 +222,10 @@
 - `QueryClient` global (sin refetch al focus, retry: 1).
 - **Tema MUI custom**: paleta clara (primario esmeralda `#386c5f`, secundario violeta `#845EC2`, fondo `#f5f5f5`) y oscura (fondo `#0f0f23`, papel `#1a1a35`). Tipografía Inter, border radius 12, overrides de Botón (hover elevado), Card (blur/backdrop), Tooltip, inputs, etc. El tema se recrea con `useMemo` según `darkMode`.
 - **Pantalla de boot** (`LoadingPage`) durante ~1.6s la primera vez (sesión), y **WelcomeScreen** animada al hacer login/logout (3.4s, con cap de seguridad de 6s; el logout guarda una "foto" del usuario para la despedida).
+- **Validación de sesión al arrancar** (`refreshSession` → `/api/auth/refresh` + `/api/users/me`): si la cookie expiró o fue revocada, logout limpio. Renovación deslizante cada 6 h y al volver a la pestaña.
+- **Logout por inactividad** (`IdleSessionGuard`): 60 min sin actividad → diálogo "¿Sigues ahí?" → 60 s de gracia → cierra sesión (configurable con `notitas-idle-timeout-minutes`).
+- **Command palette** (`Ctrl/Cmd+K`): búsqueda global de notas/proyectos + acciones rápidas (nueva nota/proyecto, tema, favoritos, papelera) con navegación por teclado.
+- **UI premium**: fondo ambiental con glows de marca (theme-aware), transición suave al cambiar de tema, favicon/logo de marca (verde `#386c5f→#00C9A7`), zoom en portadas al hover, entrada en cascada del grid, FAB móvil (SpeedDial) y toasts con botón **Deshacer**.
 - **Rutas** (con lazy loading):
   - `/login`, `/register` → AuthLayout
   - `/join/project/:token` → JoinProject (público)
@@ -259,7 +268,7 @@ Las mutaciones invalidan con `invalidateQueries({ queryKey: ['notes'] })` (prefi
 - **ProjectsDashboard**: vista grid (cards con portada/gradiente, conteo de notas, avatares de creador+colaboradores, acciones hover compartir/editar/borrar) y vista lista (toggle persistido), filtro local por nombre/descripción, sección **Destacados** (`FavoritesSection`) arriba, estado vacío ilustrado.
 - **NoteList**: cards de notas con portada, extracto de texto plano (`getPlainText`), tags (2 máx + contador), estrella de favorito, acciones hover (papelera / restaurar / borrar definitivo), "último editor" resuelto desde los miembros del proyecto.
 - **NoteEditor**: el corazón de la app.
-  - TipTap con **StarterKit + Image custom (atributo `alignment`: left/center/right) + Table (resizable) + TaskList/TaskItem + Placeholder**.
+  - TipTap con **StarterKit + Image custom con NodeView (`FloatingImageNodeView`): arrastrar la imagen con total libertad (posición absoluta en el lienzo, el alto crece solo) + redimensionar desde la esquina manteniendo proporciones; los botones de alineación devuelven la imagen al flujo del texto + Table (resizable) + TaskList/TaskItem + Placeholder**.
   - **Autoguardado con un único debounce de 800ms** para título + contenido juntos (los valores se capturan en el cierre para no perder ediciones; se cancelan pendientes al cambiar de nota/desmontar). Indicador de estado: `Guardado / Guardando... / Sin guardar` (chip en la barra de formato sticky).
   - **Pegar/arrastrar imágenes** sube el archivo a `/notes/{id}/images` e inserta la URL.
   - Barra de formato sticky: negrita, cursiva, tachado, código, H1, listas, checklist, **menú de tablas** (insertar 3x3, filas, columnas, borrar), alineación de imagen, subir imagen, undo/redo.
@@ -274,8 +283,13 @@ Las mutaciones invalidan con `invalidateQueries({ queryKey: ['notes'] })` (prefi
 - **ProfileDialog**: pestañas Perfil (nombre/email, aviso si cambia el email) y Contraseña (con mostrar/ocultar, validaciones).
 - **ProjectFormDialog**: formulario de proyecto con 25 colores, **35 iconos emoji**, portada con vista previa (JPG/PNG/GIF, máx 10MB), cabecera degradada con el color elegido.
 - **MemberProfileDialog**: perfil del miembro al hacer clic en un avatar.
-- **Toasts / ConfirmDialog**: notificaciones y confirmación global (con framer-motion).
-- **CoverImage**: imagen con fallback de color + icono (soporta GIF).
+- **Toasts / ConfirmDialog**: notificaciones y confirmación global (con framer-motion); los toasts admiten una **acción** (p. ej. botón "Deshacer" al mover una nota a la papelera, con 6 s para deshacer).
+- **CommandPalette**: paleta Ctrl+K estilo Linear/Spotlight (búsqueda + acciones rápidas, navegación ↑↓/Enter/Esc).
+- **MobileFab**: SpeedDial flotante en móvil (nueva nota, nuevo proyecto, cambiar tema).
+- **IdleSessionGuard**: logout por inactividad con diálogo de aviso (seguro con varias pestañas).
+- **FloatingImageNodeView**: NodeView de TipTap para imágenes arrastrables y redimensionables.
+- **CoverImage**: imagen con fallback de color + icono (soporta GIF); prop `zoomOnHover` para zoom suave al pasar el cursor.
+- **Navbar**: logo con icono de marca; `Ctrl/Cmd+K` ahora abre la command palette (antes enfocaba la búsqueda).
 - **AuthorAvatars / CollaboratorsChip**: avatares apilados y chip de nº de colaboradores.
 - **skeletons/**: 9 componentes de carga (AuthForm, CardsGrid, JoinProject, NoteEditor, NoteList, ProjectsDashboard, Rows, SharedNote, Sidebar) para una UX sin parpadeos.
 
@@ -299,6 +313,9 @@ Las mutaciones invalidan con `invalidateQueries({ queryKey: ['notes'] })` (prefi
 7. **Búsqueda global** → desde la navbar, resultados + editor en la misma vista.
 8. **Colaboración** → enlace de invitación por proyecto (`/join/project/:token`) → el invitado entra como **EDITOR**; los VIEWER solo leen. Nota: **no hay gestión de roles en la UI** (cambiar rol, expulsar miembro) — solo se crean como EDITOR al unirse.
 9. **Compartir público** → enlace `/shared/note/:token` visible sin cuenta.
+10. **Imágenes flotantes** → arrastra cualquier imagen de una nota a cualquier punto del lienzo; redimensiónala desde la esquina (mantiene proporciones). La posición/tamaño se guarda en el HTML de la nota; en vistas públicas/historial se muestran centradas.
+11. **Command palette** → `Ctrl/Cmd+K` para buscar notas/proyectos o ejecutar acciones sin tocar el ratón.
+12. **Sesión robusta** → validación al arrancar + renovación deslizante + logout por inactividad + revocación real de tokens (`token_version`).
 
 ---
 
@@ -307,7 +324,9 @@ Las mutaciones invalidan con `invalidateQueries({ queryKey: ['notes'] })` (prefi
 - **Frontend** → Vercel (`notitas.vercel.app`): `vercel.json` en la raíz apunta a `frontend/`, framework Vite, rewrites SPA. Env var `VITE_API_URL=https://<backend>/` (en build).
 - **Backend** → contenedor Docker (`backend/Dockerfile`, JRE 17 alpine, usuario no-root, `SPRING_PROFILES_ACTIVE=prod`): Vercel (Docker), Railway, Render o Fly.io. Env vars: `DB_URL`, `DB_USER`, `DB_PASSWORD`, `CORS_ALLOWED_ORIGINS`, `NOTITAS_JWT_SECRET`.
 - **BD** → Supabase PostgreSQL con connection pooler (`...pooler.supabase.com:6543`). El esquema se crea solo con `ddl-auto=update`.
-- ⚠️ Pendientes documentados: archivos subidos en disco local (en hosts efímeros se pierden → migrar a **Supabase Storage**), migrar `ddl-auto=update` a Flyway/Liquibase, JWT en localStorage vs cookie (aquí ya es cookie httpOnly), y fijar un secreto JWT propio en prod.
+- **CORS de producción**: los 4 dominios (`notitas.vercel.app`, `notitas-five`, `notitas-alessander`, `notitas-cleo`) en `render.yaml` (`CORS_ALLOWED_ORIGINS`) y en el default de `application-prod.properties`.
+- **Migraciones Flyway**: V1 (esquema) + V2 (token_version) se ejecutan automáticamente al arrancar en prod. En prod los archivos viven en **Supabase Storage** (no en disco local).
+- ⚠️ Pendientes: fijar secreto JWT propio en prod (obligatorio, sin fallback) y dominio propio para la cookie first-party.
 
 ---
 
@@ -351,8 +370,8 @@ npm run lint
 ## 10. Posibles mejoras / extensiones (observaciones del análisis)
 
 - **Gestión de miembros en la UI**: cambiar roles (EDITOR/VIEWER), expulsar colaboradores (el backend ya soporta roles, pero no hay endpoints de gestión de miembros).
-- **Archivos en la nube** (Supabase Storage/S3) — pendiente documentado.
-- **Migraciones** con Flyway/Liquibase — pendiente documentado.
+- **Dominio propio** (`app.tudominio.com` + `api.tudominio.com`): cookie first-party + `COOKIE_SAMESITE=Lax` (documentado en DEPLOY.md).
+- **Supabase Auth** para login social (OAuth) si algún día se quiere.
 - **Paginación/infinite scroll** para listas largas de notas (hoy `MAX_NOTES=50` en el sidebar como mitigación).
 - **Tests de frontend** — hoy solo hay tests de backend.
 - **Búsqueda con acentos/insensibilidad real en BD** (hoy filtrado en Java).

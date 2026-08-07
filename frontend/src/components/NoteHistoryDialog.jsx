@@ -236,6 +236,15 @@ export default function NoteHistoryDialog({ open, onClose, noteId, members = [],
                   '& img.align-center': { display: 'block', margin: '20px auto', maxWidth: '100%', height: 'auto', borderRadius: '8px' },
                   '& img.align-right': { float: 'right', margin: '12px 0 12px 16px', maxWidth: '45%', height: 'auto', borderRadius: '8px', display: 'block' },
                   '& img': { maxWidth: '100%', maxHeight: '420px', borderRadius: '8px', margin: '16px 0', display: 'block' },
+                  // Imágenes flotantes en vistas de solo lectura: centradas en línea
+                  '& img[data-notitas-float]': {
+                    position: 'static !important',
+                    float: 'none !important',
+                    display: 'block',
+                    margin: '20px auto',
+                    maxWidth: '100%',
+                    height: 'auto',
+                  },
                   '& table': {
                     borderCollapse: 'collapse',
                     tableLayout: 'fixed',

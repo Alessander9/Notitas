@@ -42,6 +42,23 @@ export const useAuthStore = create(
         }
         set({ user: null, isAuthenticated: false });
       },
+      /**
+       * Renueva la cookie JWT (POST /api/auth/refresh) y sincroniza el perfil.
+       * Se llama al arrancar la app y periódicamente mientras haya sesión.
+       * Devuelve { success: false } si el token expiró o fue revocado; en ese
+       * caso el interceptor 401 ya habrá forzado el logout.
+       */
+      refreshSession: async () => {
+        try {
+          const response = await api.post('/auth/refresh');
+          const { id, email, name, avatar } = response.data;
+          set({ user: { id, email, name, avatar }, isAuthenticated: true });
+          return { success: true };
+        } catch {
+          // El interceptor 401 ya fuerza el logout; aquí solo informamos del fallo
+          return { success: false };
+        }
+      },
       forceLogout: () => {
         set({ user: null, isAuthenticated: false });
       },

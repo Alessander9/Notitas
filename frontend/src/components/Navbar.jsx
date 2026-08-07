@@ -75,22 +75,9 @@ export default function Navbar() {
   const [anchorEl, setAnchorEl] = useState(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const avatarInputRef = useRef(null);
-  const searchInputRef = useRef(null);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const queryClient = useQueryClient();
-
-  // Ctrl+K / Cmd+K para enfocar la búsqueda
-  React.useEffect(() => {
-    const handler = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
-        searchInputRef.current?.focus();
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, []);
 
   const handleMenu = (event) => {
     setAnchorEl(event.currentTarget);
@@ -150,11 +137,10 @@ export default function Navbar() {
         <SearchIcon color="action" />
       </SearchIconWrapper>
       <StyledInputBase
-        placeholder="Buscar notas globalmente... (Ctrl+K)"
+        placeholder="Buscar notas..."
         inputProps={{ 'aria-label': 'search' }}
         value={searchQuery}
         onChange={handleSearchChange}
-        inputRef={searchInputRef}
       />
     </Search>
   );
@@ -172,9 +158,27 @@ export default function Navbar() {
             </Tooltip>
           )}
           <Box
-            sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer', minWidth: 0 }}
+            sx={{ display: 'flex', alignItems: 'center', gap: 1, cursor: 'pointer', minWidth: 0 }}
             onClick={() => setCurrentProject(null)}
           >
+            {/* Marca: icono con gradiente + nombre */}
+            <Box
+              sx={{
+                width: 34,
+                height: 34,
+                borderRadius: '10px',
+                background: 'linear-gradient(135deg, #386c5f 0%, #00C9A7 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 4px 14px rgba(56,108,95,0.35)',
+                flexShrink: 0,
+              }}
+            >
+              <Typography sx={{ color: '#fff', fontWeight: 900, fontSize: '1.05rem', lineHeight: 1 }}>
+                N
+              </Typography>
+            </Box>
             <Typography variant="h5" fontWeight="bold" color="primary" sx={{ letterSpacing: '0.5px', whiteSpace: 'nowrap' }}>
               Notitas
             </Typography>

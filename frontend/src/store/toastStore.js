@@ -14,6 +14,8 @@ export const useToastStore = create((set) => ({
           message,
           severity: options.severity || 'success',
           duration: options.duration || 3500,
+          // Acción opcional (p. ej. "Deshacer"): { label, onClick }
+          action: options.action || null,
         },
       ],
     }));

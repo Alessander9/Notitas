@@ -26,6 +26,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import { useUiStore } from '../store/uiStore';
+import { toast } from '../store/toastStore';
 import NoteListSkeleton from './skeletons/NoteListSkeleton';
 import CoverImage from './CoverImage';
 import AuthorAvatars from './AuthorAvatars';
@@ -124,6 +125,16 @@ export default function NoteList() {
     onSuccess: (_data, id) => {
       queryClient.invalidateQueries({ queryKey: ['notes'] });
       if (currentNoteId === id) setCurrentNote(null);
+      // Deshacer solo en borrados suaves (fuera de la papelera)
+      if (!isTrash) {
+        toast.success('Nota movida a la papelera', {
+          duration: 6000,
+          action: {
+            label: 'Deshacer',
+            onClick: () => restoreNoteMutation.mutate(id),
+          },
+        });
+      }
     },
   });
 
@@ -263,7 +274,7 @@ export default function NoteList() {
                       {/* Card Cover Image */}
                       {coverUrl && (
                         <Box sx={{ position: 'relative', flexShrink: 0 }}>
-                          <CoverImage src={coverUrl} alt={note.title} sx={{ width: '100%', height: 132 }} />
+                          <CoverImage src={coverUrl} alt={note.title} sx={{ width: '100%', height: 132 }} zoomOnHover />
                           <Box
                             sx={{
                               position: 'absolute',

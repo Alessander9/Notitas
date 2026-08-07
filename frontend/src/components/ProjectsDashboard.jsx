@@ -131,7 +131,7 @@ export default function ProjectsDashboard() {
       handleCloseModal();
       toast.success('Proyecto creado');
     },
-    onError: () => toast.error('No se pudo crear el proyecto'),
+    onError: (err) => toast.error(typeof err.response?.data?.message === 'string' ? err.response.data.message : 'No se pudo crear el proyecto'),
   });
 
   // Update Project Mutation
@@ -148,7 +148,7 @@ export default function ProjectsDashboard() {
       handleCloseModal();
       toast.success('Proyecto actualizado');
     },
-    onError: () => toast.error('No se pudo actualizar el proyecto'),
+    onError: (err) => toast.error(typeof err.response?.data?.message === 'string' ? err.response.data.message : 'No se pudo actualizar el proyecto'),
   });
 
   // Delete Project Mutation
@@ -275,7 +275,7 @@ export default function ProjectsDashboard() {
   });
 
   return (
-    <Box sx={{ flexGrow: 1, height: '100%', p: { xs: 2, sm: 4 }, overflowY: 'auto', bgcolor: 'background.default' }}>
+    <Box sx={{ flexGrow: 1, height: '100%', p: { xs: 2, sm: 4 }, overflowY: 'auto' }}>
       {/* Header section */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4, flexWrap: 'wrap', gap: 2 }}>
         <Box>
@@ -358,7 +358,7 @@ export default function ProjectsDashboard() {
         /* GRID VIEW (CUADRILLA) */
         <AnimatePresence mode="popLayout">
           <Grid container spacing={3}>
-            {filteredProjects.map((project) => {
+            {filteredProjects.map((project, index) => {
               const hasCover = Boolean(project.coverImage);
               const coverUrl = hasCover ? getAssetUrl(project.coverImage) : null;
 
@@ -369,7 +369,8 @@ export default function ProjectsDashboard() {
                     initial={{ opacity: 0, y: 30 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.9 }}
-                    transition={{ type: 'spring', stiffness: 200, damping: 22 }}
+                    // Entrada en cascada: cada tarjeta aparece un instante después de la anterior
+                    transition={{ type: 'spring', stiffness: 200, damping: 22, delay: Math.min(index * 0.045, 0.4) }}
                     whileHover={{ y: -6, scale: 1.01 }}
                     whileTap={{ scale: 0.98 }}
                     style={{ height: '100%' }}
@@ -397,7 +398,7 @@ export default function ProjectsDashboard() {
                     >
                       {/* Card Cover Image (Supports animated GIFs natively) */}
                       {coverUrl ? (
-                        <CoverImage src={coverUrl} alt={project.name} sx={{ width: '100%', height: 125 }} />
+                        <CoverImage src={coverUrl} alt={project.name} sx={{ width: '100%', height: 125 }} zoomOnHover />
                       ) : (
                         <Box
                           sx={{

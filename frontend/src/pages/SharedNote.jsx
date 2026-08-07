@@ -193,6 +193,15 @@ export default function SharedNote() {
                     margin: '16px 0',
                     display: 'block',
                   },
+                  // Imágenes flotantes en vistas de solo lectura: centradas en línea
+                  '& img[data-notitas-float]': {
+                    position: 'static !important',
+                    float: 'none !important',
+                    display: 'block',
+                    margin: '20px auto',
+                    maxWidth: '100%',
+                    height: 'auto',
+                  },
                   // Table styles
                   '& table': {
                     borderCollapse: 'collapse',
