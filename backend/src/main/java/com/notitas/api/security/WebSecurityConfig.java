@@ -92,7 +92,7 @@ public class WebSecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         // Orígenes desde propiedad/env var: funciona en local y en producción
-        // sin recompilar (p. ej. CORS_ALLOWED_ORIGINS=https://notitas.vercel.app)
+        // sin recompilar (p. ej. CORS_ALLOWED_ORIGINS=https://notitas-cleo.vercel.app)
         configuration.setAllowedOrigins(
                 Arrays.stream(allowedOrigins.split(","))
                         .map(String::trim)

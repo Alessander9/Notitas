@@ -6,7 +6,7 @@
 # Variables de entorno requeridas en runtime:
 #   SPRING_PROFILES_ACTIVE=prod
 #   DB_URL, DB_USER, DB_PASSWORD   (Supabase/PostgreSQL)
-#   CORS_ALLOWED_ORIGINS          (https://notitas.vercel.app)
+#   CORS_ALLOWED_ORIGINS          (https://notitas-cleo.vercel.app)
 #   NOTITAS_JWT_SECRET            (secreto JWT propio)
 # ============================================================
 FROM eclipse-temurin:17-jdk-alpine AS build
