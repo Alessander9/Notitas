@@ -89,46 +89,46 @@ function ProjectGridCard({ project, index, onSelect, onEdit, onShare, onDelete }
   const coverUrl = hasCover ? getAssetUrl(project.coverImage) : null;
 
   return (
-    <Grid item xs={12} sm={6} md={4} lg={3}>
-      <motion.div
-        layout
-        layoutId={`project-${project.id}`}
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.9 }}
-        transition={{ type: 'spring', stiffness: 200, damping: 22, delay: Math.min(index * 0.045, 0.4) }}
-        whileHover={{ y: -6, scale: 1.01 }}
-        whileTap={{ scale: 0.98 }}
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
-        style={{
+    <motion.div
+      layout
+      layoutId={`project-${project.id}`}
+      initial={{ opacity: 0, y: 30 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.9 }}
+      transition={{ type: 'spring', stiffness: 200, damping: 22, delay: Math.min(index * 0.045, 0.4) }}
+      whileHover={{ y: -6, scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      style={{
+        height: '100%',
+        rotateX,
+        rotateY,
+        transformPerspective: 900,
+      }}
+    >
+      <Card
+        variant="outlined"
+        sx={{
+          position: 'relative',
           height: '100%',
-          rotateX,
-          rotateY,
-          transformPerspective: 900,
+          borderRadius: '24px',
+          border: '1px solid',
+          borderColor: 'divider',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+          cursor: 'pointer',
+          transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+          bgcolor: 'background.paper',
+          '&:hover': {
+            borderColor: `${project.color || '#1976d2'}88`,
+            boxShadow: `0 20px 48px ${project.color || '#1976d2'}33`,
+            '& .project-card-actions': { opacity: 1, pointerEvents: 'auto' },
+          },
         }}
+        onClick={() => onSelect(project.id)}
       >
-        <Card
-          variant="outlined"
-          sx={{
-            position: 'relative',
-            height: '100%',
-            borderRadius: '24px',
-            border: '1px solid',
-            borderColor: 'divider',
-            overflow: 'hidden',
-            display: 'flex',
-            flexDirection: 'column',
-            cursor: 'pointer',
-            transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-            '&:hover': {
-              borderColor: `${project.color || '#1976d2'}88`,
-              boxShadow: `0 20px 48px ${project.color || '#1976d2'}33`,
-              '& .project-card-actions': { opacity: 1, pointerEvents: 'auto' },
-            },
-          }}
-          onClick={() => onSelect(project.id)}
-        >
           {coverUrl ? (
             <CoverImage
               src={coverUrl}
@@ -311,7 +311,6 @@ function ProjectGridCard({ project, index, onSelect, onEdit, onShare, onDelete }
           </CardContent>
         </Card>
       </motion.div>
-    </Grid>
   );
 }
 
@@ -567,16 +566,53 @@ export default function ProjectsDashboard() {
           onChange={handleViewModeChange}
           aria-label="view mode"
           size="small"
-          sx={{ bgcolor: 'background.paper' }}
+          sx={{ 
+            bgcolor: 'background.paper',
+            borderRadius: 3,
+            p: 0.5,
+            gap: 0.5,
+            border: '1px solid',
+            borderColor: 'divider',
+            '& .MuiToggleButton-root': {
+              borderRadius: 2.5,
+              border: 'none',
+              p: 1,
+              minWidth: 42,
+              transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+              '&:hover': {
+                bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(56, 108, 95, 0.2)' : 'rgba(56, 108, 95, 0.1)',
+                transform: 'scale(1.08)',
+              },
+              '&.Mui-selected': {
+                bgcolor: 'primary.main',
+                color: 'primary.contrastText',
+                boxShadow: '0 4px 12px rgba(56, 108, 95, 0.35)',
+                '&:hover': {
+                  bgcolor: 'primary.dark',
+                  transform: 'scale(1.05)',
+                },
+              },
+            },
+          }}
         >
           <ToggleButton value="grid" aria-label="grid view">
             <Tooltip title="Vista Cuadrícula">
-              <GridViewIcon />
+              <motion.div
+                whileHover={{ rotate: 5 }}
+                whileTap={{ scale: 0.9 }}
+              >
+                <GridViewIcon fontSize="small" />
+              </motion.div>
             </Tooltip>
           </ToggleButton>
           <ToggleButton value="list" aria-label="list view">
             <Tooltip title="Vista Lista">
-              <ListViewIcon />
+              <motion.div
+                whileHover={{ rotate: -5 }}
+                whileTap={{ scale: 0.9 }}
+              >
+                <ListViewIcon fontSize="small" />
+              </motion.div>
             </Tooltip>
           </ToggleButton>
         </ToggleButtonGroup>
@@ -602,7 +638,18 @@ export default function ProjectsDashboard() {
       ) : viewMode === 'grid' ? (
         /* GRID VIEW (CUADRILLA) */
         <AnimatePresence mode="popLayout">
-          <Grid container spacing={3}>
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: 'repeat(1, 1fr)',
+                sm: 'repeat(2, 1fr)',
+                md: 'repeat(3, 1fr)',
+                lg: 'repeat(4, 1fr)',
+              },
+              gap: 3,
+            }}
+          >
             {filteredProjects.map((project, index) => (
               <ProjectGridCard
                 key={project.id}
@@ -614,7 +661,7 @@ export default function ProjectsDashboard() {
                 onDelete={handleDeleteProject}
               />
             ))}
-          </Grid>
+          </Box>
         </AnimatePresence>
 
 
