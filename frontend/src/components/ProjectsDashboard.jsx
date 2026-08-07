@@ -398,12 +398,25 @@ export default function ProjectsDashboard() {
                     >
                       {/* Card Cover Image (Supports animated GIFs natively) */}
                       {coverUrl ? (
-                        <CoverImage src={coverUrl} alt={project.name} sx={{ width: '100%', height: 125 }} zoomOnHover />
+                        <CoverImage
+                          src={coverUrl}
+                          alt={project.name}
+                          // 'contain' muestra la imagen completa sin recortarla; el fondo tintado
+                          // hace que las franjas laterales luzcan premium e intencionales
+                          objectFit="contain"
+                          sx={{
+                            width: '100%',
+                            height: 210,
+                            background: `linear-gradient(135deg, ${project.color || '#1976d2'}1F 0%, transparent 70%)`,
+                            bgcolor: 'background.paper',
+                          }}
+                          zoomOnHover
+                        />
                       ) : (
                         <Box
                           sx={{
                             position: 'relative',
-                            height: 125,
+                            height: 210,
                             background: `linear-gradient(135deg, ${project.color || '#1976d2'} 0%, ${project.color || '#1976d2'}cc 55%, ${project.color || '#1976d2'}66 100%)`,
                             display: 'flex',
                             alignItems: 'center',
