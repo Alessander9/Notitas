@@ -47,14 +47,14 @@ services:
       - key: CORS_ALLOWED_ORIGINS
         value: https://notitas-cleo.vercel.app,https://notitas-alessander.vercel.app
       - key: DB_URL
-        value: secret
+        value: '{{ secret.supabase-db-url }}'
       - key: DB_USER
-        value: secret
+        value: '{{ secret.supabase-db-user }}'
       - key: DB_PASSWORD
-        value: secret
+        value: '{{ secret.supabase-db-password }}'
       - key: SUPABASE_URL
-        value: secret
+        value: '{{ secret.supabase-url }}'
       - key: SUPABASE_SERVICE_ROLE_KEY
-        value: secret
+        value: '{{ secret.supabase-service-role }}'
       - key: NOTITAS_JWT_SECRET
-        value: secret
+        value: '{{ secret.notitas-jwt-secret }}'
