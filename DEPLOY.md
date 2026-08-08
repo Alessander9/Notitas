@@ -5,23 +5,23 @@ Guía para el **primer despliegue en producción**. La arquitectura es:
 | Pieza | Tecnología | Dónde vive |
 |---|---|---|
 | Frontend (React + Vite) | SPA estática | **Vercel** → `notitas-cleo.vercel.app` (dominio único) |
-| Backend (Spring Boot) | API REST en contenedor | Vercel (Docker), Railway, Render o Fly.io |
+| Backend (Spring Boot) | API REST en contenedor | **Koyeb** (24/7 sin apagar) o Render |
 | Base de datos | PostgreSQL | **Supabase** |
 
 > El backend **no** puede ejecutarse como función estática en Vercel: es una JVM.
 > El `Dockerfile` incluido en `backend/` permite desplegarlo como **Docker** en
-> Vercel u otro host. La configuración de BD ya está lista para Supabase.
+> Koyeb, Render, Railway o cualquier host de contenedores. La configuración de BD ya está lista para Supabase.
 
 ---
 
-## ⭐ Deploy a costo cero (recomendado)
+## ⭐ Deploy a costo cero 24/7 (Koyeb + Supabase + Vercel)
 
-Combinación 100 % gratuita (sin tarjeta de crédito):
+Combinación 100 % gratuita sin apagar el backend (sin tarjeta de crédito):
 
 | Pieza | Servicio gratis | Detalle |
 |---|---|---|
 | Frontend (React + Vite) | **Vercel** (Hobby) | `notitas-cleo.vercel.app` — dominio único de producción |
-| Backend (Spring Boot) | **Render** (free web service) | Usa `backend/Dockerfile` vía `render.yaml`. Se duerme a los ~15 min sin tráfico (tarda ~1 min en despertar). 750 h/mes: suficiente para 24/7 |
+| Backend (Spring Boot) | **Koyeb** (free Nano) | Usa `backend/Dockerfile` o `koyeb.yaml`. **No se duerme (24/7)** |
 | Base de datos | **Supabase** (free) | PostgreSQL con pooler; 500 MB gratis |
 | Archivos (portadas, adjuntos, avatares, imágenes) | **Supabase Storage** (free) | Bucket público `uploads` (1 GB). El backend ya lo soporta con `APP_STORAGE_PROVIDER=supabase` |
 

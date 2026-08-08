@@ -1,0 +1,60 @@
+# Koyeb App Configuration — Backend Notitas (Spring Boot + Docker)
+# Documentación: https://www.koyeb.com/docs/reference/koyeb-yaml
+#
+# Cómo usar este archivo:
+# 1. En koyeb.com: Create App -> GitHub Repository.
+# 2. Koyeb detectará automáticamente este koyeb.yaml o puedes configurar
+#    el servicio con los valores aquí listados.
+# 3. Completa los secretos protegidos en el dashboard de Koyeb:
+#    - DB_URL, DB_USER, DB_PASSWORD (Supabase)
+#    - SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (Supabase Storage)
+#    - NOTITAS_JWT_SECRET (Secreto JWT)
+
+name: notitas-api
+services:
+  - name: notitas-backend
+    type: web
+    source:
+      git:
+        repository: auto
+        branch: main
+        workdir: backend
+        build_command: ""
+        run_command: ""
+    docker:
+      dockerfile: Dockerfile
+    regions:
+      - was # Washington D.C. (US East - óptima latencia con Supabase US-West/East)
+    instance_type:
+      scopes:
+        - nano # Free Tier (512MB RAM, 24/7 sin suspensión)
+    routes:
+      - path: /
+        port: 8080
+    health_checks:
+      - http:
+          path: /api/public/health
+          port: 8080
+          interval: 30
+          timeout: 5
+          healthy_threshold: 2
+          unhealthy_threshold: 3
+    env:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: APP_STORAGE_PROVIDER
+        value: supabase
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://notitas-cleo.vercel.app,https://notitas-alessander.vercel.app
+      - key: DB_URL
+        value: secret
+      - key: DB_USER
+        value: secret
+      - key: DB_PASSWORD
+        value: secret
+      - key: SUPABASE_URL
+        value: secret
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        value: secret
+      - key: NOTITAS_JWT_SECRET
+        value: secret
