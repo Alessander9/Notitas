@@ -18,6 +18,7 @@ const Login = React.lazy(() => import('./pages/Login'));
 const Register = React.lazy(() => import('./pages/Register'));
 const Workspace = React.lazy(() => import('./pages/Workspace'));
 const JoinProject = React.lazy(() => import('./pages/JoinProject'));
+const JoinNote = React.lazy(() => import('./pages/JoinNote'));
 const SharedNote = React.lazy(() => import('./pages/SharedNote'));
 
 const queryClient = new QueryClient({
@@ -361,6 +362,7 @@ export default function App() {
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/join/project/:token" element={<JoinProject />} />
+                <Route path="/join/note/:token" element={<JoinNote />} />
                 <Route path="/shared/note/:token" element={<SharedNote />} />
                 <Route path="/" element={<Workspace />} />
                 <Route path="*" element={<Navigate to="/" replace />} />

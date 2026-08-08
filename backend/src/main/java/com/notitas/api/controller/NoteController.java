@@ -127,9 +127,20 @@ public class NoteController {
         return ResponseEntity.ok(java.util.Map.of("shareToken", token));
     }
 
+    @DeleteMapping("/notes/{id}/share-token")
+    public ResponseEntity<?> revokeShareToken(@PathVariable Long id, Authentication authentication) {
+        noteService.revokeNoteShareToken(id, getUserId(authentication));
+        return ResponseEntity.ok().build();
+    }
+
     @GetMapping("/public/notes/shared/{token}")
     public ResponseEntity<NoteResponse> getSharedNote(@PathVariable String token) {
         return ResponseEntity.ok(noteService.getSharedNoteByToken(token));
+    }
+
+    @PostMapping("/notes/join/{token}")
+    public ResponseEntity<NoteResponse> joinNote(@PathVariable String token, Authentication authentication) {
+        return ResponseEntity.ok(noteService.joinNote(token, getUserId(authentication)));
     }
 
     @GetMapping("/notes/{id}/versions")

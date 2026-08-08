@@ -24,7 +24,9 @@ public interface NoteService {
     NoteResponse updateAttachmentTag(Long noteId, Long attachmentId, String tag, Long userId);
     void deleteNote(Long id, Long userId);
     String generateNoteShareToken(Long id, Long userId);
+    void revokeNoteShareToken(Long id, Long userId);
     NoteResponse getSharedNoteByToken(String token);
+    NoteResponse joinNote(String token, Long userId);
 
     List<NoteVersionResponse> getNoteVersions(Long noteId, Long userId);
     NoteResponse restoreNoteVersion(Long noteId, Long versionId, Long userId);

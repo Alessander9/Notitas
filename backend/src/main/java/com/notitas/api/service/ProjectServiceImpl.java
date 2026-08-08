@@ -56,10 +56,18 @@ public class ProjectServiceImpl implements ProjectService {
                 .map(ProjectMember::getProject)
                 .collect(Collectors.toList());
 
+        // Projects with shared notes
+        List<Project> noteSharedProjects = projectRepository.findProjectsByNoteCollaboratorUserId(userId);
+
         List<Project> combined = new ArrayList<>(ownProjects);
         for (Project mp : memberProjects) {
             if (combined.stream().noneMatch(p -> p.getId().equals(mp.getId()))) {
                 combined.add(mp);
+            }
+        }
+        for (Project nsp : noteSharedProjects) {
+            if (combined.stream().noneMatch(p -> p.getId().equals(nsp.getId()))) {
+                combined.add(nsp);
             }
         }
 
@@ -75,8 +83,9 @@ public class ProjectServiceImpl implements ProjectService {
 
         boolean isOwner = project.getUser().getId().equals(userId);
         boolean isMember = projectMemberRepository.existsByProjectIdAndUserId(id, userId);
+        boolean hasNoteAccess = noteRepository.existsSharedNotesByProjectAndUser(id, userId);
 
-        if (!isOwner && !isMember) {
+        if (!isOwner && !isMember && !hasNoteAccess) {
             throw new AccessDeniedException("No tienes acceso a este proyecto");
         }
 

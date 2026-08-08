@@ -156,6 +156,7 @@ export default function NoteEditor() {
   const [openShareDialog, setOpenShareDialog] = useState(false);
   const [shareToken, setShareToken] = useState('');
   const [copySuccess, setCopySuccess] = useState(false);
+  const [copyJoinSuccess, setCopyJoinSuccess] = useState(false);
   const [saveStatus, setSaveStatus] = useState('saved'); // 'saved' | 'saving' | 'unsaved'
   const [historyOpen, setHistoryOpen] = useState(false);
 
@@ -515,15 +516,34 @@ export default function NoteEditor() {
   });
 
   // Share Note Link Generation
-  const handleOpenShareDialog = async () => {
+  const handleOpenShareDialog = () => {
+    setShareToken(note?.shareToken || '');
+    setCopySuccess(false);
+    setCopyJoinSuccess(false);
+    setOpenShareDialog(true);
+  };
+
+  const handleActivateShare = async () => {
     try {
       const res = await api.post(`/notes/${currentNoteId}/share-token`);
       setShareToken(res.data.shareToken);
-      setCopySuccess(false);
-      setOpenShareDialog(true);
+      queryClient.invalidateQueries({ queryKey: ['note', currentNoteId] });
+      toast.success('Compartido activado con éxito.');
     } catch (e) {
-      console.error('Error getting share token', e);
-      toast.error('Error al generar el enlace de compartir.');
+      console.error('Error activating share', e);
+      toast.error('Error al activar el compartido.');
+    }
+  };
+
+  const handleRevokeShare = async () => {
+    try {
+      await api.delete(`/notes/${currentNoteId}/share-token`);
+      setShareToken('');
+      queryClient.invalidateQueries({ queryKey: ['note', currentNoteId] });
+      toast.success('Compartido desactivado y enlaces revocados.');
+    } catch (e) {
+      console.error('Error revoking share', e);
+      toast.error('Error al desactivar el compartido.');
     }
   };
 
@@ -531,7 +551,14 @@ export default function NoteEditor() {
     const fullLink = `${window.location.origin}/shared/note/${shareToken}`;
     navigator.clipboard.writeText(fullLink);
     setCopySuccess(true);
-    toast.success('Enlace de la nota copiado');
+    toast.success('Enlace de lectura copiado');
+  };
+
+  const handleCopyJoinLink = () => {
+    const fullLink = `${window.location.origin}/join/note/${shareToken}`;
+    navigator.clipboard.writeText(fullLink);
+    setCopyJoinSuccess(true);
+    toast.success('Enlace de invitación a colaborar copiado');
   };
 
   // Tag Management
@@ -1547,29 +1574,156 @@ export default function NoteEditor() {
 
       {/* Share Note Dialog */}
       <Dialog open={openShareDialog} onClose={() => setOpenShareDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 'bold' }}>Compartir Nota Públicamente</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <ShareIcon color="primary" /> Configuración de Compartido de la Nota
+        </DialogTitle>
         <DialogContent>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>
-            Cualquier persona que reciba este enlace de invitación podrá ver el título, la imagen de portada y el contenido completo de esta nota, sin necesidad de tener una cuenta de usuario.
-          </Typography>
-          <TextField
-            fullWidth
-            size="small"
-            value={`${window.location.origin}/shared/note/${shareToken}`}
-            InputProps={{
-              readOnly: true,
-              endAdornment: (
-                <Button
-                  variant="contained"
+          {shareToken ? (
+            <Box sx={{ mt: 1 }}>
+              {/* Status Header */}
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                  bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(56, 108, 95, 0.15)' : 'rgba(56, 108, 95, 0.08)',
+                  color: 'primary.main',
+                  p: 1.5,
+                  borderRadius: 3,
+                  border: '1px solid',
+                  borderColor: 'rgba(56, 108, 95, 0.2)',
+                  mb: 3,
+                }}
+              >
+                <CheckIcon fontSize="small" />
+                <Typography variant="body2" fontWeight="bold">
+                  COMPARTIDO ACTIVO — Los enlaces de esta nota están funcionando.
+                </Typography>
+              </Box>
+
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                Elige el nivel de acceso que deseas dar a tus colaboradores:
+              </Typography>
+
+              {/* Option 1: Public Reader */}
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="subtitle2" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                  👁️ 1. Enlace de Lectura Pública (Sin registro)
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                  Permite a cualquier persona ver el título, portada y contenido de esta nota sin necesidad de crear una cuenta.
+                </Typography>
+                <TextField
+                  fullWidth
                   size="small"
-                  onClick={handleCopyShareLink}
-                  sx={{ ml: 1, minWidth: 100 }}
+                  value={`${window.location.origin}/shared/note/${shareToken}`}
+                  InputProps={{
+                    readOnly: true,
+                    endAdornment: (
+                      <Button
+                        variant="contained"
+                        size="small"
+                        onClick={handleCopyShareLink}
+                        sx={{ ml: 1, minWidth: 100 }}
+                      >
+                        {copySuccess ? 'Copiado!' : 'Copiar'}
+                      </Button>
+                    ),
+                  }}
+                />
+              </Box>
+
+              {/* Option 2: Joint Editor */}
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="subtitle2" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                  ✍️ 2. Enlace de Invitación a Colaborar (Editar y Ver)
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                  Permite al receptor unirse como colaborador de esta nota para poder verla y editarla de forma compartida desde su Workspace (requiere iniciar sesión).
+                </Typography>
+                <TextField
+                  fullWidth
+                  size="small"
+                  value={`${window.location.origin}/join/note/${shareToken}`}
+                  InputProps={{
+                    readOnly: true,
+                    endAdornment: (
+                      <Button
+                        variant="contained"
+                        size="small"
+                        onClick={handleCopyJoinLink}
+                        sx={{ ml: 1, minWidth: 100 }}
+                      >
+                        {copyJoinSuccess ? 'Copiado!' : 'Copiar'}
+                      </Button>
+                    ),
+                  }}
+                />
+              </Box>
+
+              <Divider sx={{ my: 3 }} />
+
+              {/* Revoke Action */}
+              <Box sx={{ display: 'flex', justifyContent: 'flex-start' }}>
+                <Button
+                  variant="outlined"
+                  color="error"
+                  onClick={handleRevokeShare}
+                  startIcon={<LockIcon />}
+                  sx={{
+                    borderRadius: 3,
+                    textTransform: 'none',
+                    py: 1,
+                    '&:hover': {
+                      bgcolor: 'error.main',
+                      color: '#fff',
+                      borderColor: 'error.main',
+                    },
+                  }}
                 >
-                  {copySuccess ? 'Copiado!' : 'Copiar'}
+                  Revocar Enlaces / Desactivar Compartido
                 </Button>
-              ),
-            }}
-          />
+              </Box>
+            </Box>
+          ) : (
+            <Box sx={{ mt: 1, textAlign: 'center', py: 2 }}>
+              <Box
+                sx={{
+                  width: 50,
+                  height: 50,
+                  borderRadius: '50%',
+                  bgcolor: 'action.hover',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  mx: 'auto',
+                  mb: 2,
+                }}
+              >
+                <LockIcon color="action" />
+              </Box>
+              <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                Compartido Desactivado
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 3.5, maxWidth: 380, mx: 'auto' }}>
+                Esta nota es actualmente privada. Activa el compartido para generar los enlaces de lectura pública e invitación a colaborar.
+              </Typography>
+              <Button
+                variant="contained"
+                onClick={handleActivateShare}
+                startIcon={<ShareIcon />}
+                sx={{
+                  px: 4,
+                  py: 1.2,
+                  borderRadius: 3,
+                  textTransform: 'none',
+                  fontWeight: 'bold',
+                }}
+              >
+                Activar Compartido y Colaboración
+              </Button>
+            </Box>
+          )}
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
           <Button onClick={() => setOpenShareDialog(false)}>Cerrar</Button>

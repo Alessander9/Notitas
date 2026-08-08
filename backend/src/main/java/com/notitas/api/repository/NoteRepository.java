@@ -30,14 +30,19 @@ public interface NoteRepository extends JpaRepository<Note, Long> {
     Optional<Note> findByIdAndProjectUserId(Long id, Long userId);
     Optional<Note> findByShareToken(String shareToken);
 
-    /**
-     * Búsqueda en SQL de notas no eliminadas accesibles para el usuario
-     * (proyectos propios o donde es miembro) filtrado por título o contenido.
-     */
     @Query("SELECT n FROM Note n WHERE n.deleted = false AND " +
            "(n.project.user.id = :userId OR " +
            "EXISTS (SELECT pm FROM ProjectMember pm WHERE pm.project = n.project AND pm.user.id = :userId)) " +
            "AND (LOWER(n.title) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(n.content) LIKE LOWER(CONCAT('%', :query, '%'))) " +
            "ORDER BY n.updatedAt DESC")
     Page<Note> findSearchableNotesForUser(@Param("userId") Long userId, @Param("query") String query, Pageable pageable);
+
+    @Query("SELECT n FROM Note n WHERE n.project.id = :projectId AND n.deleted = false AND " +
+           "EXISTS (SELECT nm FROM NoteMember nm WHERE nm.note = n AND nm.user.id = :userId) " +
+           "ORDER BY n.updatedAt DESC")
+    Page<Note> findSharedNotesByProjectAndUser(@Param("projectId") Long projectId, @Param("userId") Long userId, Pageable pageable);
+
+    @Query("SELECT COUNT(n) > 0 FROM Note n WHERE n.project.id = :projectId AND n.deleted = false AND " +
+           "EXISTS (SELECT nm FROM NoteMember nm WHERE nm.note = n AND nm.user.id = :userId)")
+    boolean existsSharedNotesByProjectAndUser(@Param("projectId") Long projectId, @Param("userId") Long userId);
 }

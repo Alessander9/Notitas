@@ -11,6 +11,8 @@ import com.notitas.api.repository.NoteVersionRepository;
 import com.notitas.api.repository.ProjectMemberRepository;
 import com.notitas.api.repository.ProjectRepository;
 import com.notitas.api.repository.TagRepository;
+import com.notitas.api.repository.NoteMemberRepository;
+import com.notitas.api.repository.UserRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,6 +49,12 @@ public class NoteServiceImpl implements NoteService {
     @Autowired
     private NoteVersionRepository noteVersionRepository;
 
+    @Autowired
+    private NoteMemberRepository noteMemberRepository;
+
+    @Autowired
+    private UserRepository userRepository;
+
     /** Máximo de versiones guardadas por nota: al superarlo se descartan las más antiguas. */
     private static final int MAX_VERSIONS_PER_NOTE = 50;
 
@@ -56,8 +64,9 @@ public class NoteServiceImpl implements NoteService {
 
         boolean isOwner = project.getUser().getId().equals(userId);
         boolean isMember = projectMemberRepository.existsByProjectIdAndUserId(projectId, userId);
+        boolean hasNoteAccess = noteRepository.existsSharedNotesByProjectAndUser(projectId, userId);
 
-        if (!isOwner && !isMember) {
+        if (!isOwner && !isMember && !hasNoteAccess) {
             throw new AccessDeniedException("No tienes acceso a este proyecto");
         }
     }
@@ -66,8 +75,9 @@ public class NoteServiceImpl implements NoteService {
         Project project = note.getProject();
         boolean isOwner = project.getUser().getId().equals(userId);
         boolean isMember = projectMemberRepository.existsByProjectIdAndUserId(project.getId(), userId);
+        boolean isNoteMember = noteMemberRepository.existsByNoteIdAndUserId(note.getId(), userId);
 
-        if (!isOwner && !isMember) {
+        if (!isOwner && !isMember && !isNoteMember) {
             throw new AccessDeniedException("No tienes acceso a esta nota");
         }
     }
@@ -79,7 +89,10 @@ public class NoteServiceImpl implements NoteService {
     private void checkNoteEditAccess(Note note, Long userId) {
         checkNoteAccess(note, userId);
         Project project = note.getProject();
-        if (!project.getUser().getId().equals(userId)) {
+        boolean isOwner = project.getUser().getId().equals(userId);
+        boolean isNoteMember = noteMemberRepository.existsByNoteIdAndUserId(note.getId(), userId);
+
+        if (!isOwner && !isNoteMember) {
             ProjectMember member = projectMemberRepository.findByProjectIdAndUserId(project.getId(), userId)
                     .orElseThrow(() -> new AccessDeniedException("No tienes acceso a esta nota"));
             if ("VIEWER".equals(member.getRole())) {
@@ -91,9 +104,17 @@ public class NoteServiceImpl implements NoteService {
     @Override
     public Page<NoteResponse> getNotesByProject(Long projectId, Long userId, Pageable pageable) {
         checkProjectAccess(projectId, userId);
+        Project project = projectRepository.findById(projectId).get();
+        boolean isOwner = project.getUser().getId().equals(userId);
+        boolean isMember = projectMemberRepository.existsByProjectIdAndUserId(projectId, userId);
 
-        return noteRepository.findByProjectIdAndDeletedFalseOrderByUpdatedAtDesc(projectId, pageable)
-                .map(this::mapToResponse);
+        if (isOwner || isMember) {
+            return noteRepository.findByProjectIdAndDeletedFalseOrderByUpdatedAtDesc(projectId, pageable)
+                    .map(this::mapToResponse);
+        } else {
+            return noteRepository.findSharedNotesByProjectAndUser(projectId, userId, pageable)
+                    .map(this::mapToResponse);
+        }
     }
 
     @Override
@@ -339,9 +360,46 @@ public class NoteServiceImpl implements NoteService {
     }
 
     @Override
+    @Transactional
+    public void revokeNoteShareToken(Long id, Long userId) {
+        Note note = noteRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Nota no encontrada"));
+        checkNoteEditAccess(note, userId);
+
+        if (note.getShareToken() != null && !note.getShareToken().isEmpty()) {
+            noteMemberRepository.deleteByNoteId(note.getId());
+            note.setShareToken(null);
+            noteRepository.save(note);
+        }
+    }
+
+    @Override
     public NoteResponse getSharedNoteByToken(String token) {
         Note note = noteRepository.findByShareToken(token)
                 .orElseThrow(() -> new ResourceNotFoundException("Shared note not found or access expired"));
+        return mapToResponse(note);
+    }
+
+    @Override
+    @Transactional
+    public NoteResponse joinNote(String token, Long userId) {
+        Note note = noteRepository.findByShareToken(token)
+                .orElseThrow(() -> new ResourceNotFoundException("Enlace de nota compartido inválido o expirado"));
+
+        Project project = note.getProject();
+        boolean isOwner = project.getUser().getId().equals(userId);
+        boolean isProjectMember = projectMemberRepository.existsByProjectIdAndUserId(project.getId(), userId);
+
+        if (!isOwner && !isProjectMember) {
+            boolean isNoteMember = noteMemberRepository.existsByNoteIdAndUserId(note.getId(), userId);
+            if (!isNoteMember) {
+                User user = userRepository.findById(userId)
+                        .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
+                NoteMember noteMember = new NoteMember(note, user);
+                noteMemberRepository.save(noteMember);
+            }
+        }
+
         return mapToResponse(note);
     }
 

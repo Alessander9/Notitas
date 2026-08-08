@@ -37,9 +37,15 @@ export default function Login() {
     if (result.success) {
       setShowWelcome(true);
       const pendingInviteToken = localStorage.getItem('pending-invite-token');
+      const pendingInviteType = localStorage.getItem('pending-invite-type');
       if (pendingInviteToken) {
         localStorage.removeItem('pending-invite-token');
-        navigate(`/join/project/${pendingInviteToken}`);
+        localStorage.removeItem('pending-invite-type');
+        if (pendingInviteType === 'note') {
+          navigate(`/join/note/${pendingInviteToken}`);
+        } else {
+          navigate(`/join/project/${pendingInviteToken}`);
+        }
       } else {
         navigate('/');
       }
