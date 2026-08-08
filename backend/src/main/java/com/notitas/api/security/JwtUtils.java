@@ -14,6 +14,8 @@ import org.springframework.util.StringUtils;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.Date;
@@ -46,15 +48,36 @@ public class JwtUtils {
             synchronized (this) {
                 key = this.signingKey;
                 if (key == null) {
-                    byte[] keyBytes = (this.jwtSecret == null || this.jwtSecret.isBlank())
-                            ? randomKeyBytes()
-                            : this.jwtSecret.getBytes(StandardCharsets.UTF_8);
+                    byte[] keyBytes = deriveKeyBytes(this.jwtSecret);
                     key = Keys.hmacShaKeyFor(keyBytes);
                     this.signingKey = key;
                 }
             }
         }
         return key;
+    }
+
+    private static byte[] deriveKeyBytes(String secret) {
+        if (secret == null || secret.isBlank()) {
+            return randomKeyBytes();
+        }
+        byte[] raw;
+        try {
+            // Intentar decodificar como Base64 si el usuario usó Base64
+            raw = Base64.getDecoder().decode(secret.trim());
+        } catch (IllegalArgumentException e) {
+            raw = secret.getBytes(StandardCharsets.UTF_8);
+        }
+        // Si tiene menos de 32 bytes (256 bits), derivamos con SHA-256 para evitar WeakKeyException
+        if (raw.length < 32) {
+            try {
+                MessageDigest digest = MessageDigest.getInstance("SHA-256");
+                return digest.digest(raw);
+            } catch (NoSuchAlgorithmException e) {
+                return raw;
+            }
+        }
+        return raw;
     }
 
     /**

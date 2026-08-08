@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import api from '../services/api';
+import { toast } from './toastStore';
 
 export const useAuthStore = create(
   persist(
@@ -54,8 +55,13 @@ export const useAuthStore = create(
           const { id, email, name, avatar } = response.data;
           set({ user: { id, email, name, avatar }, isAuthenticated: true });
           return { success: true };
-        } catch {
-          // El interceptor 401 ya fuerza el logout; aquí solo informamos del fallo
+        } catch (error) {
+          // 401 → el interceptor ya fuerza el logout; los fallos de red (sin
+          // respuesta del servidor) se avisan para que la pantalla de carga
+          // no parezca un cuelgue silencioso.
+          if (!error.response) {
+            toast.error('No se pudo conectar con el servidor. Inténtalo de nuevo en unos segundos.');
+          }
           return { success: false };
         }
       },

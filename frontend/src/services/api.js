@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-export const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+export const API_BASE_URL =
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.PROD ? 'https://notitas-api.onrender.com' : '');
 const API_URL = `${API_BASE_URL}/api`;
 
 let onUnauthorized = null;
@@ -16,6 +18,7 @@ const api = axios.create({
   // para siempre. 120s porque el backend en Render free tarda ~60s en
   // despertar tras dormirse (un timeout menor fallaría justo el primer
   // request tras el idle, p. ej. el POST al crear un proyecto).
+  timeout: 120000,
   headers: {
     'Content-Type': 'application/json',
   },

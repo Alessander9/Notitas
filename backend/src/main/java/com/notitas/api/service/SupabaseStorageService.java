@@ -44,13 +44,19 @@ public class SupabaseStorageService implements FileStorageService {
     private final HttpClient httpClient = HttpClient.newHttpClient();
 
     public SupabaseStorageService(
-            @Value("${app.supabase.url}") String supabaseUrl,
-            @Value("${app.supabase.service-role-key}") String serviceRoleKey,
+            @Value("${app.supabase.url:}") String supabaseUrl,
+            @Value("${app.supabase.service-role-key:}") String serviceRoleKey,
             @Value("${app.supabase.bucket:uploads}") String bucket) {
-        this.storageUrl = supabaseUrl.replaceAll("/+$", "") + "/storage/v1";
-        this.serviceRoleKey = serviceRoleKey;
+        String cleanUrl = (supabaseUrl != null && !supabaseUrl.isBlank())
+                ? supabaseUrl.replaceAll("/+$", "")
+                : "https://placeholder.supabase.co";
+        this.storageUrl = cleanUrl + "/storage/v1";
+        this.serviceRoleKey = serviceRoleKey != null ? serviceRoleKey : "";
         this.bucket = bucket;
         this.publicBaseUrl = this.storageUrl + "/object/public/" + bucket;
+        if (supabaseUrl == null || supabaseUrl.isBlank() || serviceRoleKey == null || serviceRoleKey.isBlank()) {
+            logger.warn("Supabase Storage provider configured but SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variables are missing.");
+        }
     }
 
     @Override

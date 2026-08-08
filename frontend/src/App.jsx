@@ -78,8 +78,17 @@ export default function App() {
     refreshSession().finally(() => {
       if (!cancelled) setSessionReady(true);
     });
+    // Cap de seguridad: si el servidor tarda demasiado en responder (backend
+    // dormido en Render free, red caída...), la verificación sigue en segundo
+    // plano pero la app avanza — si la sesión resultara inválida, el
+    // interceptor 401 fuerza el logout igualmente. Evita quedarse pegado en
+    // la pantalla de carga para siempre.
+    const cap = setTimeout(() => {
+      if (!cancelled) setSessionReady(true);
+    }, 12000);
     return () => {
       cancelled = true;
+      clearTimeout(cap);
     };
   }, [isAuthenticated, refreshSession]);
 

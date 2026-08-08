@@ -217,6 +217,34 @@ DB_USER='postgres.<ref>' DB_PASSWORD='<password>' \
 - [ ] Revisa la consola del navegador (sin errores CORS: el backend debe permitir
       el origen `https://notitas-cleo.vercel.app` — ya configurado vía `CORS_ALLOWED_ORIGINS`).
 
+## 5. Estabilidad y monitoreo en producción (recomendado)
+
+El plan free de Render se duerme a los ~15 min sin tráfico y tarda ~1 min en
+**despertar**. El frontend ya aguanta ese retraso (timeout de 120 s en axios,
+tope de 12 s en la pantalla de verificación de sesión y toast si el servidor
+no responde), pero para que el backend esté **siempre despierto** y te avise
+si cae:
+
+1. **UptimeRobot** (gratis): crea un monitor HTTP(S) apuntando a
+   `https://notitas-api.onrender.com/api/public/health`, con intervalo de
+   **5 min** y alertas por email. Los pings cada 5 min evitan que Render
+   duerma la instancia (el idle es a los ~15 min) y recibes un correo si
+   el servicio se cae.
+   - El endpoint devuelve `200` con `{"status":"ok","database":"up"}`
+     cuando todo funciona, y `503` con
+     `{"status":"degraded","database":"unreachable"}` si la base de datos
+     no responde. En ese caso Render marca el contenedor como unhealthy y lo
+     **reinicia solo** (auto-recuperación).
+
+2. **Recuperación manual si el backend cae** (como cuando se quedó sin
+   responder): Render → servicio `notitas-api` → pestaña **Logs**. Causas
+   típicas de que no arranque:
+   - `NOTITAS_JWT_SECRET` vacío → en prod la app **no arranca sin él**.
+   - `DB_URL` / `DB_USER` / `DB_PASSWORD` incorrectos o Supabase caído.
+   - Sin memoria en el plan free (OOM): se ve en los logs del servicio.
+   Revisa las env vars, pulsa **Restart** (o lanza un redeploy) y verifica que
+   el health check devuelva 200 antes de seguir.
+
 ## Notas y pendientes conocidos
 
 - **Archivos subidos (portadas, adjuntos, avatares):** en el flujo a costo cero
