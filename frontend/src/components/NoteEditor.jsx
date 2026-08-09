@@ -154,6 +154,9 @@ const CustomImage = Image.extend({
 });
 
 export default function NoteEditor() {
+  // Espera a que el usuario termine una ráfaga de escritura antes de enviar
+  // otra petición. El guardado pendiente se fuerza al cambiar de nota o salir.
+  const AUTOSAVE_DELAY = 2500;
   const { currentNoteId, setCurrentNote, currentProjectId, setCurrentProject } = useUiStore();
   const queryClient = useQueryClient();
 
@@ -479,7 +482,7 @@ export default function NoteEditor() {
       // después y deje el contenido persistido en un estado antiguo.
       saveQueueRef.current = saveQueueRef.current.catch(() => {}).then(save);
       pendingSaveRef.current = null;
-    }, 800);
+    }, AUTOSAVE_DELAY);
   };
   scheduleSaveRef.current = scheduleSave;
 
