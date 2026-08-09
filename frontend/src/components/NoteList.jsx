@@ -30,6 +30,7 @@ import {
   Schedule as TimeIcon,
   OpenInFull as MaximizeIcon,
   Description as NoteIcon,
+  ArrowBack as ArrowBackIcon,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
@@ -267,6 +268,20 @@ export default function NoteList() {
         ) : (
           <>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Tooltip title="Volver a Proyectos">
+                <IconButton
+                  size="small"
+                  onClick={() => setCurrentProject(null)}
+                  sx={{
+                    mr: 0.5,
+                    p: 0.8,
+                    borderRadius: 2,
+                    '&:hover': { bgcolor: 'action.hover' },
+                  }}
+                >
+                  <ArrowBackIcon sx={{ fontSize: 18 }} />
+                </IconButton>
+              </Tooltip>
               <Typography variant="subtitle1" fontWeight="bold" color="text.secondary" sx={{ fontSize: '0.85rem' }}>
                 {getHeaderTitle().toUpperCase()} ({notes.length})
               </Typography>

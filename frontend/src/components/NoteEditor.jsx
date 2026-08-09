@@ -19,6 +19,8 @@ import {
   MenuItem,
   Breadcrumbs,
   Link,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import {
   Star as StarIcon,
@@ -52,6 +54,9 @@ import {
   EditNote as EditNoteIcon,
   History as HistoryIcon,
   Error as ErrorIcon,
+  ArrowBack as ArrowBackIcon,
+  Mic as MicIcon,
+  MicOff as MicOffIcon,
 } from '@mui/icons-material';
 import { useEditor, EditorContent, ReactNodeViewRenderer } from '@tiptap/react';
 import { mergeAttributes } from '@tiptap/core';
@@ -151,6 +156,69 @@ const CustomImage = Image.extend({
 export default function NoteEditor() {
   const { currentNoteId, setCurrentNote, currentProjectId, setCurrentProject } = useUiStore();
   const queryClient = useQueryClient();
+
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef(null);
+
+  const toggleListening = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      toast.error('El dictado por voz no está soportado en este navegador. Usa Chrome, Edge o Safari.');
+      return;
+    }
+
+    if (isListening) {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+      setIsListening(false);
+    } else {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = false;
+      recognition.lang = 'es-ES';
+
+      recognition.onstart = () => {
+        setIsListening(true);
+        toast.info('Dictado activo. Empieza a hablar...');
+      };
+
+      recognition.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        if (event.error !== 'no-speech') {
+          toast.error(`Error en dictado: ${event.error}`);
+          setIsListening(false);
+        }
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognition.onresult = (event) => {
+        const resultIndex = event.resultIndex;
+        const transcript = event.results[resultIndex][0].transcript;
+        if (editor && transcript) {
+          editor.chain().focus().insertContent(transcript + ' ').run();
+        }
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    }
+  };
+
+  // Limpiar recurso al desmontar
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+    };
+  }, []);
 
   const [title, setTitle] = useState('');
   const [tagInput, setTagInput] = useState('');
@@ -785,35 +853,51 @@ export default function NoteEditor() {
           bgcolor: 'background.default',
         }}
       >
-        <Breadcrumbs
-          separator="›"
-          sx={{
-            fontSize: '0.8rem',
-            minWidth: 0,
-            overflow: 'hidden',
-            '& .MuiBreadcrumbs-ol': { flexWrap: 'wrap' },
-          }}
-        >
-          <Link
-            component="button"
-            variant="body2"
-            onClick={() => { setCurrentProject(null); setCurrentNote(null); }}
-            sx={{ color: 'text.secondary', textDecoration: 'none', '&:hover': { color: 'primary.main' } }}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0, flexGrow: 1 }}>
+          <Tooltip title="Volver a la lista de notas">
+            <IconButton
+              size="small"
+              onClick={() => setCurrentNote(null)}
+              sx={{
+                p: 0.8,
+                borderRadius: 2,
+                '&:hover': { bgcolor: 'action.hover' },
+              }}
+            >
+              <ArrowBackIcon sx={{ fontSize: 18 }} />
+            </IconButton>
+          </Tooltip>
+
+          <Breadcrumbs
+            separator="›"
+            sx={{
+              fontSize: '0.8rem',
+              minWidth: 0,
+              overflow: 'hidden',
+              '& .MuiBreadcrumbs-ol': { flexWrap: 'wrap' },
+            }}
           >
-            Proyectos
-          </Link>
-          <Link
-            component="button"
-            variant="body2"
-            onClick={() => setCurrentNote(null)}
-            sx={{ color: 'text.secondary', textDecoration: 'none', '&:hover': { color: 'primary.main' } }}
-          >
-            {currentProjectName}
-          </Link>
-          <Typography variant="body2" color="text.primary" fontWeight={600} noWrap>
-            {note?.title || 'Sin título'}
-          </Typography>
-        </Breadcrumbs>
+            <Link
+              component="button"
+              variant="body2"
+              onClick={() => { setCurrentProject(null); setCurrentNote(null); }}
+              sx={{ color: 'text.secondary', textDecoration: 'none', '&:hover': { color: 'primary.main' } }}
+            >
+              Proyectos
+            </Link>
+            <Link
+              component="button"
+              variant="body2"
+              onClick={() => setCurrentNote(null)}
+              sx={{ color: 'text.secondary', textDecoration: 'none', '&:hover': { color: 'primary.main' } }}
+            >
+              {currentProjectName}
+            </Link>
+            <Typography variant="body2" color="text.primary" fontWeight={600} noWrap>
+              {note?.title || 'Sin título'}
+            </Typography>
+          </Breadcrumbs>
+        </Box>
 
         {/* Actions: status (moved to the sticky formatting bar) + icon group */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
@@ -1298,6 +1382,29 @@ export default function NoteEditor() {
                 <ImageIcon fontSize="small" />
               </IconButton>
             </Tooltip>
+
+            <Divider orientation="vertical" flexItem />
+
+            {/* Dictado por voz (Speech to Text) */}
+            <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+              <IconButton
+                size="small"
+                onClick={toggleListening}
+                color={isListening ? 'error' : 'default'}
+                sx={{
+                  transition: 'all 0.15s ease',
+                  animation: isListening ? 'pulse-red 1.5s ease-in-out infinite' : 'none',
+                  '@keyframes pulse-red': {
+                    '0%, 100%': { transform: 'scale(1)', boxShadow: 'none' },
+                    '50%': { transform: 'scale(1.15)', boxShadow: '0 0 8px rgba(244, 67, 54, 0.6)' },
+                  }
+                }}
+              >
+                <Tooltip title={isListening ? 'Detener dictado por voz' : 'Dictado por voz (Escribir hablando)'}>
+                  {isListening ? <MicOffIcon fontSize="small" /> : <MicIcon fontSize="small" />}
+                </Tooltip>
+              </IconButton>
+            </motion.div>
 
             <Divider orientation="vertical" flexItem />
 
