@@ -45,6 +45,9 @@ public class ProjectServiceImpl implements ProjectService {
     @Autowired
     private FileStorageService fileStorageService;
 
+    @Autowired
+    private NotificationService notificationService;
+
     @Override
     public List<ProjectResponse> getProjectsByUser(Long userId) {
         // Own projects
@@ -208,6 +211,25 @@ public class ProjectServiceImpl implements ProjectService {
         if (!projectMemberRepository.existsByProjectIdAndUserId(project.getId(), userId)) {
             ProjectMember member = new ProjectMember(null, project, user, "EDITOR", null);
             projectMemberRepository.save(member);
+
+            // Notify the owner of the project
+            notificationService.createNotification(
+                project.getUser().getId(),
+                "Nuevo colaborador",
+                user.getName() + " se ha unido al proyecto: " + project.getName()
+            );
+
+            // Notify all other members of the project
+            List<ProjectMember> members = projectMemberRepository.findByProjectId(project.getId());
+            for (ProjectMember m : members) {
+                if (!m.getUser().getId().equals(userId) && !m.getUser().getId().equals(project.getUser().getId())) {
+                    notificationService.createNotification(
+                        m.getUser().getId(),
+                        "Nuevo colaborador",
+                        user.getName() + " se ha unido al proyecto: " + project.getName()
+                    );
+                }
+            }
         }
 
         return mapToResponse(project, userId);

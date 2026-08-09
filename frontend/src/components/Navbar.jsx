@@ -31,6 +31,7 @@ import api from '../services/api';
 import { useQueryClient } from '@tanstack/react-query';
 import CoverImage from './CoverImage';
 import ProfileDialog from './ProfileDialog';
+import NotificationBell from './NotificationBell';
 import { getAvatarUrl } from '../utils/text';
 import logoImage from '../assets/logo notitas.png';
 import textoImage from '../assets/notitas-texto.png';
@@ -255,6 +256,8 @@ export default function Navbar() {
 
         {/* Acciones */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexShrink: 0 }}>
+          {user && <NotificationBell />}
+
           <IconButton onClick={toggleDarkMode} color="inherit">
             {darkMode ? <LightIcon /> : <DarkIcon />}
           </IconButton>

@@ -55,6 +55,9 @@ public class NoteServiceImpl implements NoteService {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private NotificationService notificationService;
+
     /** Máximo de versiones guardadas por nota: al superarlo se descartan las más antiguas. */
     private static final int MAX_VERSIONS_PER_NOTE = 50;
 
@@ -97,6 +100,21 @@ public class NoteServiceImpl implements NoteService {
                     .orElseThrow(() -> new AccessDeniedException("No tienes acceso a esta nota"));
             if ("VIEWER".equals(member.getRole())) {
                 throw new AccessDeniedException("Viewer cannot edit note");
+            }
+        }
+    }
+
+    private void notifyCollaborators(Project project, Long actionUserId, String title, String message) {
+        // Notify owner if the actor is not the owner
+        if (!project.getUser().getId().equals(actionUserId)) {
+            notificationService.createNotification(project.getUser().getId(), title, message);
+        }
+
+        // Notify members if they are not the actor
+        List<ProjectMember> members = projectMemberRepository.findByProjectId(project.getId());
+        for (ProjectMember m : members) {
+            if (!m.getUser().getId().equals(actionUserId) && !m.getUser().getId().equals(project.getUser().getId())) {
+                notificationService.createNotification(m.getUser().getId(), title, message);
             }
         }
     }
@@ -180,6 +198,15 @@ public class NoteServiceImpl implements NoteService {
 
         // Versión inicial: permite restaurar el estado original de la nota.
         snapshotVersion(savedNote, userId);
+
+        User creator = userRepository.findById(userId).orElse(null);
+        String creatorName = creator != null ? creator.getName() : "Un colaborador";
+        notifyCollaborators(
+            project,
+            userId,
+            "Nueva nota creada",
+            creatorName + " ha creado la nota '" + savedNote.getTitle() + "' en el proyecto " + project.getName()
+        );
 
         return mapToResponse(savedNote);
     }
@@ -341,6 +368,15 @@ public class NoteServiceImpl implements NoteService {
             note.setDeleted(true);
             note.setUpdatedBy(userId);
             noteRepository.save(note);
+
+            User editor = userRepository.findById(userId).orElse(null);
+            String editorName = editor != null ? editor.getName() : "Un colaborador";
+            notifyCollaborators(
+                note.getProject(),
+                userId,
+                "Nota eliminada",
+                editorName + " ha movido la nota '" + note.getTitle() + "' a la papelera"
+            );
         }
     }
 
@@ -443,6 +479,16 @@ public class NoteServiceImpl implements NoteService {
         note.setContent(version.getContent());
         note.setUpdatedBy(userId);
         Note updated = noteRepository.save(note);
+
+        User editor = userRepository.findById(userId).orElse(null);
+        String editorName = editor != null ? editor.getName() : "Un colaborador";
+        notifyCollaborators(
+            note.getProject(),
+            userId,
+            "Versión restaurada",
+            editorName + " ha restaurado una versión anterior de la nota '" + note.getTitle() + "'"
+        );
+
         return mapToResponse(updated);
     }
 
