@@ -269,6 +269,13 @@ export default function NoteEditor() {
   const activeProject = projects.find((p) => p.id === note?.projectId);
   const userRole = activeProject?.currentUserRole || 'OWNER'; // Default to OWNER
   const isReadOnly = userRole === 'VIEWER';
+  // TipTap conserva sus callbacks entre renders. Mantener estos valores en refs
+  // evita que onUpdate use el currentNoteId/isReadOnly del primer render.
+  const currentNoteIdRef = useRef(currentNoteId);
+  const isReadOnlyRef = useRef(isReadOnly);
+  const scheduleSaveRef = useRef(() => {});
+  currentNoteIdRef.current = currentNoteId;
+  isReadOnlyRef.current = isReadOnly;
 
   // Word count + reading time micro-interaction
   const wordCount = React.useMemo(() => {
@@ -370,9 +377,9 @@ export default function NoteEditor() {
       },
     },
     onUpdate: ({ editor }) => {
-      if (!isReadOnly) {
+      if (!isReadOnlyRef.current) {
         contentRef.current = editor.getHTML();
-        scheduleSave(titleRef.current, editor.getHTML());
+        scheduleSaveRef.current(titleRef.current, editor.getHTML());
       }
     },
     // Mantiene el lienzo a la altura de las imágenes flotantes
@@ -389,22 +396,34 @@ export default function NoteEditor() {
   // auto-guardado, lo que crearía versiones duplicadas en el historial.
   useEffect(() => {
     if (note) {
+      const hasLocalChanges = Boolean(
+        pendingSaveRef.current || saveStatus === 'unsaved' || saveStatus === 'saving'
+      );
       const incomingTitle = note.title || '';
-      if (incomingTitle !== titleRef.current && incomingTitle !== lastSavedTitleRef.current) {
+      if (!hasLocalChanges && incomingTitle !== titleRef.current && incomingTitle !== lastSavedTitleRef.current) {
         setTitle(incomingTitle);
         lastSavedTitleRef.current = incomingTitle;
       }
-      titleRef.current = incomingTitle;
-      
       if (editor) {
         const currentHTML = editor.getHTML();
         const incomingContent = note.content || '';
-        if (incomingContent !== currentHTML && incomingContent !== lastSavedContentRef.current) {
+        if (!hasLocalChanges && incomingContent !== currentHTML && incomingContent !== lastSavedContentRef.current) {
           editor.commands.setContent(incomingContent, false);
           lastSavedContentRef.current = incomingContent;
         }
+
+        // No reemplazar las refs locales mientras existe texto pendiente o un
+        // guardado en curso. Un refetch de React Query puede llegar en mitad
+        // de la escritura y, si sobrescribe estas refs, el siguiente save
+        // enviaría contenido antiguo y perdería caracteres.
+        if (!hasLocalChanges) {
+          titleRef.current = incomingTitle;
+          contentRef.current = incomingContent;
+        }
+      } else if (!hasLocalChanges) {
+        titleRef.current = incomingTitle;
+        contentRef.current = incomingContent;
       }
-      contentRef.current = note.content || '';
       updateCanvasHeight(editor);
     }
   }, [note, editor]);
@@ -428,6 +447,9 @@ export default function NoteEditor() {
   const lastSavedContentRef = useRef('');
   const lastSavedTitleRef = useRef('');
   const saveTimeoutRef = useRef(null);
+  const saveRevisionRef = useRef(0);
+  const saveQueueRef = useRef(Promise.resolve());
+  const pendingSaveRef = useRef(null);
 
   const clearPendingSave = () => {
     if (saveTimeoutRef.current) {
@@ -437,15 +459,43 @@ export default function NoteEditor() {
   };
 
   const scheduleSave = (titleValue, contentValue) => {
-    if (!currentNoteId || isReadOnly) return;
+    if (!currentNoteIdRef.current || isReadOnlyRef.current) return;
+    const revision = ++saveRevisionRef.current;
+    const noteId = currentNoteIdRef.current;
+    pendingSaveRef.current = { noteId, title: titleValue, content: contentValue, revision };
     setSaveStatus('unsaved');
     clearPendingSave();
     saveTimeoutRef.current = setTimeout(() => {
       setSaveStatus('saving');
       lastSavedContentRef.current = contentValue;
       lastSavedTitleRef.current = titleValue;
-      updateNoteMutation.mutate({ title: titleValue, content: contentValue });
+      const save = () => updateNoteMutation.mutateAsync({
+        noteId,
+        title: titleValue,
+        content: contentValue,
+        revision,
+      });
+      // Serializar peticiones evita que una respuesta lenta anterior llegue
+      // después y deje el contenido persistido en un estado antiguo.
+      saveQueueRef.current = saveQueueRef.current.catch(() => {}).then(save);
+      pendingSaveRef.current = null;
     }, 800);
+  };
+  scheduleSaveRef.current = scheduleSave;
+
+  const flushPendingSave = () => {
+    const pending = pendingSaveRef.current;
+    if (pending) {
+      clearPendingSave();
+      lastSavedContentRef.current = pending.content;
+      lastSavedTitleRef.current = pending.title;
+      setSaveStatus('saving');
+      saveQueueRef.current = saveQueueRef.current.catch(() => {}).then(() =>
+        updateNoteMutation.mutateAsync(pending)
+      );
+      pendingSaveRef.current = null;
+    }
+    return saveQueueRef.current;
   };
 
   const handleTitleChange = (e) => {
@@ -456,11 +506,12 @@ export default function NoteEditor() {
     scheduleSave(newTitle, editor ? editor.getHTML() : contentRef.current);
   };
 
-  // Cancela guardados pendientes al desmontar
-  React.useEffect(() => () => clearPendingSave(), []);
+  // No perder los últimos caracteres al cambiar de nota o desmontar el editor.
+  React.useEffect(() => () => flushPendingSave(), []);
 
   // Al cambiar de nota se cancelan los guardados pendientes de la nota anterior
   React.useEffect(() => {
+    flushPendingSave();
     clearPendingSave();
     lastSavedContentRef.current = '';
     lastSavedTitleRef.current = '';
@@ -483,15 +534,24 @@ export default function NoteEditor() {
   // Update Note Mutation
   const updateNoteMutation = useMutation({
     mutationFn: async (payload) => {
-      const res = await api.put(`/notes/${currentNoteId}`, payload);
+      const { noteId = currentNoteIdRef.current, revision: _revision, ...notePayload } = payload;
+      const res = await api.put(`/notes/${noteId}`, notePayload);
       return res.data;
     },
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
+      // Una respuesta vieja no puede sobrescribir el resultado de una edición
+      // más reciente si las peticiones se cruzan en la red.
+      if (variables.revision != null &&
+          (variables.noteId !== currentNoteIdRef.current || variables.revision !== saveRevisionRef.current)) return;
       lastSavedContentRef.current = data.content || '';
       lastSavedTitleRef.current = data.title || '';
       queryClient.invalidateQueries({ queryKey: ['notes'] });
       queryClient.invalidateQueries({ queryKey: ['notes', 'trash'] });
-      queryClient.invalidateQueries({ queryKey: ['note', currentNoteId] });
+      // No refetch de ['note', id] aquí: mientras el usuario escribe, una
+      // respuesta vieja del servidor puede hidratar TipTap y borrar caracteres.
+      // Actualizamos la caché con la respuesta más reciente sin desmontar el
+      // contenido local del editor.
+      queryClient.setQueryData(['note', variables.noteId || currentNoteIdRef.current], data);
       if (data.projectId && currentProjectId !== data.projectId && currentProjectId !== 'favorites' && currentProjectId !== 'trash') {
         setCurrentProject(data.projectId);
       }
@@ -499,11 +559,13 @@ export default function NoteEditor() {
       if (currentProjectId === 'trash' && data.deleted === false && data.projectId) {
         setCurrentProject(data.projectId);
       }
-      setSaveStatus('saved');
+      if (variables.revision != null) setSaveStatus('saved');
     },
-    onError: (error) => {
+    onError: (error, variables) => {
       console.error('Error auto-saving note:', error);
-      setSaveStatus('error');
+      if (!variables?.noteId || variables.noteId === currentNoteIdRef.current) {
+        setSaveStatus('error');
+      }
     },
   });
 
@@ -523,9 +585,15 @@ export default function NoteEditor() {
   });
 
   // Toggle Favorite
-  const toggleFavorite = () => {
+  const toggleFavorite = async () => {
     if (!note || isReadOnly) return;
-    updateNoteMutation.mutate({ favorite: !note.favorite });
+    try {
+      await flushPendingSave();
+      updateNoteMutation.mutate({ noteId: currentNoteIdRef.current, favorite: !note.favorite });
+    } catch (error) {
+      console.error('Error saving note before favorite update:', error);
+      toast.error('No se pudo guardar la nota antes de actualizarla.');
+    }
   };
 
   // Move to Trash / Restore / Delete Permanently
@@ -554,15 +622,21 @@ export default function NoteEditor() {
     onError: () => toast.error('No se pudo eliminar la nota'),
   });
 
-  const restoreNote = () => {
+  const restoreNote = async () => {
     if (!note || isReadOnly) return;
-    updateNoteMutation.mutate(
-      { deleted: false },
-      {
-        onSuccess: () => toast.success('Nota restaurada'),
-        onError: () => toast.error('No se pudo restaurar la nota'),
-      }
-    );
+    try {
+      await flushPendingSave();
+      updateNoteMutation.mutate(
+        { noteId: currentNoteIdRef.current, deleted: false },
+        {
+          onSuccess: () => toast.success('Nota restaurada'),
+          onError: () => toast.error('No se pudo restaurar la nota'),
+        }
+      );
+    } catch (error) {
+      console.error('Error saving note before restore:', error);
+      toast.error('No se pudo guardar la nota antes de restaurarla.');
+    }
   };
 
   // Create Note Mutation (for the "Crear nota" button in empty state)
@@ -632,6 +706,7 @@ export default function NoteEditor() {
   };
 
   const handleActivateShare = async () => {
+    flushPendingSave();
     try {
       const res = await api.post(`/notes/${currentNoteId}/share-token`);
       setShareToken(res.data.shareToken);
@@ -644,6 +719,7 @@ export default function NoteEditor() {
   };
 
   const handleRevokeShare = async () => {
+    flushPendingSave();
     try {
       await api.delete(`/notes/${currentNoteId}/share-token`);
       setShareToken('');
