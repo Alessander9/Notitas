@@ -319,10 +319,15 @@ export default function NoteEditor() {
     if (note) {
       setTitle(note.title || '');
       titleRef.current = note.title || '';
-      contentRef.current = note.content || '';
-      if (editor && editor.getHTML() !== note.content) {
-        editor.commands.setContent(note.content || '', false);
+      if (editor) {
+        const currentHTML = editor.getHTML();
+        const incomingContent = note.content || '';
+        if (incomingContent !== currentHTML && incomingContent !== lastSavedContentRef.current) {
+          editor.commands.setContent(incomingContent, false);
+          lastSavedContentRef.current = incomingContent;
+        }
       }
+      contentRef.current = note.content || '';
       updateCanvasHeight(editor);
     }
   }, [note, editor]);
@@ -343,6 +348,7 @@ export default function NoteEditor() {
   // historial (no dos) porque el payload siempre lleva título + contenido.
   const titleRef = useRef('');
   const contentRef = useRef('');
+  const lastSavedContentRef = useRef('');
   const saveTimeoutRef = useRef(null);
 
   const clearPendingSave = () => {
@@ -358,6 +364,7 @@ export default function NoteEditor() {
     clearPendingSave();
     saveTimeoutRef.current = setTimeout(() => {
       setSaveStatus('saving');
+      lastSavedContentRef.current = contentValue;
       updateNoteMutation.mutate({ title: titleValue, content: contentValue });
     }, 800);
   };
@@ -376,6 +383,7 @@ export default function NoteEditor() {
   // Al cambiar de nota se cancelan los guardados pendientes de la nota anterior
   React.useEffect(() => {
     clearPendingSave();
+    lastSavedContentRef.current = '';
   }, [currentNoteId]);
 
   // Update Note Mutation
@@ -385,6 +393,7 @@ export default function NoteEditor() {
       return res.data;
     },
     onSuccess: (data) => {
+      lastSavedContentRef.current = data.content || '';
       queryClient.invalidateQueries({ queryKey: ['notes'] });
       queryClient.invalidateQueries({ queryKey: ['notes', 'trash'] });
       queryClient.invalidateQueries({ queryKey: ['note', currentNoteId] });
