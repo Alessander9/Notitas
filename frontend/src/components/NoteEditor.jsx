@@ -51,6 +51,7 @@ import {
   Add as AddIcon,
   EditNote as EditNoteIcon,
   History as HistoryIcon,
+  Error as ErrorIcon,
 } from '@mui/icons-material';
 import { useEditor, EditorContent, ReactNodeViewRenderer } from '@tiptap/react';
 import { mergeAttributes } from '@tiptap/core';
@@ -315,10 +316,18 @@ export default function NoteEditor() {
   // Update title and editor content when note changes. El segundo argumento
   // (emitUpdate = false) evita que al cargar/restaurar una nota se dispare el
   // auto-guardado, lo que crearía versiones duplicadas en el historial.
+  // Update title and editor content when note changes. El segundo argumento
+  // (emitUpdate = false) evita que al cargar/restaurar una nota se dispare el
+  // auto-guardado, lo que crearía versiones duplicadas en el historial.
   useEffect(() => {
     if (note) {
-      setTitle(note.title || '');
-      titleRef.current = note.title || '';
+      const incomingTitle = note.title || '';
+      if (incomingTitle !== titleRef.current && incomingTitle !== lastSavedTitleRef.current) {
+        setTitle(incomingTitle);
+        lastSavedTitleRef.current = incomingTitle;
+      }
+      titleRef.current = incomingTitle;
+      
       if (editor) {
         const currentHTML = editor.getHTML();
         const incomingContent = note.content || '';
@@ -349,6 +358,7 @@ export default function NoteEditor() {
   const titleRef = useRef('');
   const contentRef = useRef('');
   const lastSavedContentRef = useRef('');
+  const lastSavedTitleRef = useRef('');
   const saveTimeoutRef = useRef(null);
 
   const clearPendingSave = () => {
@@ -365,6 +375,7 @@ export default function NoteEditor() {
     saveTimeoutRef.current = setTimeout(() => {
       setSaveStatus('saving');
       lastSavedContentRef.current = contentValue;
+      lastSavedTitleRef.current = titleValue;
       updateNoteMutation.mutate({ title: titleValue, content: contentValue });
     }, 800);
   };
@@ -384,7 +395,22 @@ export default function NoteEditor() {
   React.useEffect(() => {
     clearPendingSave();
     lastSavedContentRef.current = '';
+    lastSavedTitleRef.current = '';
   }, [currentNoteId]);
+
+  // Advertencia antes de salir si hay cambios sin guardar o guardados en curso
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (saveStatus === 'unsaved' || saveStatus === 'saving') {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [saveStatus]);
 
   // Update Note Mutation
   const updateNoteMutation = useMutation({
@@ -394,6 +420,7 @@ export default function NoteEditor() {
     },
     onSuccess: (data) => {
       lastSavedContentRef.current = data.content || '';
+      lastSavedTitleRef.current = data.title || '';
       queryClient.invalidateQueries({ queryKey: ['notes'] });
       queryClient.invalidateQueries({ queryKey: ['notes', 'trash'] });
       queryClient.invalidateQueries({ queryKey: ['note', currentNoteId] });
@@ -405,6 +432,10 @@ export default function NoteEditor() {
         setCurrentProject(data.projectId);
       }
       setSaveStatus('saved');
+    },
+    onError: (error) => {
+      console.error('Error auto-saving note:', error);
+      setSaveStatus('error');
     },
   });
 
@@ -1304,11 +1335,35 @@ export default function NoteEditor() {
                       >
                         <Box sx={{ width: 14, height: 14, borderRadius: '50%', border: '2px solid', borderColor: 'secondary.main', borderTopColor: 'transparent' }} />
                       </motion.div>
+                    ) : saveStatus === 'error' ? (
+                      <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ type: 'spring', stiffness: 200 }}
+                      >
+                        <ErrorIcon sx={{ fontSize: 14 }} />
+                      </motion.div>
                     ) : null
                   }
-                  label={saveStatus === 'saved' ? 'Guardado' : saveStatus === 'saving' ? 'Guardando...' : 'Sin guardar'}
-                  color={saveStatus === 'saved' ? 'success' : saveStatus === 'saving' ? 'secondary' : 'warning'}
-                  variant={saveStatus === 'saved' ? 'filled' : 'outlined'}
+                  label={
+                    saveStatus === 'saved'
+                      ? 'Guardado'
+                      : saveStatus === 'saving'
+                      ? 'Guardando...'
+                      : saveStatus === 'error'
+                      ? 'Error al guardar'
+                      : 'Sin guardar'
+                  }
+                  color={
+                    saveStatus === 'saved'
+                      ? 'success'
+                      : saveStatus === 'saving'
+                      ? 'secondary'
+                      : saveStatus === 'error'
+                      ? 'error'
+                      : 'warning'
+                  }
+                  variant={saveStatus === 'saved' || saveStatus === 'error' ? 'filled' : 'outlined'}
                   sx={{
                     height: 24,
                     fontSize: '0.68rem',
