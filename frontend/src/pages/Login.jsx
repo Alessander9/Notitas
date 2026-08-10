@@ -8,6 +8,8 @@ import {
   Link,
   Paper,
   Alert,
+  Checkbox,
+  FormControlLabel,
   InputAdornment,
 } from '@mui/material';
 import { Mail as MailIcon, Lock as LockIcon } from '@mui/icons-material';
@@ -19,6 +21,9 @@ import AuthFormSkeleton from '../components/skeletons/AuthFormSkeleton';
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  // Marcada por defecto: mantiene la sesión 30 días en este dispositivo.
+  // Desmarcada, la sesión se cierra al cerrar el navegador.
+  const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -31,7 +36,7 @@ export default function Login() {
     setError('');
     setLoading(true);
 
-    const result = await login(email, password);
+    const result = await login(email, password, rememberMe);
     setLoading(false);
 
     if (result.success) {
@@ -114,6 +119,35 @@ export default function Login() {
                     <LockIcon fontSize="small" color="action" />
                   </InputAdornment>
                 ),
+              }}
+            />
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  color="primary"
+                  size="small"
+                  sx={{
+                    '& .MuiSvgIcon-root': { fontSize: 22 },
+                    '&:hover': { backgroundColor: 'transparent' },
+                  }}
+                />
+              }
+              label={
+                <Box>
+                  <Typography variant="body2" sx={{ fontWeight: 500, lineHeight: 1.3 }}>
+                    Recuérdame
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.3 }}>
+                    Mantendrá tu sesión iniciada 30 días en este dispositivo
+                  </Typography>
+                </Box>
+              }
+              sx={{
+                mt: 1.5,
+                alignItems: 'flex-start',
+                '& .MuiFormControlLabel-label': { mt: 0.2 },
               }}
             />
             <Button

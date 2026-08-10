@@ -1,0 +1,5 @@
+# Artefactos locales de la suite E2E — no deben subirse al repo
+.pytest_cache/
+__pycache__/
+*.pyc
+screenshots/

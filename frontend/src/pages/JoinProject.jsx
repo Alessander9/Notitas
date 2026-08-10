@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -35,7 +35,16 @@ export default function JoinProject() {
   const [success, setSuccess] = useState(false);
   const [exiting, setExiting] = useState(false);
 
+  // React StrictMode en desarrollo monta/desmonta los componentes 2 veces y
+  // dispara los efectos dos veces: sin este guard, handleJoin se ejecuta 2
+  // veces (2 POST /join concurrentes) y el backend podía crear el miembro
+  // duplicado (carrera en project_members). El guard no aplica en prod (los
+  // efectos no se duplican), pero protege también ante dobles clics/pestañas.
+  const joinedRef = useRef(false);
+
   const handleJoin = useCallback(async () => {
+    if (joinedRef.current) return;
+    joinedRef.current = true;
     setLoading(true);
     setError('');
     try {

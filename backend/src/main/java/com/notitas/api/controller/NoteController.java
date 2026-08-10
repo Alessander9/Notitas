@@ -155,15 +155,10 @@ public class NoteController {
         return ResponseEntity.ok(noteService.restoreNoteVersion(id, versionId, getUserId(authentication)));
     }
 
-    @Autowired
-    private FileStorageService fileStorageService;
-
     @PostMapping("/notes/{id}/images")
     public ResponseEntity<?> uploadInlineImage(
             @PathVariable Long id, @RequestParam("file") MultipartFile file, Authentication authentication) {
-        // Verify ownership/membership access
-        noteService.getNoteByIdAndUser(id, getUserId(authentication));
-        String fileName = fileStorageService.storeFile(file);
-        return ResponseEntity.ok(java.util.Map.of("url", "/uploads/" + fileName));
+        // El servicio valida acceso de ESCRITURA y guarda el archivo
+        return ResponseEntity.ok(noteService.uploadInlineImage(id, file, getUserId(authentication)));
     }
 }

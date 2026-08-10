@@ -11,6 +11,12 @@ public class LoginRequest {
     @NotBlank
     private String password;
 
+    /**
+     * true → sesión persistente (cookie y JWT de 30 días);
+     * false (por defecto) → cookie de sesión que expira al cerrar el navegador.
+     */
+    private boolean rememberMe;
+
     public LoginRequest() {}
 
     public LoginRequest(String email, String password) {
@@ -22,4 +28,6 @@ public class LoginRequest {
     public void setEmail(String email) { this.email = email; }
     public String getPassword() { return password; }
     public void setPassword(String password) { this.password = password; }
+    public boolean isRememberMe() { return rememberMe; }
+    public void setRememberMe(boolean rememberMe) { this.rememberMe = rememberMe; }
 }

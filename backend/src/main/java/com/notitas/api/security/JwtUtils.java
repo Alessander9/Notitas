@@ -30,6 +30,10 @@ public class JwtUtils {
     @Value("${app.jwt.expiration-ms}")
     private int jwtExpirationMs;
 
+    /** Expiración de los tokens "recordarme" (30 días por defecto, ver application.properties). */
+    @Value("${app.jwt.remember-me-expiration-ms}")
+    private long rememberMeExpirationMs;
+
     /**
      * Clave de firma derivada del secreto configurado (NOTITAS_JWT_SECRET).
      * En desarrollo, si no hay secreto configurado, se genera UNA clave
@@ -90,9 +94,9 @@ public class JwtUtils {
         return bytes;
     }
 
-    public String generateJwtToken(Authentication authentication) {
+    public String generateJwtToken(Authentication authentication, boolean rememberMe) {
         UserDetailsImpl userPrincipal = (UserDetailsImpl) authentication.getPrincipal();
-        return generateTokenFromUsername(userPrincipal.getUsername(), userPrincipal.getTokenVersion());
+        return generateTokenFromUsername(userPrincipal.getUsername(), userPrincipal.getTokenVersion(), rememberMe);
     }
 
     /**
@@ -102,13 +106,48 @@ public class JwtUtils {
      * de ser válidos aunque no hayan expirado.
      */
     public String generateTokenFromUsername(String username, int tokenVersion) {
+        return generateTokenFromUsername(username, tokenVersion, false);
+    }
+
+    /**
+     * Emite un JWT con la versión de sesión embebida (claim "tv") y la marca de
+     * sesión persistente (claim "rm"). La expiración del token es de 24 h para
+     * sesiones normales y de 30 días para sesiones "recordarme": así la cookie
+     * larga sirve de verdad — si el token muriera a las 24 h, el refresh de
+     * arranque devolvería 401 y la sesión se cerraría al volver al cabo de
+     * unos días.
+     */
+    public String generateTokenFromUsername(String username, int tokenVersion, boolean rememberMe) {
+        long expirationMs = rememberMe && rememberMeExpirationMs > 0 ? rememberMeExpirationMs : jwtExpirationMs;
         return Jwts.builder()
                 .subject(username)
                 .claim("tv", tokenVersion)
+                .claim("rm", rememberMe)
                 .issuedAt(new Date())
-                .expiration(new Date((new Date()).getTime() + jwtExpirationMs))
+                .expiration(new Date((new Date()).getTime() + expirationMs))
                 .signWith(getSigningKey())
                 .compact();
+    }
+
+    /**
+     * Lee la marca "recordarme" (claim "rm") del JWT. El refresh la usa para
+     * renovar la cookie sin degradar una sesión persistente a 24 h, ni
+     * promocionar una sesión de navegador a persistente. Devuelve false ante
+     * cualquier error de parseo (comportamiento seguro por defecto).
+     */
+    public boolean getRememberMeFromJwtToken(String token) {
+        try {
+            Object value = Jwts.parser()
+                    .verifyWith(getSigningKey())
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload()
+                    .get("rm");
+            return Boolean.TRUE.equals(value)
+                    || (value instanceof Number && ((Number) value).intValue() == 1);
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     /**

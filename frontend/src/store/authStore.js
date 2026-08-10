@@ -8,9 +8,9 @@ export const useAuthStore = create(
     (set) => ({
       user: null,
       isAuthenticated: false,
-      login: async (email, password) => {
+      login: async (email, password, rememberMe = false) => {
         try {
-          const response = await api.post('/auth/login', { email, password });
+          const response = await api.post('/auth/login', { email, password, rememberMe });
           const { id, name, avatar } = response.data;
           set({
             user: { id, email, name, avatar },

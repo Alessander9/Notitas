@@ -380,6 +380,7 @@ export default function ProjectFormDialog({
                     <Tooltip key={opt.id} title={opt.label} placement="top">
                       <motion.div whileHover={{ scale: 1.12, y: -1 }} whileTap={{ scale: 0.9 }} style={{ display: 'flex' }}>
                         <Box
+                          data-testid={`icon-${opt.id}`}
                           onClick={() => onIconChange(opt.id)}
                           sx={{
                             flex: 1,
@@ -417,6 +418,7 @@ export default function ProjectFormDialog({
                     <Tooltip key={c} title={c}>
                       <motion.div whileHover={{ scale: 1.12, y: -2 }} whileTap={{ scale: 0.9 }} style={{ display: 'flex', justifyContent: 'center' }}>
                         <Box
+                          data-testid={`color-${c}`}
                           onClick={() => onColorChange(c)}
                           sx={{
                             width: 34,

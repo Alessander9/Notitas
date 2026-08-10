@@ -155,16 +155,75 @@ class AuthControllerIntegrationTest extends BaseIntegrationTest {
                 .andReturn();
 
         // Se renueva la cookie (el JWT puede ser idéntico si se genera en el
-        // mismo milisegundo, lo importante es que se vuelve a emitir)
+        // mismo milisegundo, lo importante es que se vuelve a emitir). Sin
+        // "recordarme" la sesión es de navegador: cookie de sesión (maxAge -1).
         Cookie renewed = result.getResponse().getCookie("jwt");
         assertThat(renewed).isNotNull();
         assertThat(renewed.getValue()).isNotBlank();
-        assertThat(renewed.getMaxAge()).isPositive();
+        assertThat(renewed.getMaxAge()).isEqualTo(-1);
 
         // La cookie renovada funciona en un endpoint protegido (ciclo completo)
         mockMvc.perform(get("/api/users/me").cookie(new Cookie("jwt", renewed.getValue())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value("refresh@test.com"));
+    }
+
+    @Test
+    void login_withRememberMe_setsLongLivedCookie() throws Exception {
+        register("remember@test.com", "secret123", "Remember");
+
+        MvcResult result = mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"remember@test.com","password":"secret123","rememberMe":true}
+                                """))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        Cookie cookie = result.getResponse().getCookie("jwt");
+        assertThat(cookie).isNotNull();
+        assertThat(cookie.getMaxAge()).isEqualTo(30 * 24 * 60 * 60);
+    }
+
+    @Test
+    void login_withoutRememberMe_setsSessionCookie() throws Exception {
+        register("session@test.com", "secret123", "Session");
+
+        MvcResult result = mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"session@test.com","password":"secret123"}
+                                """))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        Cookie cookie = result.getResponse().getCookie("jwt");
+        assertThat(cookie).isNotNull();
+        assertThat(cookie.getMaxAge()).isEqualTo(-1);
+    }
+
+    @Test
+    void refresh_withRememberMeToken_keepsLongLivedCookie() throws Exception {
+        register("rm-refresh@test.com", "secret123", "RmRefresh");
+
+        MvcResult loginResult = mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"rm-refresh@test.com","password":"secret123","rememberMe":true}
+                                """))
+                .andExpect(status().isOk())
+                .andReturn();
+        String token = objectMapper.readTree(loginResult.getResponse().getContentAsString()).get("token").asText();
+
+        MvcResult result = mockMvc.perform(post("/api/auth/refresh")
+                        .cookie(new Cookie("jwt", token)))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        // El refresh conserva la sesión persistente: la cookie renovada sigue durando 30 días
+        Cookie renewed = result.getResponse().getCookie("jwt");
+        assertThat(renewed).isNotNull();
+        assertThat(renewed.getMaxAge()).isEqualTo(30 * 24 * 60 * 60);
     }
 
     @Test

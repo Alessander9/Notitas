@@ -47,6 +47,17 @@ public class AuthController {
     @Value("${app.cookie.samesite:None}")
     private String cookieSameSite;
 
+    /** Cookie de sesión: se borra al cerrar el navegador. */
+    private static final int SESSION_COOKIE_MAX_AGE = -1;
+
+    /**
+     * Expiración de la cookie "recordarme", en ms. La MISMA propiedad que usa
+     * JwtUtils para el token, así cookie y JWT nunca se desincronizan. Se
+     * convierte a segundos al fijar el maxAge de la cookie.
+     */
+    @Value("${app.jwt.remember-me-expiration-ms}")
+    private long rememberMeExpirationMs;
+
     @PostMapping("/login")
     public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest,
                                               HttpServletResponse response) {
@@ -55,11 +66,12 @@ public class AuthController {
                     new UsernamePasswordAuthenticationToken(
                             loginRequest.getEmail(), loginRequest.getPassword()));
 
-            String jwt = jwtUtils.generateJwtToken(authentication);
+            boolean rememberMe = loginRequest.isRememberMe();
+            String jwt = jwtUtils.generateJwtToken(authentication, rememberMe);
 
             UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
 
-            addJwtCookie(response, jwt);
+            addJwtCookie(response, jwt, rememberMe);
 
             return ResponseEntity.ok(new JwtResponse(jwt, userDetails.getId(),
                     userDetails.getEmail(), userDetails.getName(),
@@ -143,16 +155,22 @@ public class AuthController {
                     .body(new MessageResponse("Sesión revocada"));
         }
 
-        String newToken = jwtUtils.generateTokenFromUsername(user.getEmail(), user.getTokenVersion());
-        addJwtCookie(response, newToken);
+        // El refresh conserva la marca "recordarme" del token: ni degrada una
+        // sesión persistente a cookie de navegador, ni promociona una sesión
+        // normal a persistente.
+        boolean rememberMe = jwtUtils.getRememberMeFromJwtToken(jwt);
+        String newToken = jwtUtils.generateTokenFromUsername(user.getEmail(), user.getTokenVersion(), rememberMe);
+        addJwtCookie(response, newToken, rememberMe);
         return ResponseEntity.ok(new JwtResponse(newToken, user.getId(), user.getEmail(), user.getName(), user.getAvatar()));
     }
 
-    private void addJwtCookie(HttpServletResponse response, String jwt) {
+    private void addJwtCookie(HttpServletResponse response, String jwt, boolean rememberMe) {
         Cookie cookie = new Cookie("jwt", jwt);
         cookie.setPath("/");
         cookie.setHttpOnly(true);
-        cookie.setMaxAge(24 * 60 * 60); // 24 hours
+        // rememberMe → 30 días (casado con la expiración del JWT); si no,
+        // cookie de sesión que se borra al cerrar el navegador.
+        cookie.setMaxAge(rememberMe ? (int) (rememberMeExpirationMs / 1000) : SESSION_COOKIE_MAX_AGE);
         cookie.setSecure(cookieSecure);
         cookie.setAttribute("SameSite", cookieSameSite);
         response.addCookie(cookie);

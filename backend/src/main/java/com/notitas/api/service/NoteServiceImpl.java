@@ -216,7 +216,11 @@ public class NoteServiceImpl implements NoteService {
     public NoteResponse updateNote(Long id, NoteRequest request, Long userId) {
         Note note = noteRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Nota no encontrada"));
-        checkNoteAccess(note, userId);
+        // Editar (título, contenido, mover, tags, favorito, papelera) es una
+        // operación de ESCRITURA: los VIEWER (solo lectura) no pueden modificarla
+        // (antes solo se comprobaba acceso de lectura, así que un VIEWER podía
+        // editar y borrar notas vía API).
+        checkNoteEditAccess(note, userId);
 
         if (request.getProjectId() != null) {
             checkProjectAccess(request.getProjectId(), userId);
@@ -268,7 +272,7 @@ public class NoteServiceImpl implements NoteService {
     public NoteResponse uploadCoverImage(Long id, MultipartFile file, Long userId) {
         Note note = noteRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Nota no encontrada"));
-        checkNoteAccess(note, userId);
+        checkNoteEditAccess(note, userId);
         note.setUpdatedBy(userId);
 
         if (note.getCoverImage() != null) {
@@ -288,7 +292,7 @@ public class NoteServiceImpl implements NoteService {
     public NoteResponse deleteCoverImage(Long id, Long userId) {
         Note note = noteRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Nota no encontrada"));
-        checkNoteAccess(note, userId);
+        checkNoteEditAccess(note, userId);
         note.setUpdatedBy(userId);
 
         if (note.getCoverImage() != null) {
@@ -306,7 +310,7 @@ public class NoteServiceImpl implements NoteService {
     public NoteResponse uploadAttachment(Long id, MultipartFile file, String tag, Long userId) {
         Note note = noteRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Nota no encontrada"));
-        checkNoteAccess(note, userId);
+        checkNoteEditAccess(note, userId);
         note.setUpdatedBy(userId);
 
         String fileName = fileStorageService.storeFile(file);
@@ -328,7 +332,7 @@ public class NoteServiceImpl implements NoteService {
     public NoteResponse updateAttachmentTag(Long noteId, Long attachmentId, String tag, Long userId) {
         Note note = noteRepository.findById(noteId)
                 .orElseThrow(() -> new ResourceNotFoundException("Nota no encontrada"));
-        checkNoteAccess(note, userId);
+        checkNoteEditAccess(note, userId);
         note.setUpdatedBy(userId);
 
         Attachment attachment = note.getAttachments().stream()
@@ -346,7 +350,8 @@ public class NoteServiceImpl implements NoteService {
     public void deleteNote(Long id, Long userId) {
         Note note = noteRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Nota no encontrada"));
-        checkNoteAccess(note, userId);
+        // Mover a la papelera o borrar definitivamente también es escritura
+        checkNoteEditAccess(note, userId);
 
         if (note.isDeleted()) {
             if (note.getCoverImage() != null) {
@@ -378,6 +383,19 @@ public class NoteServiceImpl implements NoteService {
                 editorName + " ha movido la nota '" + note.getTitle() + "' a la papelera"
             );
         }
+    }
+
+    @Override
+    @Transactional
+    public java.util.Map<String, String> uploadInlineImage(Long id, MultipartFile file, Long userId) {
+        Note note = noteRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Nota no encontrada"));
+        // Subir una imagen embebe un archivo en el contenido: solo EDITOR/owner
+        // (antes el controlador solo comprobaba acceso de lectura, así que un
+        // VIEWER podía subir imágenes a una nota de solo lectura).
+        checkNoteEditAccess(note, userId);
+        String fileName = fileStorageService.storeFile(file);
+        return java.util.Map.of("url", "/uploads/" + fileName);
     }
 
     @Override

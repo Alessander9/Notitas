@@ -30,7 +30,7 @@
 | Persistencia | **JPA/Hibernate** + **H2** (dev/tests) / **PostgreSQL** (prod, Supabase) | `ddl-auto=update` |
 | Seguridad | **Spring Security 6** + **JWT (jjwt 0.12.6)** + **BCrypt** | Token en header `Authorization` y/o cookie httpOnly `jwt` |
 | Linting | **oxlint** (`frontend/.oxlintrc.json`) | Reglas de React Hooks |
-| Tests | JUnit 5 + Spring Boot Test (MockMvc) — **tests de integración** | Perfil `test` |
+| Tests | JUnit 5 + Spring Boot Test (MockMvc) — **tests de integración** (perfil `test`) · **Vitest + Testing Library** en el frontend (`npm test`, 10 archivos) · **suite E2E** con Selenium + pytest (`e2e/`, 32 tests) | |
 | Deploy | **Vercel** (frontend SPA) + contenedor Docker (backend) + **Supabase** (PostgreSQL) | Ver `DEPLOY.md` |
 
 ---
@@ -85,7 +85,7 @@
 |---|---|---|---|
 | **User** | `users` | id, email (único), password (bcrypt), name, avatar, createdAt | 1:N Projects (owner) |
 | **Project** | `projects` | id, user_id (owner), name, icon, color, description, coverImage, inviteToken (único), createdAt, updatedAt | N:1 User; 1:N Notes; 1:N ProjectMembers |
-| **ProjectMember** | `project_members` | id, project_id, user_id, role (`EDITOR`/`VIEWER`, default EDITOR), joinedAt | N:1 Project; N:1 User |
+| **ProjectMember** | `project_members` | id, project_id, user_id, role (`EDITOR`/`VIEWER`, default EDITOR), joinedAt · **UNIQUE(project_id, user_id)** (V4) | N:1 Project; N:1 User |
 | **Note** | `notes` | id, project_id, title, content (**LONGVARCHAR** → CLOB/text), coverImage, favorite, archived, deleted, shareToken (único), createdAt, updatedAt, updatedBy (userId último editor) | N:1 Project; 1:N Tags; 1:N Attachments; 1:N NoteVersions |
 | **NoteVersion** | `note_versions` | id, note_id, title, content (LONGVARCHAR), createdAt, updatedBy | N:1 Note |
 | **Tag** | `note_tags` | id, note_id, tag | N:1 Note (`@JsonIgnore`) |
@@ -129,7 +129,7 @@
 **AuthController** (`/api/auth` — público):
 | Método | Ruta | Descripción |
 |---|---|---|
-| POST | `/login` | Autentica, devuelve `JwtResponse` + cookie httpOnly `jwt` (24h) |
+| POST | `/login` | Autentica, devuelve `JwtResponse` + cookie httpOnly `jwt`. `rememberMe:true` → cookie y JWT de 30 días; si no, cookie de sesión (maxAge -1) |
 | POST | `/register` | Crea usuario (valida email único, password ≥ 6) |
 | POST | `/refresh` | Renovación deslizante: re-emite la cookie si el JWT es válido y la versión coincide |
 | POST | `/logout` | Borra la cookie **y revoca el token**: incrementa `users.token_version` (invalida todos los JWT anteriores, en cualquier dispositivo) |
@@ -179,7 +179,8 @@
 
 - **`WebSecurityConfig`**: CSRF desactivado, sesiones **stateless**, CORS configurable por env var (`app.cors.allowed-origins`, separados por coma). Rutas públicas: `/api/auth/**`, `/api/public/**`, `/uploads/**`, `/h2-console/**`; el resto requiere autenticación. H2 console con `frameOptions: sameOrigin`.
 - **`AuthTokenFilter`**: extrae el JWT primero del header `Authorization: Bearer ...` y luego de la cookie httpOnly `jwt`; valida que el claim `tv` (token_version) coincida con el del usuario en BD (revocación).
-- **`JwtUtils`**: jjwt 0.12.6, secreto desde `app.jwt.secret` (env `NOTITAS_JWT_SECRET`), expiración `app.jwt.expiration-ms` (24h por defecto). El JWT lleva el claim `tv` = `users.token_version`.
+- **Join de proyectos sin duplicados (fix 2026-08)**: `project_members` tiene **UNIQUE(project_id, user_id)** (entidad + migración Flyway V4) y `joinProject` usa `saveAndFlush` capturando `DataIntegrityViolationException`: dos joins concurrentes (doble pestaña o doble efecto de React StrictMode en dev) ya no duplican el miembro — antes la fila duplicada rompía `findByProjectIdAndUserId` (Optional con >1 resultado) → 500 en `GET /api/projects`. El frontend (`JoinProject`) además tiene un guard (`joinedRef`) contra el doble disparo de `handleJoin` en dev.
+- **`JwtUtils`**: jjwt 0.12.6, secreto desde `app.jwt.secret` (env `NOTITAS_JWT_SECRET`), expiración `app.jwt.expiration-ms` (24h por defecto). El JWT lleva el claim `tv` = `users.token_version` y el claim `rm` (sesión "recordarme", 30 días vía `app.jwt.remember-me-expiration-ms`; el refresh conserva la marca para no degradar ni promocionar la sesión).
 - **Revocación real**: `POST /api/auth/logout` incrementa `token_version`; los JWT anteriores dejan de ser válidos al instante.
 - **Cookie SameSite configurable**: `app.cookie.samesite` (env `COOKIE_SAMESITE`) — listo para cuando la cookie pase a first-party con dominio propio.
 - **Migraciones Flyway**: `V1__initial_schema.sql` (esquema base) + `V2__add_token_version.sql` (columna `token_version`), aplicadas automáticamente al arrancar.
@@ -210,10 +211,14 @@
 
 `BaseIntegrationTest` levanta el contexto Spring completo (H2 + JWT real) con `@Transactional` (rollback por test) y helpers: `register`, `login`, `createProject`, `createNote`, `bearer`, `expectApiError`.
 
-- **AuthControllerIntegrationTest**: registro, email duplicado, validación, login ok/fallido, endpoints protegidos.
+- **AuthControllerIntegrationTest**: registro, email duplicado, validación, login ok/fallido, endpoints protegidos, **remember-me** (cookie 30 días vs cookie de sesión, refresh que conserva la marca).
 - **NoteControllerIntegrationTest**: CRUD, favoritos (incluido como miembro), búsqueda, soft/hard delete, compartir, portadas/adjuntos/imágenes (limpia archivos en `@AfterAll`), versionado (crea/deduplica/restaura/permisos).
+- **NotePermissionsIntegrationTest**: los miembros `VIEWER` no pueden editar, borrar, subir archivos, restaurar versiones ni revocar compartido (los `EDITOR` sí).
 - **ProjectControllerIntegrationTest**: CRUD, invitaciones, join, permisos owner/miembro (miembro no borra, miembro puede editar).
 - **UserControllerIntegrationTest**: actualizar perfil (con nuevo token y login con el email nuevo), cambio de contraseña.
+- **Unitarios**: `JwtUtilsTest` (claims `tv`/`rm`, expiración, extracción), `NoteServiceImplTest`, `ProjectServiceImplTest` (incluida la carrera de join), `NotificationServiceImplTest`, `FileStorageServiceImplTest`.
+- **Frontend (Vitest)**: stores (auth/ui/toast/confirm), utils (text), Login/Register, ProjectFormDialog, Toasts, ConfirmDialog — `cd frontend && npm test`.
+- **E2E (Selenium + pytest)**: `cd e2e && python -m pytest` — 32 tests contra backend (8080) + frontend (5174) levantados (login/register con/sin remember-me, notas, papelera, perfil, sharing, notificaciones, UI).
 
 ---
 
@@ -368,9 +373,17 @@ npm run dev                   # → http://localhost:5173 (proxy /api → 8080)
 cd backend
 ./mvnw test
 
+# Tests del frontend (Vitest)
+cd frontend
+npm test
+
 # Lint del frontend
 cd frontend
 npm run lint
+
+# Suite E2E (requiere backend en :8080 y frontend en :5174 levantados)
+cd e2e
+python -m pytest
 ```
 
 ---
@@ -381,6 +394,6 @@ npm run lint
 - **Dominio propio** (`app.tudominio.com` + `api.tudominio.com`): cookie first-party + `COOKIE_SAMESITE=Lax` (documentado en DEPLOY.md).
 - **Supabase Auth** para login social (OAuth) si algún día se quiere.
 - **Paginación/infinite scroll** para listas largas de notas (hoy `MAX_NOTES=50` en el sidebar como mitigación).
-- **Tests de frontend** — hoy solo hay tests de backend.
+
 - **Búsqueda con acentos/insensibilidad real en BD** (hoy filtrado en Java).
 - **Autocompletado de invitaciones por email** (hoy el enlace es el único mecanismo).

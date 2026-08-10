@@ -196,7 +196,13 @@ public class ProjectServiceImpl implements ProjectService {
     @Override
     @Transactional
     public ProjectResponse joinProject(String token, Long userId) {
-        Project project = projectRepository.findByInviteToken(token)
+        // Bloqueo pesimista sobre la fila del proyecto: dos joins concurrentes con
+        // el mismo token quedan serializados (el segundo espera al commit del
+        // primero y ve el miembro ya creado). Sin el lock, ambos podían pasar el
+        // check "no es miembro" a la vez e insertar el miembro duplicado, que
+        // rompía findByProjectIdAndUserId (Optional >1 fila) → 500. La constraint
+        // UNIQUE(project_id, user_id) queda como red de seguridad adicional.
+        Project project = projectRepository.findByInviteTokenForUpdate(token)
                 .orElseThrow(() -> new ResourceNotFoundException("Token de invitación inválido"));
 
         User user = userRepository.findById(userId)
