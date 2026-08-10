@@ -183,7 +183,7 @@
 - **`JwtUtils`**: jjwt 0.12.6, secreto desde `app.jwt.secret` (env `NOTITAS_JWT_SECRET`), expiración `app.jwt.expiration-ms` (24h por defecto). El JWT lleva el claim `tv` = `users.token_version` y el claim `rm` (sesión "recordarme", 30 días vía `app.jwt.remember-me-expiration-ms`; el refresh conserva la marca para no degradar ni promocionar la sesión).
 - **Revocación real**: `POST /api/auth/logout` incrementa `token_version`; los JWT anteriores dejan de ser válidos al instante.
 - **Cookie SameSite configurable**: `app.cookie.samesite` (env `COOKIE_SAMESITE`) — listo para cuando la cookie pase a first-party con dominio propio.
-- **Migraciones Flyway**: `V1__initial_schema.sql` (esquema base) + `V2__add_token_version.sql` (columna `token_version`), aplicadas automáticamente al arrancar.
+- **Migraciones Flyway**: `V1__initial_schema.sql` (esquema base) + `V2__add_token_version.sql` (columna `token_version`) + `V3__add_note_members.sql` (colaboración por nota) + `V4__unique_project_members.sql` (UNIQUE joins) + `V5__add_notifications.sql` (tabla `notifications` del centro de notificaciones — **fix prod**: la entidad existía en código pero no había migración, y en prod `ddl-auto=none` + Flyway hacía que `GET /api/notifications` devolviera 500). Aplicadas automáticamente al arrancar.
 - **`RateLimitFilter`**: limita login/register a **10 peticiones por IP en 60s** (ventana en memoria con `ConcurrentHashMap`; respeta `X-Forwarded-For`). Desactivable con `app.rate-limit.enabled=false` (el perfil test lo hace).
 - **`AuthEntryPointJwt`**: respuestas 401 JSON.
 - Passwords con **BCrypt** (`BCryptPasswordEncoder`).
