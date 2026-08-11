@@ -1,0 +1,4 @@
+ALTER TABLE notifications
+    ADD COLUMN IF NOT EXISTS event_type VARCHAR(80),
+    ADD COLUMN IF NOT EXISTS project_id BIGINT,
+    ADD COLUMN IF NOT EXISTS note_id BIGINT;
