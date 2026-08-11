@@ -137,7 +137,7 @@ class ProjectServiceImplTest {
         projectService.joinProject("tok", OWNER_ID);
 
         verify(projectMemberRepository, never()).save(any(ProjectMember.class));
-        verify(notificationService, never()).createNotification(anyLong(), anyString(), anyString());
+        verify(notificationService, never()).createNotification(anyLong(), anyString(), anyString(), anyString(), anyLong(), any());
     }
 
     @Test
@@ -163,7 +163,7 @@ class ProjectServiceImplTest {
 
         // Se notifica al owner (1) y a los demás miembros (3), no al actor (2)
         ArgumentCaptor<Long> userIdCaptor = ArgumentCaptor.forClass(Long.class);
-        verify(notificationService, times(2)).createNotification(userIdCaptor.capture(), anyString(), anyString());
+        verify(notificationService, times(2)).createNotification(userIdCaptor.capture(), anyString(), anyString(), anyString(), anyLong(), any());
         assertThat(userIdCaptor.getAllValues()).containsExactlyInAnyOrder(1L, 3L);
     }
 

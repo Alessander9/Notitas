@@ -16,6 +16,9 @@ import {
   Check as CheckIcon,
   ZoomIn as ZoomInIcon,
   ZoomOut as ZoomOutIcon,
+  FormatAlignLeft as AlignLeftIcon,
+  FormatAlignCenter as AlignCenterIcon,
+  FormatAlignRight as AlignRightIcon,
 } from '@mui/icons-material';
 
 const MIN_WIDTH = 80;
@@ -542,6 +545,40 @@ export default function FloatingImageNodeView({ node, updateAttributes, selected
           </Tooltip>
 
           <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(255,255,255,0.2)', mx: 0.25 }} />
+
+          {/* Alineación (solo si no es flotante) */}
+          {!isFloating && (
+            <>
+              <Tooltip title="Alinear a la izquierda">
+                <IconButton
+                  size="small"
+                  onClick={(e) => { e.stopPropagation(); e.preventDefault(); updateAttributes({ alignment: 'left' }); }}
+                  sx={{ color: alignment === 'left' ? 'primary.main' : '#fff', p: 0.5, '&:hover': { bgcolor: 'rgba(255,255,255,0.15)' } }}
+                >
+                  <AlignLeftIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Centrar">
+                <IconButton
+                  size="small"
+                  onClick={(e) => { e.stopPropagation(); e.preventDefault(); updateAttributes({ alignment: 'center' }); }}
+                  sx={{ color: (!alignment || alignment === 'center') ? 'primary.main' : '#fff', p: 0.5, '&:hover': { bgcolor: 'rgba(255,255,255,0.15)' } }}
+                >
+                  <AlignCenterIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Alinear a la derecha">
+                <IconButton
+                  size="small"
+                  onClick={(e) => { e.stopPropagation(); e.preventDefault(); updateAttributes({ alignment: 'right' }); }}
+                  sx={{ color: alignment === 'right' ? 'primary.main' : '#fff', p: 0.5, '&:hover': { bgcolor: 'rgba(255,255,255,0.15)' } }}
+                >
+                  <AlignRightIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </Tooltip>
+              <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(255,255,255,0.2)', mx: 0.25 }} />
+            </>
+          )}
 
           {/* Eliminar imagen */}
           <Tooltip title="Eliminar imagen">

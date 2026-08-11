@@ -57,6 +57,9 @@ import {
   ArrowBack as ArrowBackIcon,
   Mic as MicIcon,
   MicOff as MicOffIcon,
+  FileDownload as DownloadIcon,
+  PictureAsPdf as PdfIcon,
+  ArrowDropDown as ArrowDropDownIcon,
 } from '@mui/icons-material';
 import { useEditor, EditorContent, ReactNodeViewRenderer } from '@tiptap/react';
 import { mergeAttributes } from '@tiptap/core';
@@ -228,9 +231,11 @@ export default function NoteEditor() {
   const [openShareDialog, setOpenShareDialog] = useState(false);
   const [shareToken, setShareToken] = useState('');
   const [copySuccess, setCopySuccess] = useState(false);
-  const [copyJoinSuccess, setCopyJoinSuccess] = useState(false);
-  const [saveStatus, setSaveStatus] = useState('saved'); // 'saved' | 'saving' | 'unsaved'
-  const [historyOpen, setHistoryOpen] = useState(false);
+   const [copyJoinSuccess, setCopyJoinSuccess] = useState(false);
+   const [saveStatus, setSaveStatus] = useState('saved'); // 'saved' | 'saving' | 'unsaved'
+   const [historyOpen, setHistoryOpen] = useState(false);
+   const [exportOpen, setExportOpen] = useState(false);
+   const [exportMenuAnchor, setExportMenuAnchor] = useState(null);
 
   // Menu state for moving note to project
   const [projectMenuAnchor, setProjectMenuAnchor] = useState(null);
@@ -839,11 +844,38 @@ export default function NoteEditor() {
     editor.chain().focus().deleteTable().run();
   };
 
-  const changeSelectedImageAlignment = (alignment) => {
+   const changeSelectedImageAlignment = (alignment) => {
     if (editor) {
       // Alinear devuelve la imagen al flujo del texto (limpia la posición libre)
       editor.chain().focus().updateAttributes('image', { alignment, left: null, top: null }).run();
     }
+  };
+
+  const exportAsTxt = () => {
+    setExportMenuAnchor(null);
+    const textContent = `${title || 'Sin título'}\n\n${editor ? editor.getText() : ''}`;
+    const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `${title || 'nota'}.txt`;
+    link.click();
+    toast.success('Nota exportada a TXT');
+  };
+
+  const exportAsHtml = () => {
+    setExportMenuAnchor(null);
+    const htmlContent = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title || 'Nota'}</title></head><body><h1>${title || ''}</h1>${editor ? editor.getHTML() : ''}</body></html>`;
+    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `${title || 'nota'}.html`;
+    link.click();
+    toast.success('Nota exportada a HTML (Word)');
+  };
+
+  const exportAsPdf = () => {
+    setExportMenuAnchor(null);
+    window.print();
   };
 
   if (!currentNoteId) {
@@ -1030,9 +1062,15 @@ export default function NoteEditor() {
               </IconButton>
             </Tooltip>
 
-            <Tooltip title="Historial de versiones">
+             <Tooltip title="Historial de versiones">
               <IconButton size="small" onClick={() => setHistoryOpen(true)} sx={{ p: 0.6 }}>
                 <HistoryIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip title="Exportar nota">
+              <IconButton size="small" onClick={(e) => setExportMenuAnchor(e.currentTarget)} sx={{ p: 0.6 }}>
+                <DownloadIcon fontSize="small" />
               </IconButton>
             </Tooltip>
 
@@ -1095,6 +1133,25 @@ export default function NoteEditor() {
               />
             </>
           )}
+
+          <Menu
+            anchorEl={exportMenuAnchor}
+            open={Boolean(exportMenuAnchor)}
+            onClose={() => setExportMenuAnchor(null)}
+          >
+            <MenuItem disabled sx={{ fontWeight: 'bold' }}>
+              Exportar nota como...
+            </MenuItem>
+            <MenuItem onClick={exportAsTxt}>
+              📄 Texto plano (.txt)
+            </MenuItem>
+            <MenuItem onClick={exportAsHtml}>
+              📝 Documento (.html / Word)
+            </MenuItem>
+            <MenuItem onClick={exportAsPdf}>
+              <PdfIcon fontSize="small" sx={{ mr: 1 }} /> Imprimir / Guardar como PDF
+            </MenuItem>
+          </Menu>
 
           <Menu
             anchorEl={projectMenuAnchor}
