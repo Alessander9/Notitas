@@ -214,6 +214,173 @@ class ProjectControllerIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
+    void changeMemberRole_byOwner_updatesRole() throws Exception {
+        String ownerToken = register("role.owner@test.com", "secret123", "RoleOwner");
+        long projectId = createProject(ownerToken, "Proyecto Roles");
+        String inviteToken = getInviteToken(projectId, ownerToken);
+
+        String memberToken = register("role.member@test.com", "secret123", "RoleMember");
+        mockMvc.perform(post("/api/projects/join/" + inviteToken).header("Authorization", bearer(memberToken)))
+                .andExpect(status().isOk());
+
+        // Obtener el id del miembro desde la respuesta del propietario
+        MvcResult detailResult = mockMvc.perform(get("/api/projects/" + projectId)
+                        .header("Authorization", bearer(ownerToken)))
+                .andExpect(status().isOk())
+                .andReturn();
+        long memberUserId = objectMapper.readTree(detailResult.getResponse().getContentAsString())
+                .get("collaborators").get(0).get("id").asLong();
+
+        mockMvc.perform(put("/api/projects/" + projectId + "/members/" + memberUserId)
+                        .header("Authorization", bearer(ownerToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"role":"VIEWER"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.collaborators[0].role").value("VIEWER"));
+
+        // El miembro ve su rol actualizado
+        mockMvc.perform(get("/api/projects/" + projectId).header("Authorization", bearer(memberToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.currentUserRole").value("VIEWER"));
+    }
+
+    @Test
+    void changeMemberRole_byNonOwnerMember_returnsForbidden() throws Exception {
+        String ownerToken = register("role2.owner@test.com", "secret123", "Role2Owner");
+        long projectId = createProject(ownerToken, "Proyecto Roles 2");
+        String inviteToken = getInviteToken(projectId, ownerToken);
+
+        String memberToken = register("role2.member@test.com", "secret123", "Role2Member");
+        mockMvc.perform(post("/api/projects/join/" + inviteToken).header("Authorization", bearer(memberToken)))
+                .andExpect(status().isOk());
+
+        MvcResult detailResult = mockMvc.perform(get("/api/projects/" + projectId)
+                        .header("Authorization", bearer(ownerToken)))
+                .andExpect(status().isOk())
+                .andReturn();
+        long memberUserId = objectMapper.readTree(detailResult.getResponse().getContentAsString())
+                .get("collaborators").get(0).get("id").asLong();
+
+        // Un miembro no puede cambiar roles
+        expectApiError(403, "Solo el propietario puede gestionar los miembros",
+                put("/api/projects/" + projectId + "/members/" + memberUserId)
+                        .header("Authorization", bearer(memberToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"role":"VIEWER"}
+                                """));
+    }
+
+    @Test
+    void changeMemberRole_invalidRole_returnsBadRequest() throws Exception {
+        String ownerToken = register("role3.owner@test.com", "secret123", "Role3Owner");
+        long projectId = createProject(ownerToken, "Proyecto Roles 3");
+        String inviteToken = getInviteToken(projectId, ownerToken);
+
+        String memberToken = register("role3.member@test.com", "secret123", "Role3Member");
+        mockMvc.perform(post("/api/projects/join/" + inviteToken).header("Authorization", bearer(memberToken)))
+                .andExpect(status().isOk());
+
+        MvcResult detailResult = mockMvc.perform(get("/api/projects/" + projectId)
+                        .header("Authorization", bearer(ownerToken)))
+                .andExpect(status().isOk())
+                .andReturn();
+        long memberUserId = objectMapper.readTree(detailResult.getResponse().getContentAsString())
+                .get("collaborators").get(0).get("id").asLong();
+
+        expectApiError(400, "Rol inválido: debe ser EDITOR o VIEWER",
+                put("/api/projects/" + projectId + "/members/" + memberUserId)
+                        .header("Authorization", bearer(ownerToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"role":"ADMIN"}
+                                """));
+    }
+
+    @Test
+    void removeMember_byOwner_revokesAccess() throws Exception {
+        String ownerToken = register("kick.owner@test.com", "secret123", "KickOwner");
+        long projectId = createProject(ownerToken, "Proyecto Expulsión");
+        String inviteToken = getInviteToken(projectId, ownerToken);
+
+        String memberToken = register("kick.member@test.com", "secret123", "KickMember");
+        mockMvc.perform(post("/api/projects/join/" + inviteToken).header("Authorization", bearer(memberToken)))
+                .andExpect(status().isOk());
+
+        MvcResult detailResult = mockMvc.perform(get("/api/projects/" + projectId)
+                        .header("Authorization", bearer(ownerToken)))
+                .andExpect(status().isOk())
+                .andReturn();
+        long memberUserId = objectMapper.readTree(detailResult.getResponse().getContentAsString())
+                .get("collaborators").get(0).get("id").asLong();
+
+        mockMvc.perform(delete("/api/projects/" + projectId + "/members/" + memberUserId)
+                        .header("Authorization", bearer(ownerToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.collaborators").isEmpty());
+
+        // El expulsado pierde el acceso al proyecto
+        expectApiError(403, "No tienes acceso a este proyecto",
+                get("/api/projects/" + projectId).header("Authorization", bearer(memberToken)));
+
+        // Y ya no aparece en su lista de proyectos
+        MvcResult listResult = mockMvc.perform(get("/api/projects").header("Authorization", bearer(memberToken)))
+                .andExpect(status().isOk())
+                .andReturn();
+        JsonNode projects = objectMapper.readTree(listResult.getResponse().getContentAsString());
+        assertThat(projects).noneMatch(node -> "Proyecto Expulsión".equals(node.get("name").asText()));
+    }
+
+    @Test
+    void removeMember_byNonOwnerMember_returnsForbidden() throws Exception {
+        String ownerToken = register("kick2.owner@test.com", "secret123", "Kick2Owner");
+        long projectId = createProject(ownerToken, "Proyecto Expulsión 2");
+        String inviteToken = getInviteToken(projectId, ownerToken);
+
+        String memberToken = register("kick2.member@test.com", "secret123", "Kick2Member");
+        mockMvc.perform(post("/api/projects/join/" + inviteToken).header("Authorization", bearer(memberToken)))
+                .andExpect(status().isOk());
+
+        MvcResult detailResult = mockMvc.perform(get("/api/projects/" + projectId)
+                        .header("Authorization", bearer(ownerToken)))
+                .andExpect(status().isOk())
+                .andReturn();
+        long memberUserId = objectMapper.readTree(detailResult.getResponse().getContentAsString())
+                .get("collaborators").get(0).get("id").asLong();
+
+        expectApiError(403, "Solo el propietario puede gestionar los miembros",
+                delete("/api/projects/" + projectId + "/members/" + memberUserId)
+                        .header("Authorization", bearer(memberToken)));
+    }
+
+    @Test
+    void manageMember_notAMember_returnsNotFound() throws Exception {
+        String ownerToken = register("ghost2.owner@test.com", "secret123", "Ghost2Owner");
+        long projectId = createProject(ownerToken, "Proyecto Sin Miembro");
+
+        // Usuario registrado pero que NO es miembro del proyecto
+        String outsiderToken = register("outsider@test.com", "secret123", "Outsider");
+        MvcResult meResult = mockMvc.perform(get("/api/users/me").header("Authorization", bearer(outsiderToken)))
+                .andExpect(status().isOk())
+                .andReturn();
+        long outsiderId = objectMapper.readTree(meResult.getResponse().getContentAsString()).get("id").asLong();
+
+        expectApiError(404, "El usuario no es miembro de este proyecto",
+                put("/api/projects/" + projectId + "/members/" + outsiderId)
+                        .header("Authorization", bearer(ownerToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"role":"VIEWER"}
+                                """));
+
+        expectApiError(404, "El usuario no es miembro de este proyecto",
+                delete("/api/projects/" + projectId + "/members/" + outsiderId)
+                        .header("Authorization", bearer(ownerToken)));
+    }
+
+    @Test
     void joinProject_invalidToken_throwsServerError() throws Exception {
         String token = register("badjoin@test.com", "secret123", "BadJoin");
 

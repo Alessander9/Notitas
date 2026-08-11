@@ -8,9 +8,12 @@ import {
   Avatar,
   Popover,
   Typography,
+  Button,
+  Divider,
 } from '@mui/material';
-import { People as PeopleIcon } from '@mui/icons-material';
+import { People as PeopleIcon, ManageAccounts as ManageIcon } from '@mui/icons-material';
 import { getAssetUrl } from '../utils/text';
+import ManageMembersDialog from './ManageMembersDialog';
 
 function MemberRow({ user, label, color, isCreator }) {
   return (
@@ -55,11 +58,18 @@ function MemberRow({ user, label, color, isCreator }) {
 // Members pill (creator + collaborators). Click to see the full member list.
 export default function CollaboratorsChip({ project }) {
   const [anchorEl, setAnchorEl] = useState(null);
+  const [manageOpen, setManageOpen] = useState(false);
   const open = Boolean(anchorEl);
   const count = 1 + (project?.collaborators?.length || 0);
   const color = project?.color || '#1976d2';
+  const isOwner = project?.currentUserRole === 'OWNER';
 
   const handleClose = () => setAnchorEl(null);
+
+  const handleManage = () => {
+    setAnchorEl(null);
+    setManageOpen(true);
+  };
 
   const handleOpen = (e) => {
     e.stopPropagation();
@@ -152,8 +162,28 @@ export default function CollaboratorsChip({ project }) {
               />
             ))}
           </List>
+          {isOwner && (
+            <>
+              <Divider sx={{ my: 1 }} />
+              <Button
+                fullWidth
+                size="small"
+                startIcon={<ManageIcon />}
+                onClick={handleManage}
+                sx={{ borderRadius: 2, fontWeight: 700 }}
+              >
+                Gestionar miembros
+              </Button>
+            </>
+          )}
         </Box>
       </Popover>
+
+      <ManageMembersDialog
+        project={project}
+        open={manageOpen}
+        onClose={() => setManageOpen(false)}
+      />
     </>
   );
 }

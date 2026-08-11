@@ -26,6 +26,8 @@ public interface NoteService {
     /** Sube una imagen inline del editor y devuelve {"url": "/uploads/..."}. Requiere acceso de escritura. */
     java.util.Map<String, String> uploadInlineImage(Long id, MultipartFile file, Long userId);
     void deleteNote(Long id, Long userId);
+    void emptyTrash(Long userId);
+    void restoreAllTrash(Long userId);
     String generateNoteShareToken(Long id, Long userId);
     void revokeNoteShareToken(Long id, Long userId);
     NoteResponse getSharedNoteByToken(String token);

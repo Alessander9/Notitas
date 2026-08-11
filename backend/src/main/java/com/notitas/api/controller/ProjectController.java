@@ -2,6 +2,7 @@ package com.notitas.api.controller;
 
 import com.notitas.api.payload.ProjectRequest;
 import com.notitas.api.payload.ProjectResponse;
+import com.notitas.api.payload.UpdateMemberRoleRequest;
 import com.notitas.api.security.UserDetailsImpl;
 import com.notitas.api.service.ProjectService;
 import jakarta.validation.Valid;
@@ -65,6 +66,23 @@ public class ProjectController {
     @PostMapping("/join/{token}")
     public ResponseEntity<ProjectResponse> joinProject(@PathVariable String token, Authentication authentication) {
         return ResponseEntity.ok(projectService.joinProject(token, getUserId(authentication)));
+    }
+
+    @PutMapping("/{id}/members/{userId}")
+    public ResponseEntity<ProjectResponse> changeMemberRole(
+            @PathVariable Long id,
+            @PathVariable Long userId,
+            @Valid @RequestBody UpdateMemberRoleRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(projectService.changeMemberRole(id, userId, request.getRole(), getUserId(authentication)));
+    }
+
+    @DeleteMapping("/{id}/members/{userId}")
+    public ResponseEntity<ProjectResponse> removeMember(
+            @PathVariable Long id,
+            @PathVariable Long userId,
+            Authentication authentication) {
+        return ResponseEntity.ok(projectService.removeMember(id, userId, getUserId(authentication)));
     }
 
     @PostMapping("/{id}/cover")

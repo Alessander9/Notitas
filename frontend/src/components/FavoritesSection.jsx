@@ -11,27 +11,25 @@ import {
   ChevronRight as ChevronRightIcon,
   Delete as DeleteIcon,
 } from '@mui/icons-material';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import { useUiStore } from '../store/uiStore';
 import { toast } from '../store/toastStore';
 import CoverImage from './CoverImage';
 import { getProjectIcon } from './ProjectFormDialog';
 import CollaboratorsChip from './CollaboratorsChip';
+import { usePaginatedNotes } from '../hooks/usePaginatedNotes';
 import { getPlainText, formatShortDate, getAssetUrl } from '../utils/text';
 
 export default function FavoritesSection({ projects, projectsLoading }) {
   const { setCurrentProject, setCurrentNote } = useUiStore();
   const queryClient = useQueryClient();
 
-  const { data: favorites = [], isLoading } = useQuery({
+  // Comparte la caché con la vista Favoritos del sidebar (misma clave);
+  // este staleTime evita refetchear al entrar en la vista Favoritos.
+  const { notes: favorites = [], totalCount, isLoading } = usePaginatedNotes({
     queryKey: ['notes', 'favorites'],
-    queryFn: async () => {
-      const res = await api.get('/notes/favorites');
-      return res.data?.content || res.data || [];
-    },
-    // Comparte la caché con la vista Favoritos del sidebar (misma clave);
-    // este staleTime evita refetchear al entrar en la vista Favoritos.
+    url: '/notes/favorites',
     staleTime: 60_000,
   });
 
@@ -80,7 +78,7 @@ export default function FavoritesSection({ projects, projectsLoading }) {
           onClick={() => setCurrentProject('favorites')}
           sx={{ textTransform: 'none', fontWeight: 600, color: 'primary.main' }}
         >
-          Ver todos ({favorites.length})
+          Ver todos ({totalCount})
         </Button>
       </Box>
 

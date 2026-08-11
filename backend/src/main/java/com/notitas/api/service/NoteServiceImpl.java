@@ -104,17 +104,20 @@ public class NoteServiceImpl implements NoteService {
         }
     }
 
-    private void notifyCollaborators(Project project, Long actionUserId, String title, String message) {
+    private void notifyCollaborators(Project project, Long actionUserId, String title, String message,
+                                     String eventType, Long noteId) {
         // Notify owner if the actor is not the owner
         if (!project.getUser().getId().equals(actionUserId)) {
-            notificationService.createNotification(project.getUser().getId(), title, message);
+            notificationService.createNotification(project.getUser().getId(), title, message,
+                    eventType, project.getId(), noteId);
         }
 
         // Notify members if they are not the actor
         List<ProjectMember> members = projectMemberRepository.findByProjectId(project.getId());
         for (ProjectMember m : members) {
             if (!m.getUser().getId().equals(actionUserId) && !m.getUser().getId().equals(project.getUser().getId())) {
-                notificationService.createNotification(m.getUser().getId(), title, message);
+                notificationService.createNotification(m.getUser().getId(), title, message,
+                        eventType, project.getId(), noteId);
             }
         }
     }
@@ -205,7 +208,8 @@ public class NoteServiceImpl implements NoteService {
             project,
             userId,
             "Nueva nota creada",
-            creatorName + " ha creado la nota '" + savedNote.getTitle() + "' en el proyecto " + project.getName()
+            creatorName + " ha creado la nota '" + savedNote.getTitle() + "' en el proyecto " + project.getName(),
+            "NOTE_CREATED", savedNote.getId()
         );
 
         return mapToResponse(savedNote);
@@ -354,21 +358,7 @@ public class NoteServiceImpl implements NoteService {
         checkNoteEditAccess(note, userId);
 
         if (note.isDeleted()) {
-            if (note.getCoverImage() != null) {
-                String coverName = note.getCoverImage().substring(note.getCoverImage().lastIndexOf('/') + 1);
-                fileStorageService.deleteFile(coverName);
-            }
-            for (Attachment att : note.getAttachments()) {
-                String attName = att.getUrl().substring(att.getUrl().lastIndexOf('/') + 1);
-                fileStorageService.deleteFile(attName);
-            }
-            // Imágenes inline embebidas en el HTML del contenido (antes quedaban
-            // huérfanas en disco al borrar la nota definitivamente)
-            fileStorageService.deleteContentImages(note.getContent());
-            // Historial de versiones: se borra explícitamente (no hay cascade de
-            // colección en Note para evitar interacciones con el auto-flush).
-            noteVersionRepository.deleteByNoteId(note.getId());
-            noteRepository.delete(note);
+            hardDeleteNote(note);
         } else {
             note.setDeleted(true);
             note.setUpdatedBy(userId);
@@ -380,9 +370,54 @@ public class NoteServiceImpl implements NoteService {
                 note.getProject(),
                 userId,
                 "Nota eliminada",
-                editorName + " ha movido la nota '" + note.getTitle() + "' a la papelera"
+                editorName + " ha movido la nota '" + note.getTitle() + "' a la papelera",
+                "NOTE_TRASHED", note.getId()
             );
         }
+    }
+
+    @Override
+    @Transactional
+    public void emptyTrash(Long userId) {
+        // La papelera solo contiene notas de proyectos PROPIOS, así que el
+        // usuario tiene permiso para borrarlas todas definitivamente.
+        List<Note> trashNotes = noteRepository.findByProjectUserIdAndDeletedTrue(userId);
+        for (Note note : trashNotes) {
+            hardDeleteNote(note);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void restoreAllTrash(Long userId) {
+        List<Note> trashNotes = noteRepository.findByProjectUserIdAndDeletedTrue(userId);
+        for (Note note : trashNotes) {
+            note.setDeleted(false);
+            noteRepository.save(note);
+        }
+    }
+
+    /**
+     * Borrado físico de una nota ya marcada como eliminada: limpia portada,
+     * adjuntos e imágenes inline del contenido y elimina su historial de
+     * versiones antes de borrar la fila (evita violaciones de FK).
+     */
+    private void hardDeleteNote(Note note) {
+        if (note.getCoverImage() != null) {
+            String coverName = note.getCoverImage().substring(note.getCoverImage().lastIndexOf('/') + 1);
+            fileStorageService.deleteFile(coverName);
+        }
+        for (Attachment att : note.getAttachments()) {
+            String attName = att.getUrl().substring(att.getUrl().lastIndexOf('/') + 1);
+            fileStorageService.deleteFile(attName);
+        }
+        // Imágenes inline embebidas en el HTML del contenido (antes quedaban
+        // huérfanas en disco al borrar la nota definitivamente)
+        fileStorageService.deleteContentImages(note.getContent());
+        // Historial de versiones: se borra explícitamente (no hay cascade de
+        // colección en Note para evitar interacciones con el auto-flush).
+        noteVersionRepository.deleteByNoteId(note.getId());
+        noteRepository.delete(note);
     }
 
     @Override
@@ -504,7 +539,8 @@ public class NoteServiceImpl implements NoteService {
             note.getProject(),
             userId,
             "Versión restaurada",
-            editorName + " ha restaurado una versión anterior de la nota '" + note.getTitle() + "'"
+            editorName + " ha restaurado una versión anterior de la nota '" + note.getTitle() + "'",
+            "NOTE_VERSION_RESTORED", note.getId()
         );
 
         return mapToResponse(updated);

@@ -16,6 +16,7 @@ public interface NoteRepository extends JpaRepository<Note, Long> {
     Page<Note> findByProjectIdAndDeletedFalseOrderByUpdatedAtDesc(Long projectId, Pageable pageable);
     List<Note> findByProjectId(Long projectId);
     Page<Note> findByProjectUserIdAndDeletedTrue(Long userId, Pageable pageable);
+    List<Note> findByProjectUserIdAndDeletedTrue(Long userId);
 
     /**
      * Notas favoritas (no eliminadas) del usuario: tanto las de sus propios

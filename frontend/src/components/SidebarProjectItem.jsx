@@ -20,10 +20,9 @@ import {
 } from '@mui/icons-material';
 import CoverImage from './CoverImage';
 import { getProjectIcon } from './ProjectFormDialog';
+import InfiniteScroll from './InfiniteScroll';
 import { useProjectNotes } from '../hooks/useProjectNotes';
 import { getPlainText, getAssetUrl } from '../utils/text';
-
-const MAX_NOTES = 50;
 
 export default function SidebarProjectItem({
   project,
@@ -43,11 +42,13 @@ export default function SidebarProjectItem({
   const hasCover = Boolean(project.coverImage);
   const coverUrl = hasCover ? getAssetUrl(project.coverImage) : null;
 
-  const { data: notes = [], isLoading: notesLoading } = useProjectNotes(project.id, !isCollapsed);
+  // Notas paginadas con scroll infinito (ya no hay límite fijo de 50).
+  const { notes, totalCount, isLoading: notesLoading, hasNextPage, fetchNextPage, isFetchingNextPage } =
+    useProjectNotes(project.id, !isCollapsed);
 
-  const recentNotes = [...notes]
-    .sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt))
-    .slice(0, MAX_NOTES);
+  const recentNotes = [...notes].sort(
+    (a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt)
+  );
 
   const accentColor = project.color || '#386c5f';
 
@@ -226,7 +227,7 @@ export default function SidebarProjectItem({
                         }}
                       >
                         <Typography sx={{ fontSize: '0.65rem', fontWeight: 700, color: accentColor, lineHeight: 1 }}>
-                          {notes.length}
+                          {totalCount}
                         </Typography>
                       </Box>
                     </motion.div>
@@ -371,6 +372,7 @@ export default function SidebarProjectItem({
                   '& > div:last-child': { mb: 0 },
                 }}
               >
+                <InfiniteScroll hasMore={hasNextPage} loading={isFetchingNextPage} onLoadMore={fetchNextPage}>
                 {notesLoading ? (
                   <Box sx={{ py: 0.8, pl: 0.5 }}>
                     <CircularProgress size={14} />
@@ -470,6 +472,8 @@ export default function SidebarProjectItem({
                     );
                   })
                 )}
+
+                </InfiniteScroll>
 
                 {/* "Crear nota" button */}
                 {onCreateNote && (

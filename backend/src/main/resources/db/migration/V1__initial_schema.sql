@@ -37,6 +37,19 @@ CREATE TABLE IF NOT EXISTS notes (
     FOREIGN KEY (project_id) REFERENCES projects(id)
 );
 
+CREATE TABLE IF NOT EXISTS notifications (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    message VARCHAR(1000) NOT NULL,
+    read BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    event_type VARCHAR(80),
+    project_id BIGINT,
+    note_id BIGINT,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
 CREATE TABLE IF NOT EXISTS note_tags (
     id BIGSERIAL PRIMARY KEY,
     note_id BIGINT NOT NULL,
@@ -72,4 +85,13 @@ CREATE TABLE IF NOT EXISTS note_versions (
     updated_by BIGINT,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (note_id) REFERENCES notes(id)
+);
+
+CREATE TABLE IF NOT EXISTS note_members (
+    id BIGSERIAL PRIMARY KEY,
+    note_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    role VARCHAR(20) NOT NULL DEFAULT 'EDITOR',
+    FOREIGN KEY (note_id) REFERENCES notes(id),
+    FOREIGN KEY (user_id) REFERENCES users(id)
 );

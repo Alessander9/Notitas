@@ -11,7 +11,8 @@
 #            node -e "console.log(require('crypto').randomBytes(48).toString('base64'))"
 #
 # Notas del plan free: el servicio se duerme tras ~15 min sin tráfico y tarda
-# ~1 min en despertar. CORS y health check ya están configurados aquí.
+# ~1 min en despertar. Configura UptimeRobot para hacer GET a
+# https://TU-SERVICIO.onrender.com/api/public/ping cada 5 minutos.
 services:
   - type: web
     name: notitas-api
@@ -19,7 +20,7 @@ services:
     rootDir: backend
     dockerfilePath: Dockerfile
     plan: free
-    healthCheckPath: /api/public/health
+    healthCheckPath: /api/public/ping
     envVars:
       - key: SPRING_PROFILES_ACTIVE
         value: prod

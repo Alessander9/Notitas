@@ -21,6 +21,8 @@ import {
 const MIN_WIDTH = 80;
 const MAX_WIDTH = 1400;
 const HANDLE_ZONE = 18; // área alrededor de la esquina donde el clic redimensiona
+const LONG_PRESS_MS = 450;
+const TOUCH_MOVE_THRESHOLD = 8;
 
 // Presets de tamaño de imagen
 const SIZE_PRESETS = [
@@ -44,6 +46,8 @@ export default function FloatingImageNodeView({ node, updateAttributes, selected
   const imgRef = useRef(null);
   const dragRef = useRef(null);
   const handlersRef = useRef(null);
+  const pendingTouchRef = useRef(null);
+  const pendingHandlersRef = useRef(null);
   const [showToolbar, setShowToolbar] = useState(false);
   const [customWidth, setCustomWidth] = useState('');
 
@@ -96,17 +100,38 @@ export default function FloatingImageNodeView({ node, updateAttributes, selected
     return attrs;
   };
 
-  const endDrag = () => {
+  const removePendingTouchListeners = () => {
+    const h = pendingHandlersRef.current;
+    if (!h) return;
+    window.removeEventListener('pointermove', h.move);
+    window.removeEventListener('pointerup', h.up);
+    window.removeEventListener('pointercancel', h.cancel);
+    pendingHandlersRef.current = null;
+  };
+
+  const cancelPendingTouch = () => {
+    const pending = pendingTouchRef.current;
+    if (pending?.timer) clearTimeout(pending.timer);
+    pendingTouchRef.current = null;
+    removePendingTouchListeners();
+  };
+
+  const endDrag = (event) => {
     const h = handlersRef.current;
     if (h) {
       window.removeEventListener('pointermove', h.move);
       window.removeEventListener('pointerup', h.up);
+      window.removeEventListener('pointercancel', h.cancel);
     }
+    handlersRef.current = null;
     const d = dragRef.current;
     dragRef.current = null;
     if (!d) return;
     // Restaura el scroll táctil de la página sobre la imagen
     d.img.style.touchAction = '';
+    if (event && d.pointerId != null && d.img.hasPointerCapture?.(d.pointerId)) {
+      d.img.releasePointerCapture(d.pointerId);
+    }
     if (d.mode === 'resize') {
       updateAttributes({ width: Math.round(d.img.offsetWidth) });
     } else {
@@ -120,6 +145,8 @@ export default function FloatingImageNodeView({ node, updateAttributes, selected
   const handlePointerMove = (e) => {
     const d = dragRef.current;
     if (!d) return;
+    if (d.pointerId != null && e.pointerId !== d.pointerId) return;
+    e.preventDefault();
     if (d.mode === 'resize') {
       const newWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, d.startWidth + (e.clientX - d.startX)));
       d.img.style.width = `${Math.round(newWidth)}px`;
@@ -133,12 +160,103 @@ export default function FloatingImageNodeView({ node, updateAttributes, selected
     bumpCanvas(d.img);
   };
 
-  const handlePointerUp = () => {
-    endDrag();
+  const handlePointerUp = (e) => {
+    endDrag(e);
+  };
+
+  const beginDrag = ({ pointerId, startX, startY, img, attrs }) => {
+    const cRect = container?.getBoundingClientRect();
+    if (!img || !attrs || !cRect) return;
+
+    cancelPendingTouch();
+    img.style.touchAction = 'none';
+    try {
+      img.setPointerCapture?.(pointerId);
+    } catch {
+      // Algunos navegadores no permiten capturar el puntero tras un long press.
+    }
+
+    dragRef.current = {
+      mode: 'drag',
+      pointerId,
+      startX,
+      startY,
+      startLeft: Number(attrs.left) || 0,
+      startTop: Number(attrs.top) || 0,
+      containerWidth: cRect.width,
+      img,
+    };
+    const handlers = {
+      move: handlePointerMove,
+      up: handlePointerUp,
+      cancel: handlePointerUp,
+    };
+    handlersRef.current = handlers;
+    window.addEventListener('pointermove', handlers.move, { passive: false });
+    window.addEventListener('pointerup', handlers.up);
+    window.addEventListener('pointercancel', handlers.cancel);
+  };
+
+  const beginResize = ({ pointerId, startX, img }) => {
+    cancelPendingTouch();
+    img.style.touchAction = 'none';
+    try {
+      img.setPointerCapture?.(pointerId);
+    } catch {
+      // Ignore unsupported pointer capture.
+    }
+    dragRef.current = {
+      mode: 'resize',
+      pointerId,
+      startX,
+      startWidth: img.offsetWidth || parseInt(width, 10) || 400,
+      img,
+    };
+    const handlers = {
+      move: handlePointerMove,
+      up: handlePointerUp,
+      cancel: handlePointerUp,
+    };
+    handlersRef.current = handlers;
+    window.addEventListener('pointermove', handlers.move, { passive: false });
+    window.addEventListener('pointerup', handlers.up);
+    window.addEventListener('pointercancel', handlers.cancel);
+  };
+
+  const activateTouchDrag = (pending) => {
+    const img = imgRef.current;
+    if (!img || !editor) return;
+
+    let attrs = { ...node.attrs };
+    if (!isFloating) {
+      const floated = floatAtCurrentPosition(img);
+      if (!floated) return;
+      attrs = { ...attrs, ...floated };
+      updateAttributes(attrs);
+    }
+
+    beginDrag({
+      pointerId: pending.pointerId,
+      startX: pending.startX,
+      startY: pending.startY,
+      img,
+      attrs,
+    });
+  };
+
+  const handlePendingTouchMove = (e) => {
+    const pending = pendingTouchRef.current;
+    if (!pending || e.pointerId !== pending.pointerId) return;
+    const distance = Math.hypot(e.clientX - pending.startX, e.clientY - pending.startY);
+    if (distance > TOUCH_MOVE_THRESHOLD) cancelPendingTouch();
+  };
+
+  const handlePendingTouchUp = (e) => {
+    if (pendingTouchRef.current?.pointerId === e.pointerId) cancelPendingTouch();
   };
 
   const handlePointerDown = (e) => {
-    if (e.button !== 0) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
     const img = imgRef.current;
     if (!img || !editor) return;
 
@@ -151,21 +269,38 @@ export default function FloatingImageNodeView({ node, updateAttributes, selected
     const nearCorner =
       Math.abs(e.clientX - iRect.right) < HANDLE_ZONE && Math.abs(e.clientY - iRect.bottom) < HANDLE_ZONE;
 
-    // Desactiva el scroll táctil de la página mientras se arrastra/redimensiona
-    img.style.touchAction = 'none';
-
-    if (nearCorner) {
+    if (nearCorner && e.pointerType !== 'touch') {
       // Redimensionar desde la esquina (mantiene proporciones: solo ancho)
       e.preventDefault();
-      dragRef.current = {
-        mode: 'resize',
+      beginResize({ pointerId: e.pointerId, startX: e.clientX, img });
+      return;
+    }
+
+    // En móvil, un toque corto conserva el scroll y la selección. Solo un
+    // long press inicia el movimiento para no secuestrar el gesto de scroll.
+    if (e.pointerType === 'touch') {
+      cancelPendingTouch();
+      const pending = {
+        pointerId: e.pointerId,
         startX: e.clientX,
-        startWidth: img.offsetWidth || parseInt(width, 10) || 400,
-        img,
+        startY: e.clientY,
+        timer: setTimeout(() => {
+          const current = pendingTouchRef.current;
+          if (current?.pointerId === e.pointerId) {
+            activateTouchDrag(current);
+          }
+        }, LONG_PRESS_MS),
       };
-      handlersRef.current = { move: handlePointerMove, up: handlePointerUp };
-      window.addEventListener('pointermove', handlePointerMove);
-      window.addEventListener('pointerup', handlePointerUp);
+      pendingTouchRef.current = pending;
+      const handlers = {
+        move: handlePendingTouchMove,
+        up: handlePendingTouchUp,
+        cancel: handlePendingTouchUp,
+      };
+      pendingHandlersRef.current = handlers;
+      window.addEventListener('pointermove', handlers.move);
+      window.addEventListener('pointerup', handlers.up);
+      window.addEventListener('pointercancel', handlers.cancel);
       return;
     }
 
@@ -176,19 +311,13 @@ export default function FloatingImageNodeView({ node, updateAttributes, selected
       attrs = { ...attrs, ...floatAtCurrentPosition(img) };
       updateAttributes(attrs);
     }
-    const cRect = container?.getBoundingClientRect();
-    dragRef.current = {
-      mode: 'drag',
+    beginDrag({
+      pointerId: e.pointerId,
       startX: e.clientX,
       startY: e.clientY,
-      startLeft: attrs.left,
-      startTop: attrs.top,
-      containerWidth: cRect?.width || 0,
       img,
-    };
-    handlersRef.current = { move: handlePointerMove, up: handlePointerUp };
-    window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerup', handlePointerUp);
+      attrs,
+    });
   };
 
   // Limpieza si el componente se desmonta a mitad de arrastre
@@ -198,7 +327,9 @@ export default function FloatingImageNodeView({ node, updateAttributes, selected
       if (h) {
         window.removeEventListener('pointermove', h.move);
         window.removeEventListener('pointerup', h.up);
+        window.removeEventListener('pointercancel', h.cancel);
       }
+      cancelPendingTouch();
     };
   }, []);
 
@@ -266,7 +397,7 @@ export default function FloatingImageNodeView({ node, updateAttributes, selected
         onPointerDown={handlePointerDown}
         className={className}
         data-notitas-float={isFloating || undefined}
-        style={{
+         style={{
           position: isFloating ? 'absolute' : undefined,
           left: isFloating ? `${left}px` : undefined,
           top: isFloating ? `${top}px` : undefined,
@@ -276,8 +407,11 @@ export default function FloatingImageNodeView({ node, updateAttributes, selected
           zIndex: isFloating ? 2 : undefined,
           borderRadius: 8,
           maxWidth: '100%',
-          userSelect: 'none',
-        }}
+           userSelect: 'none',
+           // El gesto empieza permitiendo scroll. Tras el long press se cambia
+           // a none para que el movimiento de la imagen sea libre.
+           touchAction: 'pan-y',
+         }}
       />
       
       {/* Toolbar flotante cuando la imagen está seleccionada */}

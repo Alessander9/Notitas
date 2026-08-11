@@ -34,6 +34,7 @@ Notitas es una aplicación web (SPA) para crear **proyectos**, escribir **notas 
 - Sección **Destacados** con notas favoritas.
 - CRUD completo con diálogo de **25 colores y 35 iconos**, vista previa de portada (JPG/PNG/GIF, máx 10 MB).
 - **Invitación por enlace** (`/join/project/:token`) — el invitado entra como **EDITOR**.
+- **Gestión de miembros**: el propietario puede cambiar roles (Editor/Visor) y expulsar colaboradores desde el chip de miembros.
 - **Pin/Unpin proyectos**: fijar proyectos favoritas para acceso rápido (persistido en localStorage).
 
 ### Notas y editor
@@ -55,7 +56,10 @@ Notitas es una aplicación web (SPA) para crear **proyectos**, escribir **notas 
 - **Toasts** con acción (p. ej. botón *Deshacer* al mover una nota a la papelera) y diálogos de confirmación con ondas pulsantes.
 - **Sesión robusta**: JWT en cookie `httpOnly`, renovación deslizante, validación al arrancar, **logout por inactividad** (60 min, configurable) y **revocación real de tokens**.
 - **Responsive**: sidebar colapsable con logo animado, FAB móvil con menú personalizado y backdrop blur, skeletons de carga en todas las vistas.
-- **NoteList colapsable**: avatar del usuario con badge + avatares circulares de notas con animaciones staggered.
+- **Paginación con scroll infinito**: las listas de notas (proyecto, favoritos, papelera y búsqueda) cargan por páginas de 40 con carga automática al hacer scroll; contadores reales y sin límite fijo de notas.
+- **Filtro local por texto y tags** dentro de un proyecto y **resaltado de coincidencias** en la vista de búsqueda.
+- **Papelera con acciones en bloque**: restaurar todas las notas o vaciarla definitivamente.
+- **Aviso de conectividad**: banner global que indica cuando el servidor tarda en responder (cold start de Render free) o está sin conexión.
 - **Pin/Unpin**: fijar proyectos y notas favoritas para acceso rápido (persistido en localStorage).
 
 ---
@@ -258,6 +262,8 @@ Todos bajo `/api` salvo indicación. Respuestas de error: `{ "message": "..." }`
 | DELETE | `/{id}` | Borrar (solo owner) |
 | POST | `/{id}/invite-token` | Genera token de invitación |
 | POST | `/join/{token}` | Unirse al proyecto (rol EDITOR) |
+| PUT | `/{id}/members/{userId}` | Cambiar rol de un miembro (solo owner) |
+| DELETE | `/{id}/members/{userId}` | Expulsar a un miembro (solo owner) |
 | POST | `/{id}/cover` | Subir portada (multipart) |
 
 ### Notas (`/api`)
@@ -276,6 +282,8 @@ Todos bajo `/api` salvo indicación. Respuestas de error: `{ "message": "..." }`
 | POST | `/notes/{id}/attachment` | Subir adjunto (con tag opcional) |
 | PUT | `/notes/{noteId}/attachments/{attachmentId}/tag` | Renombrar tag del adjunto |
 | DELETE | `/notes/{id}` | Soft delete (1ª vez) / borrado físico (2ª vez) |
+| DELETE | `/notes/deleted` | Vaciar papelera (borrado definitivo de todas) |
+| POST | `/notes/deleted/restore-all` | Restaurar todas las notas de la papelera |
 | POST | `/notes/{id}/share-token` | Genera enlace público |
 | GET | `/public/notes/shared/{token}` | **Público** — leer nota compartida |
 | GET | `/notes/{id}/versions` | Historial de versiones |

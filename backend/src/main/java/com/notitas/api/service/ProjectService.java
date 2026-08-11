@@ -13,4 +13,6 @@ public interface ProjectService {
     void deleteProject(Long id, Long userId);
     String generateInviteToken(Long id, Long userId);
     ProjectResponse joinProject(String token, Long userId);
+    ProjectResponse changeMemberRole(Long projectId, Long memberUserId, String role, Long currentUserId);
+    ProjectResponse removeMember(Long projectId, Long memberUserId, Long currentUserId);
 }

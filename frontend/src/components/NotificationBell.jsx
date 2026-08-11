@@ -21,12 +21,17 @@ import {
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { toast } from '../store/toastStore';
+import { useUiStore } from '../store/uiStore';
 
 export default function NotificationBell() {
   const [anchorEl, setAnchorEl] = useState(null);
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const setCurrentProject = useUiStore((state) => state.setCurrentProject);
+  const setCurrentNote = useUiStore((state) => state.setCurrentNote);
 
   const handleOpen = (event) => {
     setAnchorEl(event.currentTarget);
@@ -37,6 +42,29 @@ export default function NotificationBell() {
   };
 
   const isOpen = Boolean(anchorEl);
+
+  const handleNotificationClick = (notification) => {
+    if (!notification.read) {
+      markAsReadMutation.mutate(notification.id);
+    }
+
+    if (notification.noteId) {
+      setCurrentProject(notification.projectId ?? null);
+      setCurrentNote(notification.noteId);
+      handleClose();
+      navigate('/');
+      return;
+    }
+
+    if (notification.projectId) {
+      setCurrentProject(notification.projectId);
+      handleClose();
+      navigate('/');
+      return;
+    }
+
+    handleClose();
+  };
 
   // 1. Fetch unread notifications count
   const { data: countData } = useQuery({
@@ -205,7 +233,8 @@ export default function NotificationBell() {
                     exit={{ opacity: 0 }}
                   >
                     <ListItemButton
-                      onClick={() => !notif.read && markAsReadMutation.mutate(notif.id)}
+                      onClick={() => handleNotificationClick(notif)}
+                      aria-label={`Abrir notificación: ${notif.title}`}
                       sx={{
                         borderBottom: '1px solid',
                         borderColor: 'divider',

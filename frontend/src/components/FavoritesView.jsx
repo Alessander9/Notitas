@@ -22,7 +22,9 @@ import AuthorAvatars from './AuthorAvatars';
 import MemberProfileDialog from './MemberProfileDialog';
 import EmptyState from './EmptyState';
 import CardsGridSkeleton from './skeletons/CardsGridSkeleton';
+import InfiniteScroll from './InfiniteScroll';
 import { getProjectIcon } from './ProjectFormDialog';
+import { usePaginatedNotes } from '../hooks/usePaginatedNotes';
 import { getPlainText, formatShortDate, getAssetUrl } from '../utils/text';
 
 export default function FavoritesView() {
@@ -31,14 +33,12 @@ export default function FavoritesView() {
   const [profileMember, setProfileMember] = useState(null);
 
   // Comparte la caché con la sección Destacados del dashboard (misma clave)
-  const { data: favorites = [], isLoading } = useQuery({
-    queryKey: ['notes', 'favorites'],
-    queryFn: async () => {
-      const res = await api.get('/notes/favorites');
-      return res.data?.content || res.data || [];
-    },
-    staleTime: 60_000,
-  });
+  const { notes: favorites = [], totalCount, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } =
+    usePaginatedNotes({
+      queryKey: ['notes', 'favorites'],
+      url: '/notes/favorites',
+      staleTime: 60_000,
+    });
 
   // Proyectos (caché compartida con el sidebar) para color/icono/miembros
   const { data: projects = [] } = useQuery({
@@ -105,14 +105,15 @@ export default function FavoritesView() {
             Favoritos
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            {favorites.length === 0
+            {totalCount === 0
               ? 'Marca una nota con la estrella ⭐ para encontrarla aquí.'
-              : `${favorites.length} nota${favorites.length !== 1 ? 's' : ''} favorita${favorites.length !== 1 ? 's' : ''}.`}
+              : `${totalCount} nota${totalCount !== 1 ? 's' : ''} favorita${totalCount !== 1 ? 's' : ''}.`}
           </Typography>
         </Box>
       </Box>
 
-      {/* Grid of favorite cards */}
+      {/* Grid of favorite cards (scroll infinito) */}
+      <InfiniteScroll hasMore={hasNextPage} loading={isFetchingNextPage} onLoadMore={fetchNextPage}>
       <Box
         sx={{
           px: { xs: 2, sm: 4 },
@@ -291,6 +292,7 @@ export default function FavoritesView() {
           })}
         </AnimatePresence>
       </Box>
+      </InfiniteScroll>
 
       {/* Empty state */}
       {favorites.length === 0 && (

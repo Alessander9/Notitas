@@ -1,14 +1,13 @@
 package com.notitas.api.controller;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
-import java.sql.SQLException;
 import java.util.Map;
+import java.time.Instant;
 
 /**
  * Endpoint público de salud. Render (plan gratis) lo usa como health check
@@ -29,16 +28,41 @@ public class HealthController {
         this.dataSource = dataSource;
     }
 
+    /**
+     * Liveness check ligero para Render y monitores externos. No toca la base
+     * de datos: su único propósito es mantener el proceso despierto y saber si
+     * Spring Boot acepta peticiones.
+     */
+    @GetMapping("/api/public/ping")
+    public ResponseEntity<Map<String, String>> ping() {
+        return ResponseEntity.ok(Map.of(
+                "status", "ok",
+                "service", "notitas-api",
+                "timestamp", Instant.now().toString()
+        ));
+    }
+
     @GetMapping("/api/public/health")
     public ResponseEntity<Map<String, String>> health() {
-        String dbStatus = "up";
         try (Connection connection = dataSource.getConnection()) {
             if (!connection.isValid(3)) {
-                dbStatus = "unreachable";
+                return ResponseEntity.status(503).body(Map.of(
+                        "status", "degraded",
+                        "service", "notitas-api",
+                        "database", "unreachable"
+                ));
             }
         } catch (Exception e) {
-            dbStatus = "connecting";
+            return ResponseEntity.status(503).body(Map.of(
+                    "status", "degraded",
+                    "service", "notitas-api",
+                    "database", "unreachable"
+            ));
         }
-        return ResponseEntity.ok(Map.of("status", "ok", "service", "notitas-api", "database", dbStatus));
+        return ResponseEntity.ok(Map.of(
+                "status", "ok",
+                "service", "notitas-api",
+                "database", "up"
+        ));
     }
 }

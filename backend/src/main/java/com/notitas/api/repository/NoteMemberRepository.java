@@ -11,4 +11,6 @@ public interface NoteMemberRepository extends JpaRepository<NoteMember, Long> {
     boolean existsByNoteIdAndUserId(Long noteId, Long userId);
     Optional<NoteMember> findByNoteIdAndUserId(Long noteId, Long userId);
     void deleteByNoteId(Long noteId);
+    // Revoca los accesos por-nota de un usuario dentro de un proyecto (expulsión)
+    void deleteByUser_IdAndNote_Project_Id(Long userId, Long projectId);
 }

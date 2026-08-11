@@ -8,14 +8,16 @@ import {
   Stack,
   Tooltip,
   Chip,
+  Button,
 } from '@mui/material';
 import {
   RestoreFromTrash as RestoreIcon,
   DeleteForever as PermDeleteIcon,
   Description as NoteIcon,
   DeleteOutline as DeleteOutlineIcon,
+  DeleteSweep as DeleteSweepIcon,
 } from '@mui/icons-material';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../services/api';
 import { useUiStore } from '../store/uiStore';
@@ -23,18 +25,18 @@ import { toast } from '../store/toastStore';
 import { confirm } from '../store/confirmStore';
 import RowsSkeleton from './skeletons/RowsSkeleton';
 import EmptyState from './EmptyState';
+import InfiniteScroll from './InfiniteScroll';
+import { usePaginatedNotes } from '../hooks/usePaginatedNotes';
 
 export default function TrashView() {
   const { setCurrentNote } = useUiStore();
   const queryClient = useQueryClient();
 
-  const { data: deletedNotes = [], isLoading } = useQuery({
-    queryKey: ['notes', 'trash'],
-    queryFn: async () => {
-      const res = await api.get('/notes/deleted');
-      return res.data?.content || res.data || [];
-    },
-  });
+  const { notes: deletedNotes = [], totalCount, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } =
+    usePaginatedNotes({
+      queryKey: ['notes', 'trash'],
+      url: '/notes/deleted',
+    });
 
   // Restore note (set deleted = false)
   const restoreMutation = useMutation({
@@ -49,6 +51,43 @@ export default function TrashView() {
     },
     onError: () => toast.error('No se pudo restaurar la nota'),
   });
+
+  // Restaurar todas las notas de la papelera
+  const restoreAllMutation = useMutation({
+    mutationFn: async () => {
+      await api.post('/notes/deleted/restore-all');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notes'] });
+      queryClient.invalidateQueries({ queryKey: ['notes', 'trash'] });
+      toast.success('Todas las notas restauradas');
+    },
+    onError: () => toast.error('No se pudieron restaurar las notas'),
+  });
+
+  // Vaciar papelera (borrado definitivo de todas)
+  const emptyTrashMutation = useMutation({
+    mutationFn: async () => {
+      await api.delete('/notes/deleted');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notes'] });
+      queryClient.invalidateQueries({ queryKey: ['notes', 'trash'] });
+      toast.success('Papelera vaciada');
+    },
+    onError: () => toast.error('No se pudo vaciar la papelera'),
+  });
+
+  const handleEmptyTrash = () => {
+    confirm({
+      title: 'Vaciar papelera',
+      message: `¿Vaciar la papelera? Se eliminarán permanentemente las ${totalCount} nota${totalCount !== 1 ? 's' : ''} y sus archivos. Esta acción no se puede deshacer.`,
+      confirmLabel: 'Vaciar',
+      cancelLabel: 'Cancelar',
+      color: 'error',
+      onConfirm: () => emptyTrashMutation.mutate(),
+    });
+  };
 
   // Permanently delete note
   const permDeleteMutation = useMutation({
@@ -74,21 +113,62 @@ export default function TrashView() {
   return (
     <Box sx={{ flexGrow: 1, height: '100%', overflowY: 'auto' }}>
       {/* Header */}
-      <Box sx={{ px: { xs: 2, sm: 4 }, pt: { xs: 2.5, sm: 4 }, pb: 2 }}>
-        <Typography variant="h5" fontWeight={700} gutterBottom>
-          Papelera de reciclaje
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          {deletedNotes.length === 0
-            ? 'Las notas eliminadas aparecerán aquí durante un tiempo antes de borrarse definitivamente.'
-            : `${deletedNotes.length} nota${deletedNotes.length !== 1 ? 's' : ''} eliminada${deletedNotes.length !== 1 ? 's' : ''}. Las notas se eliminan permanentemente al hacer clic en "Eliminar definitivamente".`
-          }
-        </Typography>
+      <Box
+        sx={{
+          px: { xs: 2, sm: 4 },
+          pt: { xs: 2.5, sm: 4 },
+          pb: 2,
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          gap: 2,
+          flexWrap: 'wrap',
+        }}
+      >
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="h5" fontWeight={700} gutterBottom>
+            Papelera de reciclaje
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {totalCount === 0
+              ? 'Las notas eliminadas aparecerán aquí durante un tiempo antes de borrarse definitivamente.'
+              : `${totalCount} nota${totalCount !== 1 ? 's' : ''} eliminada${totalCount !== 1 ? 's' : ''}. Puedes restaurarlas todas o vaciar la papelera.`
+            }
+          </Typography>
+        </Box>
+
+        {/* Acciones en bloque */}
+        {totalCount > 0 && (
+          <Box sx={{ display: 'flex', gap: 1, flexShrink: 0 }}>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<RestoreIcon />}
+              onClick={() => restoreAllMutation.mutate()}
+              disabled={restoreAllMutation.isPending || emptyTrashMutation.isPending}
+              sx={{ borderRadius: 2, fontWeight: 600 }}
+            >
+              Restaurar todo
+            </Button>
+            <Button
+              variant="contained"
+              color="error"
+              size="small"
+              startIcon={<DeleteSweepIcon />}
+              onClick={handleEmptyTrash}
+              disabled={emptyTrashMutation.isPending || restoreAllMutation.isPending}
+              sx={{ borderRadius: 2, fontWeight: 600 }}
+            >
+              Vaciar papelera
+            </Button>
+          </Box>
+        )}
       </Box>
 
-      {/* Deleted Notes List */}
+      {/* Deleted Notes List (scroll infinito) */}
       <Box sx={{ px: { xs: 2, sm: 4 }, pb: { xs: 12, sm: 4 } }}>
         {deletedNotes.length > 0 && (
+          <InfiniteScroll hasMore={hasNextPage} loading={isFetchingNextPage} onLoadMore={fetchNextPage}>
           <Stack spacing={2}>
             <AnimatePresence mode="popLayout">
               {deletedNotes.map((note) => (
@@ -181,6 +261,7 @@ export default function TrashView() {
               ))}
             </AnimatePresence>
           </Stack>
+          </InfiniteScroll>
         )}
       </Box>
 

@@ -27,6 +27,15 @@ public class Notification {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
+    @Column(name = "event_type", length = 80)
+    private String eventType;
+
+    @Column(name = "project_id")
+    private Long projectId;
+
+    @Column(name = "note_id")
+    private Long noteId;
+
     public Notification() {}
 
     public Notification(User user, String title, String message) {
@@ -35,6 +44,14 @@ public class Notification {
         this.message = message;
         this.read = false;
         this.createdAt = LocalDateTime.now();
+    }
+
+    public Notification(User user, String title, String message, String eventType,
+                        Long projectId, Long noteId) {
+        this(user, title, message);
+        this.eventType = eventType;
+        this.projectId = projectId;
+        this.noteId = noteId;
     }
 
     public Long getId() {
@@ -83,5 +100,29 @@ public class Notification {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public String getEventType() {
+        return eventType;
+    }
+
+    public void setEventType(String eventType) {
+        this.eventType = eventType;
+    }
+
+    public Long getProjectId() {
+        return projectId;
+    }
+
+    public void setProjectId(Long projectId) {
+        this.projectId = projectId;
+    }
+
+    public Long getNoteId() {
+        return noteId;
+    }
+
+    public void setNoteId(Long noteId) {
+        this.noteId = noteId;
     }
 }

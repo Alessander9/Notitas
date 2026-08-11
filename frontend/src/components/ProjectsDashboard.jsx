@@ -53,10 +53,10 @@ import { formatShortDate, getAssetUrl } from '../utils/text';
 
 // Note count pill used on project cards and list rows
 function NoteCountChip({ projectId, color }) {
-  const { data: notes = [], isLoading } = useProjectNotes(projectId);
+  const { totalCount, isLoading } = useProjectNotes(projectId);
 
   return (
-    <Tooltip title={`${notes.length} ${notes.length === 1 ? 'nota' : 'notas'}`}>
+    <Tooltip title={`${totalCount} ${totalCount === 1 ? 'nota' : 'notas'}`}>
       <Box
         component="span"
         sx={{
@@ -75,7 +75,7 @@ function NoteCountChip({ projectId, color }) {
         }}
       >
         <NoteIcon sx={{ fontSize: 13 }} />
-        {isLoading ? '…' : notes.length}
+        {isLoading ? '…' : totalCount}
       </Box>
     </Tooltip>
   );

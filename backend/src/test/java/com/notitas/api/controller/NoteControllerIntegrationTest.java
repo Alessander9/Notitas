@@ -551,6 +551,101 @@ class NoteControllerIntegrationTest extends BaseIntegrationTest {
         assertThat(results).anyMatch(node -> "Nota secreta del equipo".equals(node.get("title").asText()));
     }
 
+    @Test
+    void emptyTrash_deletesAllTrashNotesPermanently() throws Exception {
+        String token = register("empty.trash@test.com", "secret123", "EmptyTrash");
+        long projectId = createProject(token, "Proyecto Notas");
+        long note1 = createNote(token, projectId, "Nota 1");
+        long note2 = createNote(token, projectId, "Nota 2");
+        createNote(token, projectId, "Nota activa");
+
+        // Dos notas a la papelera (soft delete)
+        mockMvc.perform(delete("/api/notes/" + note1).header("Authorization", bearer(token)))
+                .andExpect(status().isOk());
+        mockMvc.perform(delete("/api/notes/" + note2).header("Authorization", bearer(token)))
+                .andExpect(status().isOk());
+
+        MvcResult before = mockMvc.perform(get("/api/notes/deleted").header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andReturn();
+        assertThat(objectMapper.readTree(before.getResponse().getContentAsString()).get("content")).hasSize(2);
+
+        // Vaciar papelera: borrado definitivo de todas
+        mockMvc.perform(delete("/api/notes/deleted").header("Authorization", bearer(token)))
+                .andExpect(status().isOk());
+
+        MvcResult after = mockMvc.perform(get("/api/notes/deleted").header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andReturn();
+        assertThat(objectMapper.readTree(after.getResponse().getContentAsString()).get("content")).isEmpty();
+
+        // Las notas ya no existen (ni por id)
+        expectApiError(404, "Nota no encontrada",
+                get("/api/notes/" + note1).header("Authorization", bearer(token)));
+        expectApiError(404, "Nota no encontrada",
+                get("/api/notes/" + note2).header("Authorization", bearer(token)));
+    }
+
+    @Test
+    void restoreAllTrash_restoresEveryDeletedNote() throws Exception {
+        String token = register("restore.all@test.com", "secret123", "RestoreAll");
+        long projectId = createProject(token, "Proyecto Notas");
+        createNote(token, projectId, "Nota 1");
+        createNote(token, projectId, "Nota 2");
+
+        // Borrar todas
+        MvcResult projectBefore = mockMvc.perform(get("/api/projects/" + projectId + "/notes")
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andReturn();
+        JsonNode activeBefore = objectMapper.readTree(projectBefore.getResponse().getContentAsString()).get("content");
+        for (JsonNode note : activeBefore) {
+            mockMvc.perform(delete("/api/notes/" + note.get("id").asLong()).header("Authorization", bearer(token)))
+                    .andExpect(status().isOk());
+        }
+
+        mockMvc.perform(post("/api/notes/deleted/restore-all").header("Authorization", bearer(token)))
+                .andExpect(status().isOk());
+
+        // Papelera vacía
+        MvcResult trashAfter = mockMvc.perform(get("/api/notes/deleted").header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andReturn();
+        assertThat(objectMapper.readTree(trashAfter.getResponse().getContentAsString()).get("content")).isEmpty();
+
+        // Las notas vuelven al proyecto
+        MvcResult projectAfter = mockMvc.perform(get("/api/projects/" + projectId + "/notes")
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isOk())
+                .andReturn();
+        assertThat(objectMapper.readTree(projectAfter.getResponse().getContentAsString()).get("content")).hasSize(activeBefore.size());
+    }
+
+    @Test
+    void emptyTrash_doesNotAffectOtherUsersTrash() throws Exception {
+        String tokenA = register("trash.a@test.com", "secret123", "TrashA");
+        long projectA = createProject(tokenA, "Proyecto A");
+        long noteA = createNote(tokenA, projectA, "Nota de A");
+        mockMvc.perform(delete("/api/notes/" + noteA).header("Authorization", bearer(tokenA)))
+                .andExpect(status().isOk());
+
+        String tokenB = register("trash.b@test.com", "secret123", "TrashB");
+        long projectB = createProject(tokenB, "Proyecto B");
+        long noteB = createNote(tokenB, projectB, "Nota de B");
+        mockMvc.perform(delete("/api/notes/" + noteB).header("Authorization", bearer(tokenB)))
+                .andExpect(status().isOk());
+
+        // A vacía su papelera: la de B no se toca
+        mockMvc.perform(delete("/api/notes/deleted").header("Authorization", bearer(tokenA)))
+                .andExpect(status().isOk());
+
+        MvcResult trashB = mockMvc.perform(get("/api/notes/deleted").header("Authorization", bearer(tokenB)))
+                .andExpect(status().isOk())
+                .andReturn();
+        assertThat(objectMapper.readTree(trashB.getResponse().getContentAsString()).get("content"))
+                .anyMatch(node -> "Nota de B".equals(node.get("title").asText()));
+    }
+
     /** Registra el nombre de archivo subido para borrarlo en @AfterAll. */
     private void trackUploadedFile(JsonNode value) {
         if (value != null && value.isTextual() && value.asText().startsWith("/uploads/")) {

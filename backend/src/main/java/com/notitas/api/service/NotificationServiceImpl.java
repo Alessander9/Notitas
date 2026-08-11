@@ -80,9 +80,15 @@ public class NotificationServiceImpl implements NotificationService {
 
     @Override
     public void createNotification(Long userId, String title, String message) {
+        createNotification(userId, title, message, null, null, null);
+    }
+
+    @Override
+    public void createNotification(Long userId, String title, String message,
+                                   String eventType, Long projectId, Long noteId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
-        Notification notification = new Notification(user, title, message);
+        Notification notification = new Notification(user, title, message, eventType, projectId, noteId);
         notificationRepository.save(notification);
     }
 
@@ -92,7 +98,10 @@ public class NotificationServiceImpl implements NotificationService {
                 notification.getTitle(),
                 notification.getMessage(),
                 notification.isRead(),
-                notification.getCreatedAt()
+                notification.getCreatedAt(),
+                notification.getEventType(),
+                notification.getProjectId(),
+                notification.getNoteId()
         );
     }
 }

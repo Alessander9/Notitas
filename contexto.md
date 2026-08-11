@@ -144,6 +144,8 @@
 | DELETE | `/{id}` | Borrar (**solo owner** vía `findByIdAndUserId`) |
 | POST | `/{id}/invite-token` | Genera token de invitación |
 | POST | `/join/{token}` | Unirse a un proyecto (rol EDITOR) |
+| PUT | `/{id}/members/{userId}` | Cambiar rol de un miembro (`EDITOR`/`VIEWER`, solo owner) |
+| DELETE | `/{id}/members/{userId}` | Expulsar a un miembro del proyecto (solo owner) |
 | POST | `/{id}/cover` | Subir portada (multipart → `/uploads/...`) |
 
 **NoteController** (`/api`):
@@ -161,6 +163,8 @@
 | POST | `/notes/{id}/attachment` | Subir adjunto (con tag opcional) |
 | PUT | `/notes/{noteId}/attachments/{attachmentId}/tag` | Renombrar tag del adjunto |
 | DELETE | `/notes/{id}` | Soft delete (1ª vez) / borrado físico (2ª vez) |
+| DELETE | `/notes/deleted` | Vaciar papelera: borrado definitivo de todas las notas eliminadas (solo proyectos propios) |
+| POST | `/notes/deleted/restore-all` | Restaurar todas las notas de la papelera |
 | POST | `/notes/{id}/share-token` | Genera enlace público |
 | GET | `/public/notes/shared/{token}` | **Público**: leer nota compartida |
 | GET | `/notes/{id}/versions` | Historial de versiones |
@@ -236,6 +240,7 @@
 - **Logout por inactividad** (`IdleSessionGuard`): 60 min sin actividad → diálogo "¿Sigues ahí?" → 60 s de gracia → cierra sesión (configurable con `notitas-idle-timeout-minutes`).
 - **Command palette** (`Ctrl/Cmd+K`): búsqueda global de notas/proyectos + acciones rápidas (nueva nota/proyecto, tema, favoritos, papelera) con navegación por teclado.
 - **UI premium**: fondo ambiental con glows de marca (theme-aware), transición suave al cambiar de tema, favicon/logo de marca (verde `#386c5f→#00C9A7`), zoom en portadas al hover, entrada en cascada del grid, FAB móvil (SpeedDial) y toasts con botón **Deshacer**.
+- **Mejoras 2026-08**: **banner de conectividad** (`ServerStatusBanner`: si una petición tarda >4s se muestra "Conectando con el servidor…" — cold start de Render free — y si falla sin respuesta, "Sin conexión"; detectado en `api.js` con timers por petición y estado `serverStatus` en `uiStore`), **filtro local por texto/tags** dentro de un proyecto (NoteList) y **resaltado de coincidencias** en la vista Búsqueda (componente compartido `HighlightText`, reutilizado por la command palette).
 - **UI mejorada (2026-08)**: CommandPalette con resaltado de búsqueda y animaciones staggered, EmptyState con ilustraciones flotantes animadas, ConfirmDialog con ondas pulsantes y botones gradiente, MobileFab con menú personalizado framer-motion y backdrop blur, NoteEditor con toolbar micro-animada y save status animado, Sidebar móvil con logo animado, nav items staggered, touch targets 48px, NoteList colapsable con avatar de usuario y avatares circulares de notas, pin/unpin proyectos y notas, MuiPaper modernizado con glassmorphism (backdrop-filter blur, sombras por elevation, hover effects).
 - **Rutas** (con lazy loading):
   - `/login`, `/register` → AuthLayout
@@ -262,7 +267,7 @@
 ### 5.4 Claves de caché de React Query (convención compartida)
 
 - `['projects']` — lista de proyectos (sidebar, dashboard, NoteList, NoteEditor, FavoritesView).
-- `['notes', 'project', projectId]` — notas de un proyecto (hook `useProjectNotes`, sidebar + dashboard + NoteList).
+- `['notes', 'project', projectId]` — notas de un proyecto (hook `useProjectNotes`, sidebar + dashboard + NoteList). **Paginación (2026-08)**: las listas de notas (proyecto, favoritos, papelera y búsqueda) se cargan por páginas de 40 con `useInfiniteQuery` (`usePaginatedNotes` + sentinela `InfiniteScroll`); el total real viene de `totalElements` de la primera página y el sidebar ya no corta en 50 notas.
 - `['notes', 'favorites']` — favoritas (FavoritesSection, FavoritesView, NoteList) con `staleTime: 60_000`.
 - `['notes', 'trash']` — papelera.
 - `['notes', 'search', query]` — búsqueda.
@@ -275,7 +280,7 @@ Las mutaciones invalidan con `invalidateQueries({ queryKey: ['notes'] })` (prefi
 
 - **Workspace**: layout de 3 paneles — Navbar arriba; Sidebar (fija en escritorio, `Drawer` temporal en móvil); contenido con `AnimatePresence` que alterna Dashboard / Trash / Favorites / Search (NoteList+NoteEditor) / NoteEditor. NoteList y NoteEditor se cargan con `lazy()` (el editor TipTap es el chunk más pesado).
 - **Navbar**: búsqueda global (al escribir → `currentProjectId = 'search'`), toggle de tema, avatar con menú (cambiar foto, editar perfil, logout). El logout limpia la caché de React Query y el estado de UI (para no filtrar datos entre usuarios).
-- **Sidebar**: colapsable (72px, persistido en `localStorage`), modo acordeón/múltiple de expansión de proyectos (persistido), navegación Dashboard/Favoritos/Papelera, lista de proyectos con notas expandibles (máx. 50), CRUD de proyectos, diálogo de invitación con copiar enlace.
+- **Sidebar**: colapsable (72px, persistido en `localStorage`), modo acordeón/múltiple de expansión de proyectos (persistido), navegación Dashboard/Favoritos/Papelera, lista de proyectos con notas expandibles por páginas (scroll infinito, sin límite), CRUD de proyectos, diálogo de invitación con copiar enlace.
 - **ProjectsDashboard**: vista grid (cards con portada/gradiente, conteo de notas, avatares de creador+colaboradores, acciones hover compartir/editar/borrar) y vista lista (toggle persistido), filtro local por nombre/descripción, sección **Destacados** (`FavoritesSection`) arriba, estado vacío ilustrado.
 - **NoteList**: cards de notas con portada, extracto de texto plano (`getPlainText`), tags (2 máx + contador), estrella de favorito, acciones hover (papelera / restaurar / borrar definitivo), "último editor" resuelto desde los miembros del proyecto.
 - **NoteEditor**: el corazón de la app.
@@ -322,9 +327,9 @@ Las mutaciones invalidan con `invalidateQueries({ queryKey: ['notes'] })` (prefi
 3. **Notas ricas** → TipTap (markdown al pegar, tablas, checklists, código, imágenes con alineación) con **autoguardado + historial de versiones restaurable**.
 4. **Archivos** → portadas (proyectos y notas), adjuntos con tag, imágenes inline; todo en disco local `uploads/`.
 5. **Favoritos** → estrella desde card o editor → vista Favoritos + sección Destacados en el dashboard.
-6. **Papelera** → soft delete → restaurar o borrar definitivamente (borra también archivos e imágenes inline).
+6. **Papelera** → soft delete → restaurar o borrar definitivamente (borra también archivos e imágenes inline). **Acciones en bloque (2026-08)**: `DELETE /api/notes/deleted` vacía la papelera y `POST /api/notes/deleted/restore-all` restaura todo (botones en `TrashView`).
 7. **Búsqueda global** → desde la navbar, resultados + editor en la misma vista.
-8. **Colaboración** → enlace de invitación por proyecto (`/join/project/:token`) → el invitado entra como **EDITOR**; los VIEWER solo leen. Nota: **no hay gestión de roles en la UI** (cambiar rol, expulsar miembro) — solo se crean como EDITOR al unirse.
+8. **Colaboración** → enlace de invitación por proyecto (`/join/project/:token`) → el invitado entra como **EDITOR**; los VIEWER solo leen. **Gestión de miembros desde la UI** (2026-08): el propietario puede cambiar roles (Editor/Visor) y expulsar colaboradores desde el chip de miembros (diálogo `ManageMembersDialog`, endpoints `PUT/DELETE /api/projects/{id}/members/{userId}`); el expulsado pierde el acceso al instante y ambos cambios notifican al usuario afectado.
 9. **Compartir público** → enlace `/shared/note/:token` visible sin cuenta.
 10. **Imágenes flotantes** → arrastra cualquier imagen de una nota a cualquier punto del lienzo; redimensiónala desde la esquina (mantiene proporciones). La posición/tamaño se guarda en el HTML de la nota; en vistas públicas/historial se muestran centradas.
 11. **Command palette** → `Ctrl/Cmd+K` para buscar notas/proyectos o ejecutar acciones sin tocar el ratón.
@@ -390,10 +395,7 @@ python -m pytest
 
 ## 10. Posibles mejoras / extensiones (observaciones del análisis)
 
-- **Gestión de miembros en la UI**: cambiar roles (EDITOR/VIEWER), expulsar colaboradores (el backend ya soporta roles, pero no hay endpoints de gestión de miembros).
 - **Dominio propio** (`app.tudominio.com` + `api.tudominio.com`): cookie first-party + `COOKIE_SAMESITE=Lax` (documentado en DEPLOY.md).
 - **Supabase Auth** para login social (OAuth) si algún día se quiere.
-- **Paginación/infinite scroll** para listas largas de notas (hoy `MAX_NOTES=50` en el sidebar como mitigación).
-
 - **Búsqueda con acentos/insensibilidad real en BD** (hoy filtrado en Java).
 - **Autocompletado de invitaciones por email** (hoy el enlace es el único mecanismo).

@@ -10,4 +10,6 @@ public interface NotificationService {
     void markAllAsRead(Long userId);
     void clearAllNotifications(Long userId);
     void createNotification(Long userId, String title, String message);
+    void createNotification(Long userId, String title, String message,
+                            String eventType, Long projectId, Long noteId);
 }

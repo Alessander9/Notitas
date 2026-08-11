@@ -32,6 +32,7 @@ import { useUiStore } from '../store/uiStore';
 import { useAuthStore } from '../store/authStore';
 import { toast } from '../store/toastStore';
 import { getProjectIcon } from './ProjectFormDialog';
+import HighlightText from './HighlightText';
 
 function Hint({ kbd, label }) {
   return (
@@ -54,36 +55,6 @@ function Hint({ kbd, label }) {
         {label}
       </Typography>
     </Box>
-  );
-}
-
-// Resalta el texto que coincide con la búsqueda
-function HighlightedText({ text, query }) {
-  if (!query) return text;
-  const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-  const parts = text.split(regex);
-  return (
-    <>
-      {parts.map((part, i) =>
-        regex.test(part) ? (
-          <Box
-            key={i}
-            component="span"
-            sx={{
-              color: 'primary.main',
-              fontWeight: 700,
-              bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(109, 74, 255, 0.2)' : 'rgba(56, 108, 95, 0.15)',
-              borderRadius: 0.5,
-              px: 0.3,
-            }}
-          >
-            {part}
-          </Box>
-        ) : (
-          part
-        )
-      )}
-    </>
   );
 }
 
@@ -478,7 +449,7 @@ export default function CommandPalette() {
                             <Box sx={{ fontSize: '1.15rem', lineHeight: 1, display: 'flex' }}>{item.icon}</Box>
                           </ListItemIcon>
                           <ListItemText
-                            primary={<HighlightedText text={item.label} query={trimmed} />}
+                            primary={<HighlightText text={item.label} query={trimmed} />}
                             secondary={item.hint}
                             primaryTypographyProps={{ fontWeight: 600, fontSize: '0.9rem', noWrap: true }}
                             secondaryTypographyProps={{ fontSize: '0.72rem', noWrap: true, color: 'text.secondary' }}

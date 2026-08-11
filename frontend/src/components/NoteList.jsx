@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Box,
   Typography,
@@ -16,6 +16,8 @@ import {
   DialogActions,
   Avatar,
   Badge,
+  TextField,
+  InputAdornment,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -31,6 +33,8 @@ import {
   OpenInFull as MaximizeIcon,
   Description as NoteIcon,
   ArrowBack as ArrowBackIcon,
+  Search as SearchIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
@@ -41,6 +45,9 @@ import NoteListSkeleton from './skeletons/NoteListSkeleton';
 import CoverImage from './CoverImage';
 import AuthorAvatars from './AuthorAvatars';
 import MemberProfileDialog from './MemberProfileDialog';
+import InfiniteScroll from './InfiniteScroll';
+import { usePaginatedNotes } from '../hooks/usePaginatedNotes';
+import HighlightText from './HighlightText';
 import { getPlainText, getAssetUrl, formatRelativeTime } from '../utils/text';
 
 export default function NoteList() {
@@ -56,6 +63,16 @@ export default function NoteList() {
       return [];
     }
   });
+
+  // Filtro local de notas dentro de un proyecto (texto + tag)
+  const [filterText, setFilterText] = useState('');
+  const [filterTag, setFilterTag] = useState(null);
+
+  // Al cambiar de vista/proyecto se limpia el filtro
+  useEffect(() => {
+    setFilterText('');
+    setFilterTag(null);
+  }, [currentProjectId]);
 
   // Determine API endpoint based on selected sidebar view or search
   const isProjectView = typeof currentProjectId === 'number';
@@ -74,32 +91,24 @@ export default function NoteList() {
         ? ['notes', 'trash']
         : ['notes', 'search', searchQuery];
 
-  const { data: notes = [], isLoading } = useQuery({
-    queryKey,
-    queryFn: async () => {
-      if (isProjectView) {
-        const res = await api.get(`/projects/${currentProjectId}/notes`);
-        return res.data?.content || res.data || [];
-      }
-      if (isFavorites) {
-        const res = await api.get('/notes/favorites');
-        return res.data?.content || res.data || [];
-      }
-      if (isTrash) {
-        const res = await api.get('/notes/deleted');
-        return res.data?.content || res.data || [];
-      }
-      if (isSearch && searchQuery) {
-        const res = await api.get(`/notes/search`, { params: { query: searchQuery } });
-        return res.data?.content || res.data || [];
-      }
-      return [];
-    },
-    enabled: Boolean(currentProjectId),
-    // Los favoritos los comparte la sección Destacados: se mantienen frescos
-    // para no refetchear al navegar entre Destacados y la vista Favoritos.
-    staleTime: isFavorites ? 60_000 : 0,
-  });
+  // Paginación con scroll infinito (hook compartido: los consumidores de la
+  // misma queryKey usan la misma forma de datos en caché).
+  const { notes, totalCount, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } =
+    usePaginatedNotes({
+      queryKey,
+      url: isProjectView
+        ? `/projects/${currentProjectId}/notes`
+        : isFavorites
+          ? '/notes/favorites'
+          : isTrash
+            ? '/notes/deleted'
+            : '/notes/search',
+      params: isSearch ? { query: searchQuery } : {},
+      enabled: Boolean(currentProjectId) && (isSearch ? Boolean(searchQuery) : true),
+      // Los favoritos los comparte la sección Destacados: se mantienen frescos
+      // para no refetchear al navegar entre Destacados y la vista Favoritos.
+      staleTime: isFavorites ? 60_000 : 0,
+    });
 
   // Projects cache (shared with the sidebar) to resolve each note's
   // project color and members (creator + collaborators avatars).
@@ -196,6 +205,27 @@ export default function NoteList() {
     return new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt);
   });
 
+  // Tags disponibles en las notas cargadas (para los chips de filtro)
+  const allTags = React.useMemo(() => {
+    const set = new Set();
+    notes.forEach((n) => (n.tags || []).forEach((t) => set.add(t)));
+    return [...set].sort();
+  }, [notes]);
+
+  // Filtro local: aplica sobre las notas cargadas (texto en título/contenido y/o tag)
+  const isFiltering = isProjectView && (filterText.trim() !== '' || filterTag !== null);
+  const visibleNotes = isFiltering
+    ? sortedNotes.filter((n) => {
+        if (filterTag && !(n.tags || []).includes(filterTag)) return false;
+        const q = filterText.trim().toLowerCase();
+        if (q) {
+          const haystack = `${n.title || ''} ${getPlainText(n.content, '')}`.toLowerCase();
+          if (!haystack.includes(q)) return false;
+        }
+        return true;
+      })
+    : sortedNotes;
+
   return (
     <Box
       sx={{
@@ -225,7 +255,7 @@ export default function NoteList() {
               sx={{ cursor: 'pointer', '&:hover': { transform: 'scale(1.05)' }, transition: 'transform 0.2s ease' }}
             >
               <Badge
-                badgeContent={notes.length}
+                badgeContent={totalCount}
                 color="primary"
                 sx={{
                   '& .MuiBadge-badge': {
@@ -283,7 +313,7 @@ export default function NoteList() {
                 </IconButton>
               </Tooltip>
               <Typography variant="subtitle1" fontWeight="bold" color="text.secondary" sx={{ fontSize: '0.85rem' }}>
-                {getHeaderTitle().toUpperCase()} ({notes.length})
+                {getHeaderTitle().toUpperCase()} ({isFiltering ? `${visibleNotes.length} / ${totalCount}` : totalCount})
               </Typography>
               <Tooltip title="Colapsar panel">
                 <IconButton
@@ -317,6 +347,54 @@ export default function NoteList() {
         )}
       </Box>
 
+      {/* Filtro local (solo en vista de proyecto) */}
+      {isProjectView && !isCollapsed && (
+        <Box sx={{ px: 2, pt: 1.5, pb: 0.5, display: 'flex', flexDirection: 'column', gap: 1 }}>
+          <TextField
+            size="small"
+            placeholder="Filtrar notas…"
+            value={filterText}
+            onChange={(e) => setFilterText(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon sx={{ fontSize: 18 }} color="action" />
+                </InputAdornment>
+              ),
+              endAdornment: filterText ? (
+                <InputAdornment position="end">
+                  <IconButton size="small" aria-label="Limpiar filtro" onClick={() => setFilterText('')}>
+                    <CloseIcon sx={{ fontSize: 16 }} />
+                  </IconButton>
+                </InputAdornment>
+              ) : null,
+              sx: { borderRadius: 2.5, bgcolor: 'background.paper', fontSize: '0.85rem' },
+            }}
+            sx={{ '& .MuiOutlinedInput-root': { py: 0.4 } }}
+          />
+          {allTags.length > 0 && (
+            <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', alignItems: 'center' }}>
+              {allTags.slice(0, 8).map((tag) => (
+                <Chip
+                  key={tag}
+                  label={tag}
+                  size="small"
+                  onClick={() => setFilterTag(filterTag === tag ? null : tag)}
+                  color={filterTag === tag ? 'primary' : 'default'}
+                  variant={filterTag === tag ? 'filled' : 'outlined'}
+                  sx={{ height: 22, fontSize: '0.68rem', fontWeight: 600 }}
+                />
+              ))}
+              {allTags.length > 8 && (
+                <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.68rem', fontWeight: 600 }}>
+                  +{allTags.length - 8} más
+                </Typography>
+              )}
+            </Box>
+          )}
+        </Box>
+      )}
+
       {/* Notes Cards List */}
       <Box sx={{ flexGrow: 1, overflowY: 'auto', px: isCollapsed ? 0 : 2, pt: isCollapsed ? 1 : 2, pb: { xs: 10, md: 2 } }}>
         {!currentProjectId ? (
@@ -329,10 +407,24 @@ export default function NoteList() {
           <Box sx={{ textAlign: 'center', mt: 4, color: 'text.secondary' }}>
             <Typography variant="body2">No hay notas.</Typography>
           </Box>
+        ) : isFiltering && visibleNotes.length === 0 ? (
+          <Box sx={{ textAlign: 'center', mt: 4, color: 'text.secondary', p: 2 }}>
+            <Typography variant="body2">Sin resultados para el filtro.</Typography>
+            <Button
+              size="small"
+              sx={{ mt: 1 }}
+              onClick={() => {
+                setFilterText('');
+                setFilterTag(null);
+              }}
+            >
+              Limpiar filtro
+            </Button>
+          </Box>
         ) : isCollapsed ? (
           /* Collapsed view: circular note avatars */
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, px: 0.5 }}>
-            {sortedNotes.slice(0, 10).map((note, index) => {
+            {visibleNotes.slice(0, 10).map((note, index) => {
               const isSelected = currentNoteId === note.id;
               const project = projects.find((p) => p.id === note.projectId);
               const color = project?.color || '#386c5f';
@@ -377,16 +469,17 @@ export default function NoteList() {
                 </motion.div>
               );
             })}
-            {sortedNotes.length > 10 && (
+            {visibleNotes.length > 10 && (
               <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.6rem', mt: 0.5 }}>
-                +{sortedNotes.length - 10} más
+                +{visibleNotes.length - 10} más
               </Typography>
             )}
           </Box>
         ) : (
-          <AnimatePresence mode="popLayout">
+          <InfiniteScroll hasMore={hasNextPage} loading={isFetchingNextPage} onLoadMore={fetchNextPage}>
+            <AnimatePresence mode="popLayout">
             <Stack spacing={isCollapsed ? 0.5 : 2}>
-              {sortedNotes.map((note) => {
+              {visibleNotes.map((note) => {
                 const isSelected = currentNoteId === note.id;
                 const project = projects.find((p) => p.id === note.projectId);
                 const color = project?.color || '#386c5f';
@@ -490,7 +583,11 @@ export default function NoteList() {
                               color: isSelected ? 'primary.main' : 'text.primary',
                             }}
                           >
-                            {note.title || 'Sin Título'}
+                            {isSearch ? (
+                              <HighlightText text={note.title || 'Sin Título'} query={searchQuery} />
+                            ) : (
+                              note.title || 'Sin Título'
+                            )}
                           </Typography>
 
                           {/* Favorite star + Pin + hover actions */}
@@ -600,7 +697,11 @@ export default function NoteList() {
                             lineHeight: 1.5,
                           }}
                         >
-                          {getPlainText(note.content, 'Sin contenido...')}
+                          {isSearch ? (
+                            <HighlightText text={getPlainText(note.content, 'Sin contenido...')} query={searchQuery} />
+                          ) : (
+                            getPlainText(note.content, 'Sin contenido...')
+                          )}
                         </Typography>
 
                         {/* Pinned indicator */}
@@ -698,7 +799,8 @@ export default function NoteList() {
               );
             })}
             </Stack>
-          </AnimatePresence>
+            </AnimatePresence>
+          </InfiniteScroll>
         )}
         </Box>
         </>

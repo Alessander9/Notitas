@@ -121,6 +121,18 @@ public class NoteController {
         return ResponseEntity.ok().build();
     }
 
+    @DeleteMapping("/notes/deleted")
+    public ResponseEntity<?> emptyTrash(Authentication authentication) {
+        noteService.emptyTrash(getUserId(authentication));
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/notes/deleted/restore-all")
+    public ResponseEntity<?> restoreAllTrash(Authentication authentication) {
+        noteService.restoreAllTrash(getUserId(authentication));
+        return ResponseEntity.ok().build();
+    }
+
     @PostMapping("/notes/{id}/share-token")
     public ResponseEntity<?> getShareToken(@PathVariable Long id, Authentication authentication) {
         String token = noteService.generateNoteShareToken(id, getUserId(authentication));

@@ -9,6 +9,7 @@ import com.notitas.api.model.ProjectMember;
 import com.notitas.api.model.User;
 import com.notitas.api.payload.ProjectRequest;
 import com.notitas.api.payload.ProjectResponse;
+import com.notitas.api.repository.NoteMemberRepository;
 import com.notitas.api.repository.NoteRepository;
 import com.notitas.api.repository.NoteVersionRepository;
 import com.notitas.api.repository.ProjectMemberRepository;
@@ -41,6 +42,9 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Autowired
     private NoteVersionRepository noteVersionRepository;
+
+    @Autowired
+    private NoteMemberRepository noteMemberRepository;
 
     @Autowired
     private FileStorageService fileStorageService;
@@ -222,7 +226,8 @@ public class ProjectServiceImpl implements ProjectService {
             notificationService.createNotification(
                 project.getUser().getId(),
                 "Nuevo colaborador",
-                user.getName() + " se ha unido al proyecto: " + project.getName()
+                user.getName() + " se ha unido al proyecto: " + project.getName(),
+                "PROJECT_MEMBER_JOINED", project.getId(), null
             );
 
             // Notify all other members of the project
@@ -232,13 +237,92 @@ public class ProjectServiceImpl implements ProjectService {
                     notificationService.createNotification(
                         m.getUser().getId(),
                         "Nuevo colaborador",
-                        user.getName() + " se ha unido al proyecto: " + project.getName()
+                        user.getName() + " se ha unido al proyecto: " + project.getName(),
+                        "PROJECT_MEMBER_JOINED", project.getId(), null
                     );
                 }
             }
         }
 
         return mapToResponse(project, userId);
+    }
+
+    @Override
+    @Transactional
+    public ProjectResponse changeMemberRole(Long projectId, Long memberUserId, String role, Long currentUserId) {
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado"));
+
+        // Solo el propietario puede gestionar los roles de los colaboradores
+        if (!project.getUser().getId().equals(currentUserId)) {
+            throw new AccessDeniedException("Solo el propietario puede gestionar los miembros");
+        }
+
+        if (!"EDITOR".equals(role) && !"VIEWER".equals(role)) {
+            throw new IllegalArgumentException("Rol inválido: debe ser EDITOR o VIEWER");
+        }
+
+        // El propietario no está en project_members; se protege por si acaso
+        if (project.getUser().getId().equals(memberUserId)) {
+            throw new IllegalArgumentException("No puedes cambiar el rol del propietario");
+        }
+
+        ProjectMember member = projectMemberRepository.findByProjectIdAndUserId(projectId, memberUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("El usuario no es miembro de este proyecto"));
+
+        // Si el rol no cambia realmente, no guardar ni notificar
+        if (member.getRole().equals(role)) {
+            return mapToResponse(project, currentUserId);
+        }
+
+        member.setRole(role);
+        projectMemberRepository.save(member);
+
+        String roleLabel = "EDITOR".equals(role) ? "editor" : "visor";
+        notificationService.createNotification(
+                memberUserId,
+                "Rol actualizado",
+                project.getUser().getName() + " te ha cambiado el rol a " + roleLabel
+                        + " en el proyecto: " + project.getName(),
+                "PROJECT_MEMBER_ROLE_CHANGED", project.getId(), null
+        );
+
+        return mapToResponse(project, currentUserId);
+    }
+
+    @Override
+    @Transactional
+    public ProjectResponse removeMember(Long projectId, Long memberUserId, Long currentUserId) {
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado"));
+
+        // Solo el propietario puede expulsar colaboradores
+        if (!project.getUser().getId().equals(currentUserId)) {
+            throw new AccessDeniedException("Solo el propietario puede gestionar los miembros");
+        }
+
+        if (project.getUser().getId().equals(memberUserId)) {
+            throw new IllegalArgumentException("No puedes eliminar al propietario del proyecto");
+        }
+
+        ProjectMember member = projectMemberRepository.findByProjectIdAndUserId(projectId, memberUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("El usuario no es miembro de este proyecto"));
+
+        projectMemberRepository.delete(member);
+
+        // Revoca también los accesos por-nota del usuario dentro del proyecto
+        // (note_members): así la expulsión retira TODA la visibilidad de las
+        // notas del proyecto, tal y como promete la UI.
+        noteMemberRepository.deleteByUser_IdAndNote_Project_Id(memberUserId, projectId);
+
+        notificationService.createNotification(
+                memberUserId,
+                "Eliminado del proyecto",
+                project.getUser().getName() + " te ha eliminado del proyecto: " + project.getName(),
+                "PROJECT_MEMBER_REMOVED", project.getId(), null
+        );
+
+        return mapToResponse(project, currentUserId);
     }
 
     private ProjectResponse mapToResponse(Project project, Long currentUserId) {

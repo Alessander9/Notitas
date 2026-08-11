@@ -13,6 +13,7 @@ import ConfirmDialog from './components/ConfirmDialog';
 import ErrorBoundary from './components/ErrorBoundary';
 import IdleSessionGuard from './components/IdleSessionGuard';
 import CommandPalette from './components/CommandPalette';
+import ServerStatusBanner from './components/ServerStatusBanner';
 
 const Login = React.lazy(() => import('./pages/Login'));
 const Register = React.lazy(() => import('./pages/Register'));
@@ -23,7 +24,16 @@ const SharedNote = React.lazy(() => import('./pages/SharedNote'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { refetchOnWindowFocus: false, retry: 1 },
+    queries: {
+      refetchOnWindowFocus: false,
+      retry: (failureCount, error) => {
+        // No repetir errores de autenticación ni validación.
+        const status = error?.response?.status;
+        if (status === 401 || (status >= 400 && status < 500)) return false;
+        return failureCount < 3;
+      },
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 5000),
+    },
   },
 });
 
@@ -374,6 +384,7 @@ export default function App() {
         <ConfirmDialog />
         <IdleSessionGuard />
         <CommandPalette />
+        <ServerStatusBanner />
       </ThemeProvider>
     </QueryClientProvider>
   );

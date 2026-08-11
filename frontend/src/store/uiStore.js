@@ -9,6 +9,9 @@ export const useUiStore = create((set) => ({
   welcomeKind: 'login',
   welcomeUser: null,
   sidebarMobileOpen: false,
+  // Estado de conectividad con el backend: 'ok' | 'slow' | 'offline'
+  // ('slow' = petición tardando más de lo normal, p. ej. cold start en Render)
+  serverStatus: 'ok',
   toggleDarkMode: () => set((state) => ({ darkMode: !state.darkMode })),
   setCurrentProject: (id) => set({ currentProjectId: id, currentNoteId: null }),
   setCurrentNote: (id) => set({ currentNoteId: id }),
@@ -16,4 +19,5 @@ export const useUiStore = create((set) => ({
   setShowWelcome: (show, kind = 'login') => set({ showWelcome: show, welcomeKind: kind }),
   setWelcomeUser: (user) => set({ welcomeUser: user }),
   setSidebarMobileOpen: (open) => set({ sidebarMobileOpen: open }),
+  setServerStatus: (status) => set({ serverStatus: status }),
 }));
