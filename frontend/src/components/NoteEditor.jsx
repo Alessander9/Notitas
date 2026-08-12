@@ -1165,8 +1165,8 @@ export default function NoteEditor() {
               </IconButton>
             </Tooltip>
 
-            {isCreator && (
-              <Tooltip title="Colaboradores de la nota">
+            {note?.shareToken && (
+              <Tooltip title={isCreator ? 'Gestionar colaboradores' : 'Ver colaboradores de la nota'}>
                 <IconButton size="small" onClick={() => setCollaboratorsOpen(true)} sx={{ p: 0.6 }}>
                   <PeopleAltIcon fontSize="small" />
                 </IconButton>

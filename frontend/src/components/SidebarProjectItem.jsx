@@ -17,7 +17,9 @@ import {
   Add as AddIcon,
   PushPin as PinIcon,
   PushPinOutlined as PinOutlinedIcon,
+  Group as GroupIcon,
 } from '@mui/icons-material';
+import ManageMembersDialog from './ManageMembersDialog';
 import CoverImage from './CoverImage';
 import { getProjectIcon } from './ProjectFormDialog';
 import InfiniteScroll from './InfiniteScroll';
@@ -39,6 +41,9 @@ export default function SidebarProjectItem({
   isPinned,
   onTogglePin,
 }) {
+  const [manageMembersOpen, setManageMembersOpen] = React.useState(false);
+  const isOwner = project.currentUserRole === 'OWNER';
+  const hasCollaborators = (project.collaborators?.length ?? 0) > 0;
   const hasCover = Boolean(project.coverImage);
   const coverUrl = hasCover ? getAssetUrl(project.coverImage) : null;
 
@@ -294,6 +299,25 @@ export default function SidebarProjectItem({
                 </IconButton>
               </motion.div>
             </Tooltip>
+            {isOwner && hasCollaborators && (
+              <Tooltip title="Gestionar miembros" placement="top" arrow>
+                <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                  <IconButton
+                    size="small"
+                    onClick={(e) => { e.stopPropagation(); setManageMembersOpen(true); }}
+                    sx={{
+                      p: 0.5,
+                      color: 'text.secondary',
+                      borderRadius: 1.5,
+                      transition: 'all 0.15s ease',
+                      '&:hover': { bgcolor: 'rgba(139, 92, 246, 0.12)', color: 'secondary.main' },
+                    }}
+                  >
+                    <GroupIcon sx={{ fontSize: 15 }} />
+                  </IconButton>
+                </motion.div>
+              </Tooltip>
+            )}
             <Tooltip title="Compartir" placement="top" arrow>
               <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
                 <IconButton
@@ -348,6 +372,15 @@ export default function SidebarProjectItem({
           </Box>
         )}
       </Box>
+
+      {/* Manage Members Dialog */}
+      {isOwner && hasCollaborators && (
+        <ManageMembersDialog
+          project={project}
+          open={manageMembersOpen}
+          onClose={() => setManageMembersOpen(false)}
+        />
+      )}
 
       {/* ── Expanded Notes List ───────────────────────────── */}
       {!isCollapsed && (
