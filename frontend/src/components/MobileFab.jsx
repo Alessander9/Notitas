@@ -170,6 +170,7 @@ export default function MobileFab() {
                     sx={{
                       width: 48,
                       height: 48,
+                      minWidth: 44,
                       bgcolor: 'background.paper',
                       color: action.color,
                       boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
@@ -201,8 +202,10 @@ export default function MobileFab() {
           onClick={() => setOpen(!open)}
           aria-label="Acciones rápidas"
           sx={{
-            width: 58,
-            height: 58,
+             width: 58,
+             height: 58,
+             minWidth: 58,
+             minHeight: 58,
             borderRadius: '20px',
             background: 'linear-gradient(135deg, #386c5f 0%, #264e44 100%)',
             color: '#fff',

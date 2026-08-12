@@ -1,5 +1,7 @@
 package com.notitas.api.service;
 
+import com.notitas.api.payload.CommentResponse;
+import com.notitas.api.payload.NoteMemberResponse;
 import com.notitas.api.payload.NoteRequest;
 import com.notitas.api.payload.NoteResponse;
 import com.notitas.api.payload.NoteVersionResponse;
@@ -14,7 +16,13 @@ public interface NoteService {
     NoteResponse getNoteByIdAndUser(Long id, Long userId);
     Page<NoteResponse> getFavoriteNotes(Long userId, Pageable pageable);
     Page<NoteResponse> getDeletedNotes(Long userId, Pageable pageable);
+    Page<NoteResponse> getArchivedNotes(Long userId, Pageable pageable);
     Page<NoteResponse> searchNotes(Long userId, String query, Pageable pageable);
+
+    List<CommentResponse> getComments(Long noteId, Long userId);
+    CommentResponse addComment(Long noteId, String content, Long userId);
+    CommentResponse updateComment(Long noteId, Long commentId, String content, Long userId);
+    void deleteComment(Long noteId, Long commentId, Long userId);
 
     NoteResponse createNote(Long projectId, NoteRequest request, Long userId);
     NoteResponse updateNote(Long id, NoteRequest request, Long userId);
@@ -32,6 +40,21 @@ public interface NoteService {
     void revokeNoteShareToken(Long id, Long userId);
     NoteResponse getSharedNoteByToken(String token);
     NoteResponse joinNote(String token, Long userId);
+
+    /** Colaboradores por-nota (note_members): cualquiera con acceso a la nota puede verlos. */
+    List<NoteMemberResponse> getNoteMembers(Long noteId, Long userId);
+
+    /**
+     * Expulsa a un colaborador por-nota. Solo el creador de la nota (dueño del
+     * proyecto al que pertenece) puede hacerlo.
+     */
+    void removeNoteMember(Long noteId, Long memberUserId, Long currentUserId);
+
+    /**
+     * Cambia el rol (EDITOR/VIEWER) de un colaborador por-nota. Solo el creador
+     * de la nota puede hacerlo.
+     */
+    void changeNoteMemberRole(Long noteId, Long memberUserId, String role, Long currentUserId);
 
     List<NoteVersionResponse> getNoteVersions(Long noteId, Long userId);
     NoteResponse restoreNoteVersion(Long noteId, Long versionId, Long userId);

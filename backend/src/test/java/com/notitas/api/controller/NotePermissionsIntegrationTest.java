@@ -69,7 +69,7 @@ class NotePermissionsIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.title").value("Nota protegida"));
 
         // Escritura denegada
-        expectApiError(403, "Viewer cannot edit note",
+        expectApiError(403, "No tienes permisos de edición en esta nota",
                 put("/api/notes/" + noteId)
                         .header("Authorization", bearer(viewerToken))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -85,19 +85,19 @@ class NotePermissionsIntegrationTest extends BaseIntegrationTest {
         long noteId = createNote(ownerToken, projectId, "Nota blindada");
         String viewerToken = makeViewer("perm2.viewer@test.com", projectId);
 
-        expectApiError(403, "Viewer cannot edit note",
+        expectApiError(403, "No tienes permisos de edición en esta nota",
                 delete("/api/notes/" + noteId).header("Authorization", bearer(viewerToken)));
 
         MockMultipartFile file = new MockMultipartFile("file", "x.png", "image/png", new byte[]{1});
-        expectApiError(403, "Viewer cannot edit note",
+        expectApiError(403, "No tienes permisos de edición en esta nota",
                 multipart(HttpMethod.POST, "/api/notes/" + noteId + "/cover")
                         .file(file)
                         .header("Authorization", bearer(viewerToken)));
-        expectApiError(403, "Viewer cannot edit note",
+        expectApiError(403, "No tienes permisos de edición en esta nota",
                 multipart(HttpMethod.POST, "/api/notes/" + noteId + "/attachment")
                         .file(file)
                         .header("Authorization", bearer(viewerToken)));
-        expectApiError(403, "Viewer cannot edit note",
+        expectApiError(403, "No tienes permisos de edición en esta nota",
                 multipart(HttpMethod.POST, "/api/notes/" + noteId + "/images")
                         .file(file)
                         .header("Authorization", bearer(viewerToken)));
@@ -116,10 +116,10 @@ class NotePermissionsIntegrationTest extends BaseIntegrationTest {
                 .andReturn();
         long versionId = objectMapper.readTree(versionsResult.getResponse().getContentAsString()).get(0).get("id").asLong();
 
-        expectApiError(403, "Viewer cannot edit note",
+        expectApiError(403, "No tienes permisos de edición en esta nota",
                 post("/api/notes/" + noteId + "/versions/" + versionId + "/restore")
                         .header("Authorization", bearer(viewerToken)));
-        expectApiError(403, "Viewer cannot edit note",
+        expectApiError(403, "No tienes permisos de edición en esta nota",
                 delete("/api/notes/" + noteId + "/share-token")
                         .header("Authorization", bearer(viewerToken)));
     }

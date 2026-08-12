@@ -15,13 +15,15 @@ public class NoteResponse {
     private String shareToken;
     private List<String> tags;
     private List<AttachmentResponse> attachments;
+    // Colaboradores por-nota (quienes se unieron por el enlace de invitación)
+    private List<NoteMemberResponse> noteMembers;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private Long updatedBy;
 
     public NoteResponse() {}
 
-    public NoteResponse(Long id, Long projectId, String title, String content, String coverImage, boolean favorite, boolean archived, boolean deleted, String shareToken, List<String> tags, List<AttachmentResponse> attachments, LocalDateTime createdAt, LocalDateTime updatedAt, Long updatedBy) {
+    public NoteResponse(Long id, Long projectId, String title, String content, String coverImage, boolean favorite, boolean archived, boolean deleted, String shareToken, List<String> tags, List<AttachmentResponse> attachments, List<NoteMemberResponse> noteMembers, LocalDateTime createdAt, LocalDateTime updatedAt, Long updatedBy) {
         this.id = id;
         this.projectId = projectId;
         this.title = title;
@@ -33,6 +35,7 @@ public class NoteResponse {
         this.shareToken = shareToken;
         this.tags = tags;
         this.attachments = attachments;
+        this.noteMembers = noteMembers;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
         this.updatedBy = updatedBy;
@@ -65,6 +68,8 @@ public class NoteResponse {
     public void setTags(List<String> tags) { this.tags = tags; }
     public List<AttachmentResponse> getAttachments() { return attachments; }
     public void setAttachments(List<AttachmentResponse> attachments) { this.attachments = attachments; }
+    public List<NoteMemberResponse> getNoteMembers() { return noteMembers; }
+    public void setNoteMembers(List<NoteMemberResponse> noteMembers) { this.noteMembers = noteMembers; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
@@ -84,6 +89,7 @@ public class NoteResponse {
         private String shareToken;
         private List<String> tags;
         private List<AttachmentResponse> attachments;
+        private List<NoteMemberResponse> noteMembers;
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
         private Long updatedBy;
@@ -99,12 +105,13 @@ public class NoteResponse {
         public NoteResponseBuilder shareToken(String shareToken) { this.shareToken = shareToken; return this; }
         public NoteResponseBuilder tags(List<String> tags) { this.tags = tags; return this; }
         public NoteResponseBuilder attachments(List<AttachmentResponse> attachments) { this.attachments = attachments; return this; }
+        public NoteResponseBuilder noteMembers(List<NoteMemberResponse> noteMembers) { this.noteMembers = noteMembers; return this; }
         public NoteResponseBuilder createdAt(LocalDateTime createdAt) { this.createdAt = createdAt; return this; }
         public NoteResponseBuilder updatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; return this; }
         public NoteResponseBuilder updatedBy(Long updatedBy) { this.updatedBy = updatedBy; return this; }
 
         public NoteResponse build() {
-            return new NoteResponse(id, projectId, title, content, coverImage, favorite, archived, deleted, shareToken, tags, attachments, createdAt, updatedAt, updatedBy);
+            return new NoteResponse(id, projectId, title, content, coverImage, favorite, archived, deleted, shareToken, tags, attachments, noteMembers, createdAt, updatedAt, updatedBy);
         }
     }
 

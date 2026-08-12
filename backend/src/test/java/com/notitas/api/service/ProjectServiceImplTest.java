@@ -8,6 +8,7 @@ import com.notitas.api.model.ProjectMember;
 import com.notitas.api.model.User;
 import com.notitas.api.payload.ProjectRequest;
 import com.notitas.api.payload.ProjectResponse;
+import com.notitas.api.repository.CommentRepository;
 import com.notitas.api.repository.NoteRepository;
 import com.notitas.api.repository.NoteVersionRepository;
 import com.notitas.api.repository.ProjectMemberRepository;
@@ -55,6 +56,7 @@ class ProjectServiceImplTest {
     @Mock private NoteVersionRepository noteVersionRepository;
     @Mock private FileStorageService fileStorageService;
     @Mock private NotificationService notificationService;
+    @Mock private CommentRepository commentRepository;
 
     @InjectMocks
     private ProjectServiceImpl projectService;

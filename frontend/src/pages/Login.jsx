@@ -160,6 +160,11 @@ export default function Login() {
               Iniciar sesión
             </Button>
             <Box sx={{ textAlign: 'center', mt: 0.5 }}>
+              <Link component={RouterLink} to="/forgot-password" variant="body2" color="text.secondary" underline="hover">
+                ¿Olvidaste tu contraseña?
+              </Link>
+            </Box>
+            <Box sx={{ textAlign: 'center', mt: 1 }}>
               <Link component={RouterLink} to="/register" variant="body2" color="primary" underline="hover">
                 ¿No tienes cuenta? Regístrate
               </Link>

@@ -277,6 +277,7 @@ export default function FavoritesView() {
                         <AuthorAvatars
                           creator={project?.creator}
                           collaborators={project?.collaborators}
+                          noteMembers={note?.noteMembers}
                           size={20}
                           onMemberClick={setProfileMember}
                         />

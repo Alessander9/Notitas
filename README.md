@@ -2,7 +2,7 @@
 
 **Organiza tus proyectos, notas y recursos en un solo lugar.**
 
-Notitas es una aplicación web (SPA) para crear **proyectos**, escribir **notas con un editor enriquecido**, subir **portadas, adjuntos e imágenes**, marcar **favoritos**, enviar notas a la **papelera**, **compartir notas públicamente** mediante enlace y **colaborar en proyectos** por invitación con roles (propietario / editor / lector).
+Notitas es una aplicación web (SPA) para crear **proyectos**, escribir **notas con un editor enriquecido**, subir **portadas, adjuntos e imágenes**, marcar **favoritos**, enviar notas a la **papelera**, **archivar notas**, **compartir notas públicamente** mediante enlace y **colaborar** por invitación con roles (propietario / editor / visor) tanto a nivel de **proyecto** como de **nota individual** (quien se une por el enlace de invitación puede ser Editor o Visor). Incluye **comentarios en las notas**, **exportación** a PDF/PNG/Word/Markdown y **recuperación de contraseña** por email.
 
 > 🚀 **Producción:** [https://notitas-cleo.vercel.app](https://notitas-cleo.vercel.app) · API: `https://notitas-api.onrender.com`
 
@@ -46,7 +46,11 @@ Notitas es una aplicación web (SPA) para crear **proyectos**, escribir **notas 
 - **Favoritos**, **papelera** (borrado en 2 pasos: soft delete → borrado definitivo) y **búsqueda global**.
 - **Compartir públicamente** (`/shared/note/:token`) sin necesidad de cuenta.
 - **Mover notas entre proyectos**, tags editables, contador de palabras y minutos de lectura, "último editor".
-- **Roles**: los miembros **VIEWER** ven el editor en modo solo lectura.
+- **Roles**: los miembros **VIEWER** (de proyecto o de nota) ven el editor en modo solo lectura.
+- **Colaboración por nota**: enlace de invitación a colaborar (`/join/note/:token`) → el invitado entra como **EDITOR**; el creador puede **cambiar el rol** (Editor/Visor) y **expulsar** colaboradores desde el diálogo de colaboradores; al expulsar se **regenera el enlace** para que el expulsado no pueda volver a unirse. Los avatares de las listas muestran también a los colaboradores por-nota.
+- **Comentarios en las notas**: cualquier colaborador (incluidos VIEWER) puede comentar; el autor edita/borra sus comentarios; los demás colaboradores reciben notificación.
+- **Archivado**: archivar/desarchivar notas con vista dedicada en el sidebar (las archivadas no aparecen en listas activas, favoritos ni búsqueda).
+- **Exportación**: nota → **PDF** (paginado A4), **PNG** (alta resolución), **Word (.docx)** y **Markdown (.md)** con lazy-loading de librerías.
 - **NoteList colapsable**: panel que se minimiza mostrando avatar del usuario + avatares circulares de notas con animaciones staggered.
 - **Pin/Unpin notas**: fijar notas favoritas para acceso rápido.
 
@@ -250,6 +254,8 @@ Todos bajo `/api` salvo indicación. Respuestas de error: `{ "message": "..." }`
 | POST | `/register` | Registro (email único, password ≥ 6) |
 | POST | `/refresh` | Renovación deslizante del token |
 | POST | `/logout` | Borra cookie y revoca el token (`token_version++`) |
+| POST | `/forgot-password` | Solicita recuperación: envía enlace con token de 1 h por email (Respuesta genérica contra enumeración de usuarios; el enlace NO se expone en la respuesta, ni en dev ni en prod) |
+| POST | `/reset-password` | Cambia la contraseña con el token (single-use; revoca todas las sesiones) |
 
 ### Proyectos (`/api/projects`)
 
@@ -274,7 +280,8 @@ Todos bajo `/api` salvo indicación. Respuestas de error: `{ "message": "..." }`
 | GET | `/notes/{id}` | Nota por id |
 | GET | `/notes/favorites` | Favoritas (propias + de proyectos como miembro) |
 | GET | `/notes/deleted` | Papelera (solo proyectos propios) |
-| GET | `/notes/search?query=` | Búsqueda global |
+| GET | `/notes/archived` | Archivadas (propias + de proyectos como miembro) |
+| GET | `/notes/search?query=` | Búsqueda global (excluye archivadas) |
 | POST | `/projects/{projectId}/notes` | Crear nota (crea versión inicial) |
 | PUT | `/notes/{id}` | Actualizar (título, contenido, tags, favorito, archivado, papelera, mover) |
 | POST | `/notes/{id}/cover` | Subir/quitar portada |
@@ -285,7 +292,15 @@ Todos bajo `/api` salvo indicación. Respuestas de error: `{ "message": "..." }`
 | DELETE | `/notes/deleted` | Vaciar papelera (borrado definitivo de todas) |
 | POST | `/notes/deleted/restore-all` | Restaurar todas las notas de la papelera |
 | POST | `/notes/{id}/share-token` | Genera enlace público |
+| POST | `/notes/join/{token}` | Unirse como colaborador por-nota (rol EDITOR) |
 | GET | `/public/notes/shared/{token}` | **Público** — leer nota compartida |
+| GET | `/notes/{id}/members` | Colaboradores por-nota (quien pueda ver la nota) |
+| PUT | `/notes/{id}/members/{userId}` | Cambiar rol de un colaborador por-nota (solo creador) |
+| DELETE | `/notes/{id}/members/{userId}` | Expulsar colaborador por-nota (solo creador; regenera el enlace) |
+| GET | `/notes/{id}/comments` | Comentarios de la nota |
+| POST | `/notes/{id}/comments` | Crear comentario |
+| PUT | `/notes/{id}/comments/{commentId}` | Editar comentario (solo autor) |
+| DELETE | `/notes/{id}/comments/{commentId}` | Borrar comentario (solo autor) |
 | GET | `/notes/{id}/versions` | Historial de versiones |
 | POST | `/notes/{id}/versions/{versionId}/restore` | Restaurar versión (owner/EDITOR) |
 | POST | `/notes/{id}/images` | Subir imagen inline del editor |
@@ -312,10 +327,13 @@ Todos bajo `/api` salvo indicación. Respuestas de error: `{ "message": "..." }`
 
 ```
 User 1 ─── N Project 1 ─── N Note 1 ─── N NoteVersion
-              │                │
-              │                ├─── N Tag
-              │                └─── N Attachment
-              └─── N ProjectMember N ─── 1 User
+              │                │            ├─── N Tag
+              │                │            ├─── N Attachment
+              │                │            ├─── N Comment
+              │                │            └─── N NoteMember N ─── 1 User (rol EDITOR/VIEWER)
+              └─── N ProjectMember N ─── 1 User (rol EDITOR/VIEWER)
+
+User 1 ─── N PasswordResetToken (single-use, 1 h)
 ```
 
 | Entidad | Tabla | Campos principales |
@@ -403,9 +421,10 @@ Pasos esenciales del primer deploy (detalle en `DEPLOY.md`):
 
 ## 🧭 Mejoras planificadas / pendientes
 
-- **Gestión de miembros en la UI**: cambiar roles (EDITOR/VIEWER) y expulsar colaboradores (el backend ya soporta roles).
 - **Dominio propio** (`app.tudominio.com` + `api.tudominio.com`): cookie first-party + `COOKIE_SAMESITE=Lax`.
 - **Supabase Auth** para login social (OAuth).
-- **Paginación / infinite scroll** en listas largas de notas.
-- **Tests de frontend**.
-- **Búsqueda insensible a acentos en BD** (hoy filtrado en Java).
+- **Verificación de email** en el registro.
+- **Colaboración en tiempo real** (hoy: autoguardado + versiones + notificaciones por polling).
+- **Búsqueda insensible a acentos en BD** (hoy filtrado en SQL case-insensitive en la consulta).
+- **Rate limit en Redis** (hoy en memoria, por instancia).
+- **Error tracking** (Sentry o equivalente).

@@ -337,7 +337,7 @@ export default function NoteList() {
                   startIcon={<AddIcon />}
                   onClick={() => createNoteMutation.mutate()}
                   disabled={createNoteMutation.isPending}
-                  sx={{ textTransform: 'none', borderRadius: 2, py: 0.5, fontSize: '0.78rem' }}
+                 sx={{ textTransform: 'none', borderRadius: 2, py: 0.5, minHeight: 40, fontSize: '0.78rem' }}
                 >
                   Añadir
                 </Button>
@@ -352,8 +352,9 @@ export default function NoteList() {
         <Box sx={{ px: 2, pt: 1.5, pb: 0.5, display: 'flex', flexDirection: 'column', gap: 1 }}>
           <TextField
             size="small"
-            placeholder="Filtrar notas…"
-            value={filterText}
+           placeholder="Filtrar notas…"
+             inputProps={{ 'aria-label': 'Filtrar notas' }}
+             value={filterText}
             onChange={(e) => setFilterText(e.target.value)}
             InputProps={{
               startAdornment: (
@@ -404,8 +405,23 @@ export default function NoteList() {
             </Typography>
           </Box>
         ) : notes.length === 0 ? (
-          <Box sx={{ textAlign: 'center', mt: 4, color: 'text.secondary' }}>
-            <Typography variant="body2">No hay notas.</Typography>
+          <Box sx={{ textAlign: 'center', mt: 4, color: 'text.secondary', p: 2 }}>
+            <EditNoteIcon sx={{ fontSize: 42, color: 'primary.main', mb: 1 }} />
+            <Typography variant="subtitle2" fontWeight={700}>
+              Este proyecto todavía no tiene notas
+            </Typography>
+            {isProjectView && (
+              <Button
+                size="small"
+                variant="contained"
+                startIcon={<AddIcon />}
+                sx={{ mt: 1.5, borderRadius: 2, minHeight: 40 }}
+                onClick={() => createNoteMutation.mutate()}
+                disabled={createNoteMutation.isPending}
+              >
+                Crear primera nota
+              </Button>
+            )}
           </Box>
         ) : isFiltering && visibleNotes.length === 0 ? (
           <Box sx={{ textAlign: 'center', mt: 4, color: 'text.secondary', p: 2 }}>
@@ -762,6 +778,7 @@ export default function NoteList() {
                             <AuthorAvatars
                               creator={project?.creator}
                               collaborators={project?.collaborators}
+                              noteMembers={note?.noteMembers}
                               onMemberClick={setProfileMember}
                             />
                             {lastEditor && (

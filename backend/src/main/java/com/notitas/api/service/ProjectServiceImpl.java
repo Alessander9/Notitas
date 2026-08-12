@@ -9,6 +9,7 @@ import com.notitas.api.model.ProjectMember;
 import com.notitas.api.model.User;
 import com.notitas.api.payload.ProjectRequest;
 import com.notitas.api.payload.ProjectResponse;
+import com.notitas.api.repository.CommentRepository;
 import com.notitas.api.repository.NoteMemberRepository;
 import com.notitas.api.repository.NoteRepository;
 import com.notitas.api.repository.NoteVersionRepository;
@@ -42,6 +43,9 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Autowired
     private NoteVersionRepository noteVersionRepository;
+
+    @Autowired
+    private CommentRepository commentRepository;
 
     @Autowired
     private NoteMemberRepository noteMemberRepository;
@@ -155,6 +159,7 @@ public class ProjectServiceImpl implements ProjectService {
         List<Note> notes = noteRepository.findByProjectId(id);
         for (Note note : notes) {
             noteVersionRepository.deleteByNoteId(note.getId());
+            commentRepository.deleteByNoteId(note.getId());
         }
         for (Note note : notes) {
             deleteNoteFiles(note);

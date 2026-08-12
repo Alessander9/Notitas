@@ -7,15 +7,28 @@ const MAX_VISIBLE = 3;
 
 /**
  * Apilado de avatares circulares de los miembros implicados en una nota:
- * el creador del proyecto primero (con corona) y luego los colaboradores.
- * Si hay más de MAX_VISIBLE, se muestra un badge "+N".
+ * el creador del proyecto primero (con corona), luego los colaboradores del
+ * proyecto y por último los colaboradores por-nota (noteMembers). Se deduplican
+ * por id (un usuario puede ser a la vez miembro del proyecto y colaborador
+ * por-nota). Si hay más de MAX_VISIBLE, se muestra un badge "+N".
  * Cada avatar es clicable si se pasa onMemberClick.
  */
-export default function AuthorAvatars({ creator, collaborators = [], size = 22, onMemberClick }) {
-  const members = [
-    ...(creator ? [{ ...creator, isCreator: true }] : []),
-    ...(collaborators || []).map((c) => ({ ...c, isCreator: false })),
-  ];
+export default function AuthorAvatars({ creator, collaborators = [], noteMembers = [], size = 22, onMemberClick }) {
+  const members = [];
+  const seen = new Set();
+
+  const push = (m, isCreator) => {
+    if (!m) return;
+    const key = m.id ?? m.userId;
+    if (key != null && seen.has(key)) return;
+    if (key != null) seen.add(key);
+    members.push({ ...m, id: key, isCreator });
+  };
+
+  push(creator, true);
+  (collaborators || []).forEach((c) => push(c, false));
+  // Los colaboradores por-nota llegan con userId en vez de id: se normaliza.
+  (noteMembers || []).forEach((nm) => push({ ...nm, id: nm.userId }, false));
 
   if (members.length === 0) return null;
 

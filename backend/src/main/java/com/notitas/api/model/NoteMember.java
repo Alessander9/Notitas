@@ -21,6 +21,9 @@ public class NoteMember {
     @Column(name = "joined_at", nullable = false)
     private LocalDateTime joinedAt;
 
+    @Column(name = "role", nullable = false)
+    private String role = "EDITOR"; // "EDITOR" or "VIEWER"
+
     public NoteMember() {}
 
     public NoteMember(Note note, User user) {
@@ -31,6 +34,9 @@ public class NoteMember {
     @PrePersist
     protected void onCreate() {
         joinedAt = LocalDateTime.now();
+        if (role == null) {
+            role = "EDITOR";
+        }
     }
 
     // Getters and Setters
@@ -42,4 +48,6 @@ public class NoteMember {
     public void setUser(User user) { this.user = user; }
     public LocalDateTime getJoinedAt() { return joinedAt; }
     public void setJoinedAt(LocalDateTime joinedAt) { this.joinedAt = joinedAt; }
+    public String getRole() { return role; }
+    public void setRole(String role) { this.role = role; }
 }

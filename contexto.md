@@ -133,6 +133,8 @@
 | POST | `/register` | Crea usuario (valida email único, password ≥ 6) |
 | POST | `/refresh` | Renovación deslizante: re-emite la cookie si el JWT es válido y la versión coincide |
 | POST | `/logout` | Borra la cookie **y revoca el token**: incrementa `users.token_version` (invalida todos los JWT anteriores, en cualquier dispositivo) |
+| POST | `/forgot-password` | **Recuperación de contraseña (1/2)**: crea `PasswordResetToken` (expira en 1 h, single-use) y envía el enlace por **Resend** (`EmailService`). Respuesta **genérica** si el email no existe (anti-enumeración). El enlace **no se expone en la respuesta** (oculto también en dev); solo el perfil de test lo habilita (`app.email.expose-reset-link`) |
+| POST | `/reset-password` | **Recuperación de contraseña (2/2)**: valida token (no usado, no expirado), fija la nueva contraseña y **revoca todas las sesiones** (`token_version++`). Marca el token como usado |
 
 **ProjectController** (`/api/projects`):
 | Método | Ruta | Descripción |
@@ -155,7 +157,8 @@
 | GET | `/notes/{id}` | Nota por id (con control de acceso) |
 | GET | `/notes/favorites` | Favoritas (propias + de proyectos como miembro) |
 | GET | `/notes/deleted` | Papelera (solo notas de proyectos propios) |
-| GET | `/notes/search?query=` | Búsqueda global por título/contenido |
+| GET | `/notes/archived` | Archivadas (propias + de proyectos donde es miembro; `findArchivedNotesForUser`) |
+| GET | `/notes/search?query=` | Búsqueda global por título/contenido (excluye archivadas) |
 | POST | `/projects/{projectId}/notes` | Crear nota (crea versión inicial) |
 | PUT | `/notes/{id}` | Actualizar (título, contenido, tags, favorito, archivado, deleted, projectId para mover) |
 | POST | `/notes/{id}/cover` | Subir/quitar portada |
@@ -166,7 +169,15 @@
 | DELETE | `/notes/deleted` | Vaciar papelera: borrado definitivo de todas las notas eliminadas (solo proyectos propios) |
 | POST | `/notes/deleted/restore-all` | Restaurar todas las notas de la papelera |
 | POST | `/notes/{id}/share-token` | Genera enlace público |
+| POST | `/notes/join/{token}` | Unirse como colaborador por-nota (rol **EDITOR** por defecto) |
 | GET | `/public/notes/shared/{token}` | **Público**: leer nota compartida |
+| GET | `/notes/{id}/members` | Colaboradores por-nota (cualquiera con acceso a la nota) |
+| PUT | `/notes/{id}/members/{userId}` | Cambiar rol de un colaborador por-nota (`EDITOR`/`VIEWER`; **solo el creador**; notifica al afectado) |
+| DELETE | `/notes/{id}/members/{userId}` | Expulsar colaborador por-nota (**solo el creador**; **regenera el shareToken** para que el expulsado no pueda re-unirse; notifica) |
+| GET | `/notes/{id}/comments` | Comentarios de la nota (orden cronológico) |
+| POST | `/notes/{id}/comments` | Crear comentario (cualquier colaborador, incluidos VIEWER; notifica a los demás) |
+| PUT | `/notes/{id}/comments/{commentId}` | Editar comentario (**solo el autor**) |
+| DELETE | `/notes/{id}/comments/{commentId}` | Borrar comentario (**solo el autor**) |
 | GET | `/notes/{id}/versions` | Historial de versiones |
 | POST | `/notes/{id}/versions/{versionId}/restore` | Restaurar versión (solo owner/EDITOR) |
 | POST | `/notes/{id}/images` | Subir imagen inline del editor (devuelve `{"url": "/uploads/..."}`) |
@@ -187,8 +198,8 @@
 - **`JwtUtils`**: jjwt 0.12.6, secreto desde `app.jwt.secret` (env `NOTITAS_JWT_SECRET`), expiración `app.jwt.expiration-ms` (24h por defecto). El JWT lleva el claim `tv` = `users.token_version` y el claim `rm` (sesión "recordarme", 30 días vía `app.jwt.remember-me-expiration-ms`; el refresh conserva la marca para no degradar ni promocionar la sesión).
 - **Revocación real**: `POST /api/auth/logout` incrementa `token_version`; los JWT anteriores dejan de ser válidos al instante.
 - **Cookie SameSite configurable**: `app.cookie.samesite` (env `COOKIE_SAMESITE`) — listo para cuando la cookie pase a first-party con dominio propio.
-- **Migraciones Flyway**: `V1__initial_schema.sql` (esquema base) + `V2__add_token_version.sql` (columna `token_version`) + `V3__add_note_members.sql` (colaboración por nota) + `V4__unique_project_members.sql` (UNIQUE joins) + `V5__add_notifications.sql` (tabla `notifications` del centro de notificaciones — **fix prod**: la entidad existía en código pero no había migración, y en prod `ddl-auto=none` + Flyway hacía que `GET /api/notifications` devolviera 500). Aplicadas automáticamente al arrancar.
-- **`RateLimitFilter`**: limita login/register a **10 peticiones por IP en 60s** (ventana en memoria con `ConcurrentHashMap`; respeta `X-Forwarded-For`). Desactivable con `app.rate-limit.enabled=false` (el perfil test lo hace).
+- **Migraciones Flyway**: `V1__initial_schema.sql` (esquema base) + `V2__add_token_version.sql` (columna `token_version`) + `V3__add_note_members.sql` (colaboración por nota) + `V4__unique_project_members.sql` (UNIQUE joins) + `V5__add_notifications.sql` (tabla `notifications` del centro de notificaciones — **fix prod**: la entidad existía en código pero no había migración, y en prod `ddl-auto=none` + Flyway hacía que `GET /api/notifications` devolviera 500) + `V6__add_notification_event_targets.sql` (columnas `project_id`/`note_id` en notificaciones) + `V7__add_password_reset_tokens.sql` (tabla `password_reset_tokens`) + `V8__add_comments.sql` (tabla `comments`) + `V9__add_note_member_roles.sql` (columna `role` en `note_members`, default `EDITOR`). Aplicadas automáticamente al arrancar.
+- **`RateLimitFilter`**: limita login/register/**forgot-password/reset-password** a **10 peticiones por IP en 60s** (ventana en memoria con `ConcurrentHashMap`; respeta `X-Forwarded-For`). Desactivable con `app.rate-limit.enabled=false` (el perfil test lo hace).
 - **`AuthEntryPointJwt`**: respuestas 401 JSON.
 - Passwords con **BCrypt** (`BCryptPasswordEncoder`).
 
@@ -220,6 +231,10 @@
 - **NotePermissionsIntegrationTest**: los miembros `VIEWER` no pueden editar, borrar, subir archivos, restaurar versiones ni revocar compartido (los `EDITOR` sí).
 - **ProjectControllerIntegrationTest**: CRUD, invitaciones, join, permisos owner/miembro (miembro no borra, miembro puede editar).
 - **UserControllerIntegrationTest**: actualizar perfil (con nuevo token y login con el email nuevo), cambio de contraseña.
+- **NoteMembersIntegrationTest**: colaboradores por-nota — listado (rol default EDITOR), expulsión por el creador (pierde acceso, se rota el shareToken, recibe notificación), prohibición a colaboradores/EDITOR del proyecto/outsiders, **cambio de rol Editor/Visor** (VIEWER pierde la edición pero conserva lectura; EDITOR la recupera; solo el creador cambia roles; rol inválido → 400), y `noteMembers` expuestos en el `NoteResponse` (detalle y lista) solo cuando hay compartido activo.
+- **ArchivedNotesIntegrationTest**: listar archivadas, archivar/desarchivar desde `PUT /notes/{id}` y que no aparezcan en listas activas ni favoritos.
+- **CommentIntegrationTest**: CRUD de comentarios, solo el autor edita/borra, los VIEWER pueden comentar pero no editar la nota, los outsiders no ven ni comentan, notificaciones `NOTE_COMMENTED`.
+- **PasswordResetIntegrationTest**: forgot genera token y enlace (en dev), reset valida token/expiración/single-use, revoca sesiones y el login con la contraseña nueva funciona.
 - **Unitarios**: `JwtUtilsTest` (claims `tv`/`rm`, expiración, extracción), `NoteServiceImplTest`, `ProjectServiceImplTest` (incluida la carrera de join), `NotificationServiceImplTest`, `FileStorageServiceImplTest`.
 - **Frontend (Vitest)**: stores (auth/ui/toast/confirm), utils (text), Login/Register, ProjectFormDialog, Toasts, ConfirmDialog — `cd frontend && npm test`.
 - **E2E (Selenium + pytest)**: `cd e2e && python -m pytest` — 32 tests contra backend (8080) + frontend (5174) levantados (login/register con/sin remember-me, notas, papelera, perfil, sharing, notificaciones, UI).
@@ -288,11 +303,17 @@ Las mutaciones invalidan con `invalidateQueries({ queryKey: ['notes'] })` (prefi
   - **Autoguardado con un único debounce de 800ms** para título + contenido juntos (los valores se capturan en el cierre para no perder ediciones; se cancelan pendientes al cambiar de nota/desmontar). Indicador de estado: `Guardado / Guardando... / Sin guardar` (chip en la barra de formato sticky).
   - **Pegar/arrastrar imágenes** sube el archivo a `/notes/{id}/images` e inserta la URL.
   - Barra de formato sticky: negrita, cursiva, tachado, código, H1, listas, checklist, **menú de tablas** (insertar 3x3, filas, columnas, borrar), alineación de imagen, subir imagen, undo/redo.
-  - Cabecera con breadcrumbs (Proyectos › Proyecto › Nota), portada (subir/cambiar/borrar), adjuntar archivo, **mover nota a otro proyecto**, compartir enlace público, historial de versiones, favorito, papelera/restaurar.
-  - Meta-fila: tags editables, avatares, último editor, fecha, **contador de palabras y minutos de lectura**.
-  - **Modo solo lectura** para roles VIEWER (editor deshabilitado, chip "Sólo Lectura").
+  - Cabecera con breadcrumbs (Proyectos › Proyecto › Nota), portada (subir/cambiar/borrar), adjuntar archivo, **mover nota a otro proyecto**, compartir enlace público, **colaboradores por-nota (solo el creador)**, historial de versiones, favorito, papelera/restaurar, **archivar/desarchivar**.
+  - **Exportación** (menú Exportar): **PDF** (`html2canvas` + `jspdf`, A4 paginado), **PNG** (alta resolución), **Word (.docx)** con `docx` (encabezados, listas, checklists, tablas, código, imágenes) y **Markdown (.md)** con `turndown` + `turndown-plugin-gfm`. Las 4 librerías se cargan con `import()` dinámico (chunks separados; el bundle inicial no crece).
+  - **Comentarios** (`CommentsSection`): cualquier colaborador (incluidos VIEWER) comenta; el autor edita/borra; notificación a los demás.
+  - Meta-fila: tags editables, avatares (creador + colaboradores del proyecto + **colaboradores por-nota**, deduplicados), último editor, fecha, **contador de palabras y minutos de lectura**.
+  - **Modo solo lectura** para roles VIEWER (de proyecto **o por-nota**): el editor comprueba `noteMembers` + `useAuthStore` para saber si el usuario actual es un NoteMember EDITOR (puede editar aunque no sea miembro del proyecto).
   - Estado vacío ("Selecciona una nota") con botón crear.
 - **NoteHistoryDialog**: lista de versiones (fecha, autor, extracto) + previsualización HTML + restaurar (con confirmación; cancela autoguardados pendientes).
+- **NoteCollaboratorsDialog**: lista los colaboradores por-nota (avatar, nombre, email, fecha de unión, chip Editor/Visor); el creador puede **cambiar el rol** (Select) y **expulsar** (con confirmación; al expulsar se regenera el enlace y la nota se recarga para mostrar el token nuevo).
+- **CommentsSection**: sección de comentarios del editor con avatares, timestamps y edición/borrado inline del autor.
+- **ArchivedView**: vista de notas archivadas con paginación infinita (`usePaginatedNotes`); item "Archivadas" en el sidebar.
+- **ForgotPassword / ResetPassword**: páginas de recuperación con `AuthLayout`; enlace "¿Olvidaste tu contraseña?" en Login; `ResetPassword` lee el token de la query string y valida la contraseña nueva.
 - **FavoritesView / TrashView**: grids de cards con acciones directas (quitar favorito, papelera, restaurar, borrar definitivo).
 - **JoinProject**: si no hay sesión guarda el token en `localStorage` (`pending-invite-token`) y tras login en Login.jsx se redirige de vuelta a unirse. Si hay sesión, une directamente.
 - **SharedNote**: página pública con tema propio (sigue `prefers-color-scheme`), renderiza el HTML de la nota con estilos completos (imágenes alineadas, tablas, checklists, código), botón "Crear mi cuenta".
@@ -329,11 +350,16 @@ Las mutaciones invalidan con `invalidateQueries({ queryKey: ['notes'] })` (prefi
 5. **Favoritos** → estrella desde card o editor → vista Favoritos + sección Destacados en el dashboard.
 6. **Papelera** → soft delete → restaurar o borrar definitivamente (borra también archivos e imágenes inline). **Acciones en bloque (2026-08)**: `DELETE /api/notes/deleted` vacía la papelera y `POST /api/notes/deleted/restore-all` restaura todo (botones en `TrashView`).
 7. **Búsqueda global** → desde la navbar, resultados + editor en la misma vista.
-8. **Colaboración** → enlace de invitación por proyecto (`/join/project/:token`) → el invitado entra como **EDITOR**; los VIEWER solo leen. **Gestión de miembros desde la UI** (2026-08): el propietario puede cambiar roles (Editor/Visor) y expulsar colaboradores desde el chip de miembros (diálogo `ManageMembersDialog`, endpoints `PUT/DELETE /api/projects/{id}/members/{userId}`); el expulsado pierde el acceso al instante y ambos cambios notifican al usuario afectado.
-9. **Compartir público** → enlace `/shared/note/:token` visible sin cuenta.
-10. **Imágenes flotantes** → arrastra cualquier imagen de una nota a cualquier punto del lienzo; redimensiónala desde la esquina (mantiene proporciones). La posición/tamaño se guarda en el HTML de la nota; en vistas públicas/historial se muestran centradas.
-11. **Command palette** → `Ctrl/Cmd+K` para buscar notas/proyectos o ejecutar acciones sin tocar el ratón.
-12. **Sesión robusta** → validación al arrancar + renovación deslizante + logout por inactividad + revocación real de tokens (`token_version`).
+8. **Colaboración en proyecto** → enlace de invitación por proyecto (`/join/project/:token`) → el invitado entra como **EDITOR**; los VIEWER solo leen. **Gestión de miembros desde la UI** (2026-08): el propietario puede cambiar roles (Editor/Visor) y expulsar colaboradores desde el chip de miembros (diálogo `ManageMembersDialog`, endpoints `PUT/DELETE /api/projects/{id}/members/{userId}`); el expulsado pierde el acceso al instante y ambos cambios notifican al usuario afectado.
+9. **Colaboración por-nota** (2026-08): enlace de invitación a colaborar (`/join/note/:token`, generado en el diálogo de compartir) → el invitado entra como **EDITOR**. El creador gestiona desde `NoteCollaboratorsDialog`: **cambiar rol** Editor/Visor (`PUT /api/notes/{id}/members/{userId}`) o **expulsar** (`DELETE .../members/{userId}`). Al expulsar se **regenera el shareToken** (el expulsado no puede re-unirse con el enlace antiguo) y el expulsado recibe notificación. Los avatares de listas y editor muestran los colaboradores por-nota (`NoteResponse.noteMembers`). **Precedencia**: el rol por-nota sobrescribe al del proyecto.
+10. **Compartir público** → enlace `/shared/note/:token` visible sin cuenta.
+11. **Comentarios** (2026-08): sección en el editor; el autor edita/borra sus comentarios; los demás colaboradores reciben `NOTE_COMMENTED`. Los comentarios se limpian al borrar nota/proyecto (`commentRepository.deleteByNoteId`).
+12. **Archivado** (2026-08): archivar desde el editor y vista "Archivadas" en el sidebar; las archivadas se excluyen de listas activas, favoritos y búsqueda (`archived = false` en las queries).
+13. **Exportación** (2026-08): PDF/PNG/Word/Markdown desde el editor con lazy-loading.
+14. **Recuperación de contraseña** (2026-08): `ForgotPassword` → email Resend con token de 1 h → `ResetPassword` → revoca sesiones y permite volver a entrar.
+15. **Imágenes flotantes** → arrastra cualquier imagen de una nota a cualquier punto del lienzo; redimensiónala desde la esquina (mantiene proporciones). La posición/tamaño se guarda en el HTML de la nota; en vistas públicas/historial se muestran centradas.
+16. **Command palette** → `Ctrl/Cmd+K` para buscar notas/proyectos o ejecutar acciones sin tocar el ratón.
+17. **Sesión robusta** → validación al arrancar + renovación deslizante + logout por inactividad + revocación real de tokens (`token_version`).
 
 ---
 
@@ -343,8 +369,8 @@ Las mutaciones invalidan con `invalidateQueries({ queryKey: ['notes'] })` (prefi
 - **Backend** → contenedor Docker (`backend/Dockerfile`, JRE 17 alpine, usuario no-root, `SPRING_PROFILES_ACTIVE=prod`): Vercel (Docker), Railway, Render o Fly.io. Env vars: `DB_URL`, `DB_USER`, `DB_PASSWORD`, `CORS_ALLOWED_ORIGINS`, `NOTITAS_JWT_SECRET`.
 - **BD** → Supabase PostgreSQL con connection pooler (`...pooler.supabase.com:6543`). El esquema se crea solo con `ddl-auto=update`.
 - **CORS de producción**: solo `https://notitas-cleo.vercel.app` en `render.yaml` (`CORS_ALLOWED_ORIGINS`) y en el default de `application-prod.properties`.
-- **Migraciones Flyway**: V1 (esquema) + V2 (token_version) se ejecutan automáticamente al arrancar en prod. En prod los archivos viven en **Supabase Storage** (no en disco local).
-- ⚠️ Pendientes: fijar secreto JWT propio en prod (obligatorio, sin fallback) y dominio propio para la cookie first-party.
+- **Migraciones Flyway**: V1–V9 se ejecutan automáticamente al arrancar en prod. En prod los archivos viven en **Supabase Storage** (no en disco local).
+- ⚠️ Pendientes: fijar secreto JWT propio en prod (obligatorio, sin fallback), **`RESEND_API_KEY`** (para la recuperación de contraseña por email) y dominio propio para la cookie first-party.
 
 ---
 

@@ -129,6 +129,26 @@ class RateLimitFilterTest {
     }
 
     @Test
+    void passwordResetPaths_areAlsoLimited() throws Exception {
+        stubResponseWriter();
+        when(request.getRequestURI()).thenReturn("/api/auth/forgot-password");
+        when(request.getRemoteAddr()).thenReturn("9.9.9.9");
+        for (int i = 0; i < 11; i++) {
+            filter.doFilterInternal(request, response, chain);
+        }
+        verify(response).setStatus(429);
+
+        // El mismo límite aplica a reset-password (nueva IP para aislar el contador)
+        org.mockito.Mockito.clearInvocations(response);
+        when(request.getRequestURI()).thenReturn("/api/auth/reset-password");
+        when(request.getRemoteAddr()).thenReturn("8.8.8.8");
+        for (int i = 0; i < 11; i++) {
+            filter.doFilterInternal(request, response, chain);
+        }
+        verify(response).setStatus(429);
+    }
+
+    @Test
     void nonAuthPaths_areNeverLimited() throws Exception {
         when(request.getRequestURI()).thenReturn("/api/projects");
         for (int i = 0; i < 100; i++) {

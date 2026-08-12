@@ -10,6 +10,7 @@ import com.notitas.api.model.ProjectMember;
 import com.notitas.api.model.User;
 import com.notitas.api.payload.NoteRequest;
 import com.notitas.api.payload.NoteResponse;
+import com.notitas.api.repository.CommentRepository;
 import com.notitas.api.repository.NoteMemberRepository;
 import com.notitas.api.repository.NoteRepository;
 import com.notitas.api.repository.NoteVersionRepository;
@@ -67,6 +68,7 @@ class NoteServiceImplTest {
     @Mock private NoteMemberRepository noteMemberRepository;
     @Mock private UserRepository userRepository;
     @Mock private NotificationService notificationService;
+    @Mock private CommentRepository commentRepository;
 
     @InjectMocks
     private NoteServiceImpl noteService;
@@ -204,7 +206,7 @@ class NoteServiceImplTest {
 
         assertThatThrownBy(() -> noteService.updateNote(NOTE_ID, new NoteRequest(null, "X", null, null, null, null, null, null), OWNER_ID))
                 .isInstanceOf(AccessDeniedException.class)
-                .hasMessage("Viewer cannot edit note");
+                .hasMessage("No tienes permisos de edición en esta nota");
         verify(noteRepository, never()).save(any(Note.class));
     }
 
@@ -242,6 +244,7 @@ class NoteServiceImplTest {
         verify(fileStorageService).deleteFile("att.txt");
         verify(fileStorageService).deleteContentImages("<p><img src=\"/uploads/inline.png\"></p>");
         verify(noteVersionRepository).deleteByNoteId(NOTE_ID);
+        verify(commentRepository).deleteByNoteId(NOTE_ID);
         verify(noteRepository).delete(note);
     }
 

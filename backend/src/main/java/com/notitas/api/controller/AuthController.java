@@ -1,13 +1,17 @@
 package com.notitas.api.controller;
 
 import com.notitas.api.model.User;
+import com.notitas.api.payload.ForgotPasswordRequest;
 import com.notitas.api.payload.JwtResponse;
 import com.notitas.api.payload.LoginRequest;
 import com.notitas.api.payload.MessageResponse;
 import com.notitas.api.payload.RegisterRequest;
+import com.notitas.api.payload.ResetPasswordRequest;
 import com.notitas.api.repository.UserRepository;
 import com.notitas.api.security.JwtUtils;
 import com.notitas.api.security.UserDetailsImpl;
+import com.notitas.api.service.EmailService;
+import com.notitas.api.service.PasswordResetService;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -24,6 +28,9 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
@@ -38,6 +45,20 @@ public class AuthController {
 
     @Autowired
     JwtUtils jwtUtils;
+
+    @Autowired
+    PasswordResetService passwordResetService;
+
+    @Autowired
+    EmailService emailService;
+
+    /**
+     * Solo fuera de producción (dev/tests) se expone el enlace de reset en la
+     * respuesta cuando no hay email configurado, para poder probar el flujo
+     * localmente sin enviar correos.
+     */
+    @Value("${app.email.expose-reset-link:false}")
+    private boolean exposeResetLink;
 
     @Value("${app.cookie.secure:false}")
     private boolean cookieSecure;
@@ -105,6 +126,39 @@ public class AuthController {
      * copia del token), y borra la cookie. Funciona también con tokens ya
      * expirados (solo se necesita una firma válida para identificar al usuario).
      */
+    /**
+     * Recuperación de contraseña (paso 1): genera un token de un solo uso y
+     * envía el enlace por email. La respuesta es idéntica exista o no la
+     * cuenta, para no revelar qué emails están registrados.
+     */
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        String resetLink = passwordResetService.createPasswordResetLink(request.getEmail());
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("message", "Si el correo está registrado, recibirás un enlace para restablecer tu contraseña.");
+        // En dev/tests sin email configurado se devuelve el enlace para probar
+        // el flujo completo sin depender de un proveedor de correo.
+        if (resetLink != null && exposeResetLink && !emailService.isConfigured()) {
+            body.put("devResetLink", resetLink);
+        }
+        return ResponseEntity.ok(body);
+    }
+
+    /**
+     * Recuperación de contraseña (paso 2): valida el token y fija la nueva
+     * contraseña. Revoca todas las sesiones activas del usuario.
+     */
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        boolean ok = passwordResetService.resetPassword(request.getToken(), request.getPassword());
+        if (!ok) {
+            return ResponseEntity.badRequest()
+                    .body(new MessageResponse("El enlace de recuperación es inválido o ha expirado"));
+        }
+        return ResponseEntity.ok(new MessageResponse("Contraseña actualizada. Ya puedes iniciar sesión con tu nueva contraseña."));
+    }
+
     @PostMapping("/logout")
     public ResponseEntity<?> logoutUser(HttpServletRequest request, HttpServletResponse response) {
         String jwt = JwtUtils.extractJwt(request);

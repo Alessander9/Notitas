@@ -28,6 +28,7 @@ import {
   Close as CloseIcon,
   ViewStream as ViewStreamIcon,
   ViewDay as ViewDayIcon,
+  Inventory2 as ArchiveIcon,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
@@ -623,7 +624,7 @@ const noteItemVariants = {
         </ListItem>
 
         {/* Navigation Option: Trash */}
-        <ListItem disablePadding>
+        <ListItem disablePadding sx={{ mb: 0.5 }}>
           <motion.div custom={2} variants={navItemVariants} initial="hidden" animate="visible" style={{ width: '100%' }}>
             <Tooltip title={effectiveCollapsed ? "Papelera" : ""} placement="right">
               <ListItemButton
@@ -651,6 +652,40 @@ const noteItemVariants = {
                   <TrashIcon sx={{ color: currentProjectId === 'trash' ? 'error.main' : 'action.active', fontSize: 22 }} />
                 </ListItemIcon>
                 {!effectiveCollapsed && <ListItemText primary="Papelera" primaryTypographyProps={{ fontWeight: currentProjectId === 'trash' ? 700 : 500, fontSize: '0.88rem' }} />}
+              </ListItemButton>
+            </Tooltip>
+          </motion.div>
+        </ListItem>
+
+        {/* Navigation Option: Archivadas */}
+        <ListItem disablePadding>
+          <motion.div custom={3} variants={navItemVariants} initial="hidden" animate="visible" style={{ width: '100%' }}>
+            <Tooltip title={effectiveCollapsed ? "Archivadas" : ""} placement="right">
+              <ListItemButton
+                selected={currentProjectId === 'archived'}
+                onClick={() => selectAndClose('archived')}
+                sx={{
+                  borderRadius: 2.5,
+                  justifyContent: effectiveCollapsed ? 'center' : 'flex-start',
+                  px: effectiveCollapsed ? 0 : 2,
+                  minHeight: 44,
+                  transition: 'all 0.2s ease',
+                  '&.Mui-selected': {
+                    bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(56, 108, 95, 0.15)' : 'rgba(56, 108, 95, 0.1)',
+                    '&:hover': {
+                      bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(56, 108, 95, 0.2)' : 'rgba(56, 108, 95, 0.15)',
+                    },
+                  },
+                  '&:hover': {
+                    bgcolor: 'action.hover',
+                    transform: 'translateX(4px)',
+                  },
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: 40, justifyContent: 'center' }}>
+                  <ArchiveIcon sx={{ color: currentProjectId === 'archived' ? 'primary.main' : 'action.active', fontSize: 22 }} />
+                </ListItemIcon>
+                {!effectiveCollapsed && <ListItemText primary="Archivadas" primaryTypographyProps={{ fontWeight: currentProjectId === 'archived' ? 700 : 500, fontSize: '0.88rem' }} />}
               </ListItemButton>
             </Tooltip>
           </motion.div>

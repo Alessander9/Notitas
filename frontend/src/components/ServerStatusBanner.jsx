@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Box, Typography, IconButton, CircularProgress } from '@mui/material';
 import {
@@ -18,6 +18,20 @@ export default function ServerStatusBanner() {
   const setServerStatus = useUiStore((s) => s.setServerStatus);
   const show = status === 'slow' || status === 'offline';
   const isOffline = status === 'offline';
+  const [secondsLeft, setSecondsLeft] = useState(60);
+
+  useEffect(() => {
+    if (status !== 'slow') return undefined;
+
+    // Render no ofrece un tiempo exacto de arranque. Es una estimación visual
+    // para que el usuario sepa que la petición sigue esperando y no está rota.
+    setSecondsLeft(60);
+    const interval = window.setInterval(() => {
+      setSecondsLeft((seconds) => Math.max(0, seconds - 1));
+    }, 1000);
+
+    return () => window.clearInterval(interval);
+  }, [status]);
 
   return (
     <AnimatePresence>
@@ -47,8 +61,9 @@ export default function ServerStatusBanner() {
                 display: 'flex',
                 alignItems: 'center',
                 gap: 1.25,
-                px: 2,
-                py: 0.9,
+                 px: { xs: 1.25, sm: 2 },
+                 py: 0.9,
+                 maxWidth: 'calc(100vw - 24px)',
                 borderRadius: 3,
                 border: '1px solid',
                 borderColor: 'rgba(255,255,255,0.15)',
@@ -65,8 +80,10 @@ export default function ServerStatusBanner() {
               ) : (
                 <SlowIcon sx={{ fontSize: 19 }} />
               )}
-              <Typography variant="body2" sx={{ fontWeight: 700, fontSize: '0.82rem', whiteSpace: 'nowrap' }}>
-                {isOffline ? 'Sin conexión con el servidor' : 'Conectando con el servidor…'}
+              <Typography variant="body2" sx={{ fontWeight: 700, fontSize: '0.82rem', whiteSpace: { xs: 'normal', sm: 'nowrap' }, textAlign: { xs: 'center', sm: 'left' } }}>
+                {isOffline
+                  ? 'Sin conexión con el servidor'
+                  : `Despertando servidor… aproximadamente ${secondsLeft}s`}
               </Typography>
               {isOffline ? (
                 <Box

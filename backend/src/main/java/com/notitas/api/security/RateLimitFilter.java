@@ -31,8 +31,19 @@ public class RateLimitFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
+        if (!enabled) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         String path = request.getRequestURI();
-        if (!enabled || (!path.startsWith("/api/auth/login") && !path.startsWith("/api/auth/register"))) {
+        // Login, registro y recuperación de contraseña son los vectores clásicos
+        // de fuerza bruta y spam: se limitan por IP. El resto de rutas pasan.
+        boolean isSensitive = path.startsWith("/api/auth/login")
+                || path.startsWith("/api/auth/register")
+                || path.startsWith("/api/auth/forgot-password")
+                || path.startsWith("/api/auth/reset-password");
+        if (!isSensitive) {
             filterChain.doFilter(request, response);
             return;
         }

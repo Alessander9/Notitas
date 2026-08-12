@@ -5,6 +5,7 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -53,8 +54,9 @@ class JwtUtilsTest {
     @Test
     void generateJwtToken_fromAuthentication_usesPrincipalDetails() {
         UserDetailsImpl principal = new UserDetailsImpl(7L, "auth@test.com", "Auth", null, 5, "pw");
-        Authentication authentication = mock(Authentication.class);
-        when(authentication.getPrincipal()).thenReturn(principal);
+        // Usamos una implementación real en lugar de un mock de Mockito: el inline mock maker
+        // de ByteBuddy no soporta Java 25 al instrumentar la jerarquía de Authentication.
+        Authentication authentication = new UsernamePasswordAuthenticationToken(principal, null);
 
         String token = jwtUtils.generateJwtToken(authentication, true);
 

@@ -49,8 +49,12 @@ export default function NotificationBell() {
     }
 
     if (notification.noteId) {
+      // Primero limpiamos la nota actual. Esto obliga a que NoteEditor se
+      // desmonte antes de cargar la nota destino y evita mezclar contenido,
+      // timers o estado de TipTap entre dos notas.
+      setCurrentNote(null);
       setCurrentProject(notification.projectId ?? null);
-      setCurrentNote(notification.noteId);
+      window.setTimeout(() => setCurrentNote(notification.noteId), 0);
       handleClose();
       navigate('/');
       return;
@@ -176,7 +180,7 @@ export default function NotificationBell() {
         PaperProps={{
           sx: {
             mt: 1.5,
-            width: 320,
+             width: { xs: 'calc(100vw - 24px)', sm: 320 },
             maxHeight: 480,
             borderRadius: 3,
             boxShadow: '0 8px 32px rgba(0,0,0,0.15)',

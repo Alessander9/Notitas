@@ -82,6 +82,14 @@ api.interceptors.response.use(
       onUnauthorized();
     }
     settleRequest(error.config);
+    const status = error.response?.status;
+    const isRenderWakeResponse = status === 502 || status === 503 || status === 504;
+    // Render puede responder 503/504 mientras despierta el contenedor. No lo
+    // mostramos como una caída definitiva: el interceptor inferior reintentará
+    // las consultas GET y el banner informa al usuario de lo que está pasando.
+    if (isRenderWakeResponse) {
+      setServerStatus('slow');
+    }
     // Sin respuesta del servidor: red caída o timeout (backend inaccesible).
     // Las peticiones CANCELADAS (AbortController de React Query al cambiar de
     // vista) no son una desconexión real: no muestran el banner offline.

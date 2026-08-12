@@ -9,6 +9,7 @@ import Sidebar from '../components/Sidebar';
 import ProjectsDashboard from '../components/ProjectsDashboard';
 import TrashView from '../components/TrashView';
 import FavoritesView from '../components/FavoritesView';
+import ArchivedView from '../components/ArchivedView';
 import MobileFab from '../components/MobileFab';
 
 // NoteList + NoteEditor se cargan bajo demanda: TipTap y el editor son el
@@ -34,6 +35,7 @@ export default function Workspace() {
   const showDashboard = currentProjectId === null;
   const showTrashList = currentProjectId === 'trash' && !currentNoteId;
   const showFavorites = currentProjectId === 'favorites' && !currentNoteId;
+  const showArchived = currentProjectId === 'archived' && !currentNoteId;
   const showSearch = currentProjectId === 'search' && !currentNoteId;
 
   const viewKey = showDashboard
@@ -42,9 +44,11 @@ export default function Workspace() {
       ? 'trash'
       : showFavorites
         ? 'favorites'
-        : showSearch
-          ? 'search'
-          : 'editor';
+        : showArchived
+          ? 'archived'
+          : showSearch
+            ? 'search'
+            : 'editor';
 
   const closeSidebar = () => setSidebarMobileOpen(false);
 
@@ -117,8 +121,9 @@ export default function Workspace() {
             {showDashboard && <ProjectsDashboard />}
             {showTrashList && <TrashView />}
             {showFavorites && <FavoritesView />}
+            {showArchived && <ArchivedView />}
             {/* Vista de Proyecto o Búsqueda / Favoritos en detalle */}
-            {!showDashboard && !showTrashList && !showFavorites && (
+            {!showDashboard && !showTrashList && !showFavorites && !showArchived && (
               <>
                 {/* En móvil: si no hay nota seleccionada, muestra la lista de notas; si hay nota, muestra el editor */}
                 {isMobile ? (

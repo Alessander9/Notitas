@@ -525,15 +525,16 @@ export default function ProjectsDashboard() {
           <Typography variant="h4" fontWeight="bold" gutterBottom>
             Mis Proyectos
           </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Organiza tus notas, tareas y adjuntos estructurados por proyectos
+           <Typography variant="body1" color="text.secondary">
+             Organiza tus notas, tareas y adjuntos por proyectos
           </Typography>
         </Box>
         <Button
           variant="contained"
           startIcon={<AddIcon />}
           onClick={handleOpenCreateModal}
-          sx={{ borderRadius: 2, py: 1, px: 2.5, fontWeight: 'bold' }}
+           aria-label="Crear un nuevo proyecto"
+           sx={{ borderRadius: 2, py: 1, px: 2.5, minHeight: 44, fontWeight: 'bold' }}
         >
           Nuevo Proyecto
         </Button>
@@ -549,7 +550,8 @@ export default function ProjectsDashboard() {
           size="small"
           value={filterQuery}
           onChange={(e) => setFilterQuery(e.target.value)}
-          InputProps={{
+           inputProps={{ 'aria-label': 'Filtrar proyectos' }}
+           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
                 <SearchIcon color="action" />

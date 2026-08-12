@@ -6,6 +6,7 @@ import {
   TextField,
   IconButton,
   Chip,
+  CircularProgress,
   Button,
   Divider,
   Paper,
@@ -60,6 +61,12 @@ import {
   FileDownload as DownloadIcon,
   PictureAsPdf as PdfIcon,
   ArrowDropDown as ArrowDropDownIcon,
+  Article as ArticleIcon,
+  Html as HtmlIcon,
+  TextSnippet as TextSnippetIcon,
+  Archive as ArchiveIcon,
+  Unarchive as UnarchiveIcon,
+  PeopleAlt as PeopleAltIcon,
 } from '@mui/icons-material';
 import { useEditor, EditorContent, ReactNodeViewRenderer } from '@tiptap/react';
 import { mergeAttributes } from '@tiptap/core';
@@ -77,6 +84,7 @@ import api from '../services/api';
 import { useUiStore } from '../store/uiStore';
 import { toast } from '../store/toastStore';
 import { confirm } from '../store/confirmStore';
+import { useAuthStore } from '../store/authStore';
 import NoteEditorSkeleton from './skeletons/NoteEditorSkeleton';
 import CoverImage from './CoverImage';
 import AuthorAvatars from './AuthorAvatars';
@@ -84,6 +92,14 @@ import MemberProfileDialog from './MemberProfileDialog';
 import NoteHistoryDialog from './NoteHistoryDialog';
 import FloatingImageNodeView from './FloatingImageNodeView';
 import { getAssetUrl } from '../utils/text';
+import {
+  exportNoteAsDocx,
+  exportNoteAsMarkdown,
+  exportNoteAsPdf,
+  exportNoteAsPng,
+} from '../utils/exportNote';
+import CommentsSection from './CommentsSection';
+import NoteCollaboratorsDialog from './NoteCollaboratorsDialog';
 
 // Imágenes con posición libre (arrastrar a cualquier punto del lienzo) y
 // redimensionables desde la esquina (mantienen proporciones). La posición y
@@ -229,6 +245,7 @@ export default function NoteEditor() {
   const [title, setTitle] = useState('');
   const [tagInput, setTagInput] = useState('');
   const [openShareDialog, setOpenShareDialog] = useState(false);
+  const [collaboratorsOpen, setCollaboratorsOpen] = useState(false);
   const [shareToken, setShareToken] = useState('');
   const [copySuccess, setCopySuccess] = useState(false);
    const [copyJoinSuccess, setCopyJoinSuccess] = useState(false);
@@ -236,6 +253,7 @@ export default function NoteEditor() {
    const [historyOpen, setHistoryOpen] = useState(false);
    const [exportOpen, setExportOpen] = useState(false);
    const [exportMenuAnchor, setExportMenuAnchor] = useState(null);
+   const [exporting, setExporting] = useState(null); // formato en curso: 'pdf' | 'png' | 'docx' | 'md'
 
   // Menu state for moving note to project
   const [projectMenuAnchor, setProjectMenuAnchor] = useState(null);
@@ -276,7 +294,13 @@ export default function NoteEditor() {
 
   const activeProject = projects.find((p) => p.id === note?.projectId);
   const userRole = activeProject?.currentUserRole || 'OWNER'; // Default to OWNER
-  const isReadOnly = userRole === 'VIEWER';
+  // Rol del usuario actual como colaborador por-nota: un NoteMember EDITOR
+  // puede editar aunque su rol de proyecto sea VIEWER (no es miembro del
+  // proyecto). Un NoteMember VIEWER es de solo lectura.
+  const currentUserId = useAuthStore((s) => s.user?.id);
+  const myNoteRole = note?.noteMembers?.find((nm) => nm.userId === currentUserId)?.role;
+  const isReadOnly = userRole === 'VIEWER' && myNoteRole !== 'EDITOR';
+  const isCreator = userRole === 'OWNER';
   // TipTap conserva sus callbacks entre renders. Mantener estos valores en refs
   // evita que onUpdate use el currentNoteId/isReadOnly del primer render.
   const currentNoteIdRef = useRef(currentNoteId);
@@ -300,6 +324,7 @@ export default function NoteEditor() {
   // Upload image to backend and return full url
   const uploadInlineImage = async (file, alignment = 'center') => {
     if (!currentNoteId || isReadOnly) return;
+    await flushPendingSave();
     const formData = new FormData();
     formData.append('file', file);
     try {
@@ -630,6 +655,27 @@ export default function NoteEditor() {
     onError: () => toast.error('No se pudo eliminar la nota'),
   });
 
+  const updateAttachmentTag = async (payload) => {
+    try {
+      await flushPendingSave();
+      updateAttachmentTagMutation.mutate(payload);
+    } catch (error) {
+      console.error('Error saving note before attachment update:', error);
+      toast.error('No se pudo guardar la nota antes de actualizar el adjunto.');
+    }
+  };
+
+  const deleteNote = async () => {
+    if (!note || isReadOnly) return;
+    try {
+      await flushPendingSave();
+      deleteNoteMutation.mutate();
+    } catch (error) {
+      console.error('Error saving note before delete:', error);
+      toast.error('No se pudo guardar la nota antes de enviarla a la papelera.');
+    }
+  };
+
   const restoreNote = async () => {
     if (!note || isReadOnly) return;
     try {
@@ -780,7 +826,7 @@ export default function NoteEditor() {
   };
 
   const saveAttachmentTag = (attachmentId) => {
-    updateAttachmentTagMutation.mutate({ attachmentId, tag: attachmentTagValue });
+    updateAttachmentTag({ attachmentId, tag: attachmentTagValue });
   };
 
   const handleMoveNoteClick = (event) => {
@@ -873,9 +919,66 @@ export default function NoteEditor() {
     toast.success('Nota exportada a HTML (Word)');
   };
 
-  const exportAsPdf = () => {
+  // Archivar / desarchivar nota: oculta la nota de las listas activas sin
+  // borrarla (vista "Archivadas" en el sidebar). No crea versión en el historial.
+  const handleToggleArchive = () => {
+    if (!note || isReadOnly) return;
+    const wasArchived = note.archived;
+    updateNoteMutation.mutate(
+      { archived: !wasArchived },
+      {
+        onSuccess: () => {
+          if (!wasArchived) {
+            // Al archivar se vuelve a la lista (la nota deja de verse en el proyecto)
+            setCurrentNote(null);
+            toast.success('Nota archivada', {
+              duration: 6000,
+              action: {
+                label: 'Deshacer',
+                onClick: () => {
+                  api
+                    .put(`/notes/${note.id}`, { archived: false })
+                    .then(() => queryClient.invalidateQueries({ queryKey: ['notes'] }))
+                    .catch(() => {});
+                },
+              },
+            });
+          } else {
+            toast.success('Nota restaurada de archivadas');
+          }
+        },
+      }
+    );
+  };
+
+  // Exportación a archivo: PDF, PNG, Word (.docx) y Markdown (.md). Las
+  // librerías pesadas se cargan bajo demanda la primera vez que se usan.
+  const handleExport = (format) => async () => {
     setExportMenuAnchor(null);
-    window.print();
+    if (!editor) return;
+    const coverUrl = note?.coverImage ? getAssetUrl(note.coverImage) : null;
+    const payload = { title: title || 'Sin título', html: editor.getHTML(), coverUrl };
+    try {
+      setExporting(format);
+      if (format === 'pdf') {
+        await exportNoteAsPdf(payload);
+        toast.success('Nota exportada a PDF');
+      } else if (format === 'png') {
+        await exportNoteAsPng(payload);
+        toast.success('Nota exportada a imagen PNG');
+      } else if (format === 'docx') {
+        await exportNoteAsDocx(payload);
+        toast.success('Nota exportada a Word (.docx)');
+      } else if (format === 'md') {
+        await exportNoteAsMarkdown(payload);
+        toast.success('Nota exportada a Markdown (.md)');
+      }
+    } catch (e) {
+      console.error('Error exportando la nota:', e);
+      toast.error('No se pudo exportar la nota. Inténtalo de nuevo.');
+    } finally {
+      setExporting(null);
+    }
   };
 
   if (!currentNoteId) {
@@ -1062,6 +1165,14 @@ export default function NoteEditor() {
               </IconButton>
             </Tooltip>
 
+            {isCreator && (
+              <Tooltip title="Colaboradores de la nota">
+                <IconButton size="small" onClick={() => setCollaboratorsOpen(true)} sx={{ p: 0.6 }}>
+                  <PeopleAltIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+
              <Tooltip title="Historial de versiones">
               <IconButton size="small" onClick={() => setHistoryOpen(true)} sx={{ p: 0.6 }}>
                 <HistoryIcon fontSize="small" />
@@ -1069,10 +1180,31 @@ export default function NoteEditor() {
             </Tooltip>
 
             <Tooltip title="Exportar nota">
-              <IconButton size="small" onClick={(e) => setExportMenuAnchor(e.currentTarget)} sx={{ p: 0.6 }}>
-                <DownloadIcon fontSize="small" />
+              <IconButton
+                size="small"
+                onClick={(e) => setExportMenuAnchor(e.currentTarget)}
+                disabled={Boolean(exporting)}
+                sx={{ p: 0.6 }}
+              >
+                {exporting ? (
+                  <CircularProgress size={15} thickness={5} />
+                ) : (
+                  <DownloadIcon fontSize="small" />
+                )}
               </IconButton>
             </Tooltip>
+
+            {!isReadOnly && (
+              <Tooltip title={note?.archived ? 'Restaurar de archivadas' : 'Archivar nota'}>
+                <IconButton size="small" onClick={handleToggleArchive} sx={{ p: 0.6 }}>
+                  {note?.archived ? (
+                    <UnarchiveIcon fontSize="small" />
+                  ) : (
+                    <ArchiveIcon fontSize="small" />
+                  )}
+                </IconButton>
+              </Tooltip>
+            )}
 
             {!isReadOnly && (
               <Tooltip title={note?.favorite ? 'Quitar de favoritas' : 'Marcar como favorita'}>
@@ -1104,7 +1236,7 @@ export default function NoteEditor() {
                         confirmLabel: 'Mover',
                         cancelLabel: 'Cancelar',
                         color: 'error',
-                        onConfirm: () => deleteNoteMutation.mutate(),
+                         onConfirm: deleteNote,
                       });
                     }}
                     sx={{ p: 0.6, color: 'text.secondary', '&:hover': { color: 'error.main' } }}
@@ -1142,14 +1274,24 @@ export default function NoteEditor() {
             <MenuItem disabled sx={{ fontWeight: 'bold' }}>
               Exportar nota como...
             </MenuItem>
-            <MenuItem onClick={exportAsTxt}>
-              📄 Texto plano (.txt)
+            <MenuItem onClick={handleExport('pdf')}>
+              <PdfIcon fontSize="small" sx={{ mr: 1 }} /> Documento PDF (.pdf)
             </MenuItem>
+            <MenuItem onClick={handleExport('png')}>
+              <ImageIcon fontSize="small" sx={{ mr: 1 }} /> Imagen PNG (.png)
+            </MenuItem>
+            <MenuItem onClick={handleExport('docx')}>
+              <DescriptionIcon fontSize="small" sx={{ mr: 1 }} /> Documento Word (.docx)
+            </MenuItem>
+            <MenuItem onClick={handleExport('md')}>
+              <ArticleIcon fontSize="small" sx={{ mr: 1 }} /> Markdown (.md)
+            </MenuItem>
+            <Divider />
             <MenuItem onClick={exportAsHtml}>
-              📝 Documento (.html / Word)
+              <HtmlIcon fontSize="small" sx={{ mr: 1 }} /> Página HTML (.html)
             </MenuItem>
-            <MenuItem onClick={exportAsPdf}>
-              <PdfIcon fontSize="small" sx={{ mr: 1 }} /> Imprimir / Guardar como PDF
+            <MenuItem onClick={exportAsTxt}>
+              <TextSnippetIcon fontSize="small" sx={{ mr: 1 }} /> Texto plano (.txt)
             </MenuItem>
           </Menu>
 
@@ -1316,6 +1458,7 @@ export default function NoteEditor() {
             <AuthorAvatars
               creator={activeProject?.creator}
               collaborators={activeProject?.collaborators}
+              noteMembers={note?.noteMembers}
               size={20}
               onMemberClick={setProfileMember}
             />
@@ -1376,6 +1519,8 @@ export default function NoteEditor() {
               gap: 0.25,
               flexWrap: { xs: 'nowrap', sm: 'wrap' },
               overflowX: 'auto',
+              overflowY: 'hidden',
+              WebkitOverflowScrolling: 'touch',
               maxWidth: '100%',
               scrollbarWidth: 'none',
               '&::-webkit-scrollbar': { display: 'none' },
@@ -1390,7 +1535,8 @@ export default function NoteEditor() {
                 size="small"
                 onClick={() => editor.chain().focus().toggleBold().run()}
                 color={editor.isActive('bold') ? 'primary' : 'default'}
-                sx={{ transition: 'all 0.15s ease' }}
+                aria-label="Negrita"
+                sx={{ minWidth: 40, minHeight: 40, transition: 'all 0.15s ease' }}
               >
                 <BoldIcon fontSize="small" />
               </IconButton>
@@ -1862,6 +2008,9 @@ export default function NoteEditor() {
             </Stack>
           </Box>
         )}
+
+        {/* Comentarios de la nota */}
+        <CommentsSection noteId={currentNoteId} />
       </Box>
 
       {/* Member profile (clicked avatar) */}
@@ -1877,6 +2026,14 @@ export default function NoteEditor() {
         members={members}
         canRestore={!isReadOnly}
         onRestoreStart={clearPendingSave}
+      />
+
+      {/* Note Collaborators Dialog (solo el creador de la nota puede expulsar) */}
+      <NoteCollaboratorsDialog
+        noteId={currentNoteId}
+        open={collaboratorsOpen}
+        onClose={() => setCollaboratorsOpen(false)}
+        canRemove={isCreator}
       />
 
       {/* Share Note Dialog */}

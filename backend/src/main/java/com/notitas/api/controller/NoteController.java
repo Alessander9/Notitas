@@ -1,14 +1,19 @@
 package com.notitas.api.controller;
 
+import com.notitas.api.payload.CommentRequest;
+import com.notitas.api.payload.CommentResponse;
+import com.notitas.api.payload.NoteMemberResponse;
 import com.notitas.api.payload.NoteRequest;
 import com.notitas.api.payload.NoteResponse;
 import com.notitas.api.payload.NoteVersionResponse;
+import com.notitas.api.payload.UpdateMemberRoleRequest;
 import com.notitas.api.security.UserDetailsImpl;
 import com.notitas.api.service.NoteService;
 import com.notitas.api.service.FileStorageService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -61,6 +66,15 @@ public class NoteController {
             Authentication authentication) {
         Pageable pageable = PageRequest.of(page, size);
         return ResponseEntity.ok(noteService.getDeletedNotes(getUserId(authentication), pageable));
+    }
+
+    @GetMapping("/notes/archived")
+    public ResponseEntity<Page<NoteResponse>> getArchivedNotes(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size,
+            Authentication authentication) {
+        Pageable pageable = PageRequest.of(page, size);
+        return ResponseEntity.ok(noteService.getArchivedNotes(getUserId(authentication), pageable));
     }
 
     @GetMapping("/notes/search")
@@ -155,6 +169,29 @@ public class NoteController {
         return ResponseEntity.ok(noteService.joinNote(token, getUserId(authentication)));
     }
 
+    @GetMapping("/notes/{id}/members")
+    public ResponseEntity<List<NoteMemberResponse>> getNoteMembers(
+            @PathVariable Long id, Authentication authentication) {
+        return ResponseEntity.ok(noteService.getNoteMembers(id, getUserId(authentication)));
+    }
+
+    @PutMapping("/notes/{id}/members/{userId}")
+    public ResponseEntity<?> changeNoteMemberRole(
+            @PathVariable Long id,
+            @PathVariable Long userId,
+            @Valid @RequestBody UpdateMemberRoleRequest request,
+            Authentication authentication) {
+        noteService.changeNoteMemberRole(id, userId, request.getRole(), getUserId(authentication));
+        return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/notes/{id}/members/{userId}")
+    public ResponseEntity<?> removeNoteMember(
+            @PathVariable Long id, @PathVariable Long userId, Authentication authentication) {
+        noteService.removeNoteMember(id, userId, getUserId(authentication));
+        return ResponseEntity.ok().build();
+    }
+
     @GetMapping("/notes/{id}/versions")
     public ResponseEntity<List<NoteVersionResponse>> getNoteVersions(
             @PathVariable Long id, Authentication authentication) {
@@ -172,5 +209,33 @@ public class NoteController {
             @PathVariable Long id, @RequestParam("file") MultipartFile file, Authentication authentication) {
         // El servicio valida acceso de ESCRITURA y guarda el archivo
         return ResponseEntity.ok(noteService.uploadInlineImage(id, file, getUserId(authentication)));
+    }
+
+    // ── Comentarios ────────────────────────────────────────────────────────
+
+    @GetMapping("/notes/{id}/comments")
+    public ResponseEntity<List<CommentResponse>> getComments(
+            @PathVariable Long id, Authentication authentication) {
+        return ResponseEntity.ok(noteService.getComments(id, getUserId(authentication)));
+    }
+
+    @PostMapping("/notes/{id}/comments")
+    public ResponseEntity<CommentResponse> addComment(
+            @PathVariable Long id, @Valid @RequestBody CommentRequest request, Authentication authentication) {
+        return ResponseEntity.ok(noteService.addComment(id, request.getContent(), getUserId(authentication)));
+    }
+
+    @PutMapping("/notes/{id}/comments/{commentId}")
+    public ResponseEntity<CommentResponse> updateComment(
+            @PathVariable Long id, @PathVariable Long commentId,
+            @Valid @RequestBody CommentRequest request, Authentication authentication) {
+        return ResponseEntity.ok(noteService.updateComment(id, commentId, request.getContent(), getUserId(authentication)));
+    }
+
+    @DeleteMapping("/notes/{id}/comments/{commentId}")
+    public ResponseEntity<?> deleteComment(
+            @PathVariable Long id, @PathVariable Long commentId, Authentication authentication) {
+        noteService.deleteComment(id, commentId, getUserId(authentication));
+        return ResponseEntity.ok().build();
     }
 }

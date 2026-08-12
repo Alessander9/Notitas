@@ -3,9 +3,12 @@ package com.notitas.api.service;
 import com.notitas.api.exception.AccessDeniedException;
 import com.notitas.api.exception.ResourceNotFoundException;
 import com.notitas.api.model.*;
+import com.notitas.api.payload.CommentResponse;
+import com.notitas.api.payload.NoteMemberResponse;
 import com.notitas.api.payload.NoteRequest;
 import com.notitas.api.payload.NoteResponse;
 import com.notitas.api.payload.NoteVersionResponse;
+import com.notitas.api.repository.CommentRepository;
 import com.notitas.api.repository.NoteRepository;
 import com.notitas.api.repository.NoteVersionRepository;
 import com.notitas.api.repository.ProjectMemberRepository;
@@ -58,6 +61,9 @@ public class NoteServiceImpl implements NoteService {
     @Autowired
     private NotificationService notificationService;
 
+    @Autowired
+    private CommentRepository commentRepository;
+
     /** Máximo de versiones guardadas por nota: al superarlo se descartan las más antiguas. */
     private static final int MAX_VERSIONS_PER_NOTE = 50;
 
@@ -86,21 +92,35 @@ public class NoteServiceImpl implements NoteService {
     }
 
     /**
-     * Acceso de ESCRITURA a la nota: dueño o miembro con rol distinto de
-     * VIEWER (los lectores solo pueden ver, no editar ni restaurar).
+     * Acceso de ESCRITURA a la nota: dueño, miembro del proyecto con rol
+     * EDITOR o colaborador por-nota con rol EDITOR. Los VIEWER (de proyecto o
+     * de la nota) solo pueden ver, no editar ni restaurar.
+     *
+     * Precedencia: el rol por-nota sobrescribe al del proyecto (un usuario que
+     * es a la vez miembro del proyecto y colaborador por-nota se rige por el
+     * rol que el creador le asignó en la nota).
      */
     private void checkNoteEditAccess(Note note, Long userId) {
         checkNoteAccess(note, userId);
         Project project = note.getProject();
-        boolean isOwner = project.getUser().getId().equals(userId);
-        boolean isNoteMember = noteMemberRepository.existsByNoteIdAndUserId(note.getId(), userId);
+        if (project.getUser().getId().equals(userId)) {
+            return; // El dueño del proyecto siempre edita
+        }
 
-        if (!isOwner && !isNoteMember) {
-            ProjectMember member = projectMemberRepository.findByProjectIdAndUserId(project.getId(), userId)
-                    .orElseThrow(() -> new AccessDeniedException("No tienes acceso a esta nota"));
-            if ("VIEWER".equals(member.getRole())) {
-                throw new AccessDeniedException("Viewer cannot edit note");
+        // Colaborador por-nota: su rol decide (VIEWER no edita)
+        NoteMember noteMember = noteMemberRepository.findByNoteIdAndUserId(note.getId(), userId).orElse(null);
+        if (noteMember != null) {
+            if ("VIEWER".equals(noteMember.getRole())) {
+                throw new AccessDeniedException("No tienes permisos de edición en esta nota");
             }
+            return; // EDITOR por-nota puede editar
+        }
+
+        // Miembro del proyecto: el rol del proyecto decide
+        ProjectMember member = projectMemberRepository.findByProjectIdAndUserId(project.getId(), userId)
+                .orElseThrow(() -> new AccessDeniedException("No tienes acceso a esta nota"));
+        if ("VIEWER".equals(member.getRole())) {
+            throw new AccessDeniedException("No tienes permisos de edición en esta nota");
         }
     }
 
@@ -130,7 +150,8 @@ public class NoteServiceImpl implements NoteService {
         boolean isMember = projectMemberRepository.existsByProjectIdAndUserId(projectId, userId);
 
         if (isOwner || isMember) {
-            return noteRepository.findByProjectIdAndDeletedFalseOrderByUpdatedAtDesc(projectId, pageable)
+            // Las notas archivadas no aparecen en la lista activa del proyecto.
+            return noteRepository.findByProjectIdAndDeletedFalseAndArchivedFalseOrderByUpdatedAtDesc(projectId, pageable)
                     .map(this::mapToResponse);
         } else {
             return noteRepository.findSharedNotesByProjectAndUser(projectId, userId, pageable)
@@ -159,6 +180,109 @@ public class NoteServiceImpl implements NoteService {
         // Only creator has a recycle bin for notes in their projects
         return noteRepository.findByProjectUserIdAndDeletedTrue(userId, pageable)
                 .map(this::mapToResponse);
+    }
+
+    @Override
+    public Page<NoteResponse> getArchivedNotes(Long userId, Pageable pageable) {
+        // Notas archivadas (propias o de proyectos donde es miembro), no eliminadas.
+        return noteRepository.findArchivedNotesForUser(userId, pageable)
+                .map(this::mapToResponse);
+    }
+
+    // ── Comentarios ────────────────────────────────────────────────────────
+
+    @Override
+    public List<CommentResponse> getComments(Long noteId, Long userId) {
+        Note note = noteRepository.findById(noteId)
+                .orElseThrow(() -> new ResourceNotFoundException("Nota no encontrada"));
+        checkNoteAccess(note, userId);
+
+        return commentRepository.findByNoteIdOrderByCreatedAtAsc(noteId).stream()
+                .map(this::mapCommentToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public CommentResponse addComment(Long noteId, String content, Long userId) {
+        Note note = noteRepository.findById(noteId)
+                .orElseThrow(() -> new ResourceNotFoundException("Nota no encontrada"));
+        // Comentar es una operación de LECTURA+escritura ligera: cualquier
+        // miembro del proyecto (también los VIEWER) y los colaboradores por
+        // nota pueden comentar, pero no editar la nota en sí.
+        checkNoteAccess(note, userId);
+
+        User author = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
+        Comment saved = commentRepository.save(new Comment(note, author, content));
+
+        // Notifica a los demás colaboradores (owner + miembros del proyecto) y
+        // a los colaboradores por-nota.
+        String authorName = author.getName();
+        String title = "Nuevo comentario";
+        String message = authorName + " comentó en la nota \"" + note.getTitle() + "\"";
+        notifyCollaborators(note.getProject(), userId, title, message, "NOTE_COMMENTED", note.getId());
+        for (NoteMember nm : noteMemberRepository.findByNote(note)) {
+            if (!nm.getUser().getId().equals(userId)) {
+                notificationService.createNotification(nm.getUser().getId(), title, message,
+                        "NOTE_COMMENTED", note.getProject().getId(), note.getId());
+            }
+        }
+
+        return mapCommentToResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public CommentResponse updateComment(Long noteId, Long commentId, String content, Long userId) {
+        Note note = noteRepository.findById(noteId)
+                .orElseThrow(() -> new ResourceNotFoundException("Nota no encontrada"));
+        checkNoteAccess(note, userId);
+
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Comentario no encontrado"));
+        if (!comment.getNote().getId().equals(noteId)) {
+            throw new ResourceNotFoundException("Comentario no encontrado");
+        }
+        if (!comment.getUser().getId().equals(userId)) {
+            throw new AccessDeniedException("Solo el autor puede editar este comentario");
+        }
+
+        comment.setContent(content);
+        return mapCommentToResponse(commentRepository.save(comment));
+    }
+
+    @Override
+    @Transactional
+    public void deleteComment(Long noteId, Long commentId, Long userId) {
+        Note note = noteRepository.findById(noteId)
+                .orElseThrow(() -> new ResourceNotFoundException("Nota no encontrada"));
+        checkNoteAccess(note, userId);
+
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Comentario no encontrado"));
+        if (!comment.getNote().getId().equals(noteId)) {
+            throw new ResourceNotFoundException("Comentario no encontrado");
+        }
+        if (!comment.getUser().getId().equals(userId)) {
+            throw new AccessDeniedException("Solo el autor puede borrar este comentario");
+        }
+
+        commentRepository.delete(comment);
+    }
+
+    private CommentResponse mapCommentToResponse(Comment comment) {
+        User author = comment.getUser();
+        return new CommentResponse(
+                comment.getId(),
+                comment.getNote().getId(),
+                author.getId(),
+                author.getName(),
+                author.getAvatar(),
+                comment.getContent(),
+                comment.getCreatedAt(),
+                comment.getUpdatedAt()
+        );
     }
 
     @Override
@@ -414,9 +538,10 @@ public class NoteServiceImpl implements NoteService {
         // Imágenes inline embebidas en el HTML del contenido (antes quedaban
         // huérfanas en disco al borrar la nota definitivamente)
         fileStorageService.deleteContentImages(note.getContent());
-        // Historial de versiones: se borra explícitamente (no hay cascade de
-        // colección en Note para evitar interacciones con el auto-flush).
+        // Historial de versiones y comentarios: se borran explícitamente (no hay
+        // cascade de colección en Note para evitar interacciones con el auto-flush).
         noteVersionRepository.deleteByNoteId(note.getId());
+        commentRepository.deleteByNoteId(note.getId());
         noteRepository.delete(note);
     }
 
@@ -460,6 +585,112 @@ public class NoteServiceImpl implements NoteService {
             note.setShareToken(null);
             noteRepository.save(note);
         }
+    }
+
+    @Override
+    public List<NoteMemberResponse> getNoteMembers(Long noteId, Long userId) {
+        Note note = noteRepository.findById(noteId)
+                .orElseThrow(() -> new ResourceNotFoundException("Nota no encontrada"));
+        checkNoteAccess(note, userId);
+
+        return noteMemberRepository.findByNoteOrderByJoinedAtAsc(note).stream()
+                .map(nm -> mapNoteMemberToResponse(noteId, nm))
+                .collect(Collectors.toList());
+    }
+
+    private NoteMemberResponse mapNoteMemberToResponse(Long noteId, NoteMember nm) {
+        return new NoteMemberResponse(
+                nm.getId(),
+                noteId,
+                nm.getUser().getId(),
+                nm.getUser().getName(),
+                nm.getUser().getEmail(),
+                nm.getUser().getAvatar(),
+                nm.getRole(),
+                nm.getJoinedAt());
+    }
+
+    @Override
+    @Transactional
+    public void changeNoteMemberRole(Long noteId, Long memberUserId, String role, Long currentUserId) {
+        Note note = noteRepository.findById(noteId)
+                .orElseThrow(() -> new ResourceNotFoundException("Nota no encontrada"));
+
+        // Solo el creador de la nota (dueño del proyecto) gestiona los roles
+        if (!note.getProject().getUser().getId().equals(currentUserId)) {
+            throw new AccessDeniedException("Solo el creador de la nota puede gestionar los colaboradores");
+        }
+
+        if (!"EDITOR".equals(role) && !"VIEWER".equals(role)) {
+            throw new IllegalArgumentException("Rol inválido: debe ser EDITOR o VIEWER");
+        }
+
+        NoteMember member = noteMemberRepository.findByNoteIdAndUserId(noteId, memberUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("El usuario no es colaborador de esta nota"));
+
+        // Defensa en profundidad: el owner nunca está en note_members (joinNote
+        // no lo inserta), pero si algún día llegara a estarlo, su rol no cambia.
+        if (member.getUser().getId().equals(note.getProject().getUser().getId())) {
+            throw new IllegalArgumentException("No puedes cambiar el rol del creador de la nota");
+        }
+
+        // Si el rol no cambia realmente, no guardar ni notificar
+        if (Objects.equals(member.getRole(), role)) {
+            return;
+        }
+
+        member.setRole(role);
+        noteMemberRepository.save(member);
+
+        String roleLabel = "EDITOR".equals(role) ? "editor" : "visor";
+        notificationService.createNotification(
+                memberUserId,
+                "Rol actualizado",
+                note.getProject().getUser().getName() + " te ha cambiado el rol a " + roleLabel
+                        + " en la nota \"" + note.getTitle() + "\"",
+                "NOTE_MEMBER_ROLE_CHANGED", note.getProject().getId(), noteId
+        );
+    }
+
+    @Override
+    @Transactional
+    public void removeNoteMember(Long noteId, Long memberUserId, Long currentUserId) {
+        Note note = noteRepository.findById(noteId)
+                .orElseThrow(() -> new ResourceNotFoundException("Nota no encontrada"));
+
+        // Solo el creador de la nota (dueño del proyecto al que pertenece) puede
+        // expulsar colaboradores por-nota. Ni los EDITOR ni los VIEWER ni los
+        // propios colaboradores pueden hacerlo.
+        if (!note.getProject().getUser().getId().equals(currentUserId)) {
+            throw new AccessDeniedException("Solo el creador de la nota puede eliminar colaboradores");
+        }
+
+        NoteMember member = noteMemberRepository.findByNoteIdAndUserId(noteId, memberUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("El usuario no es colaborador de esta nota"));
+
+        // Defensa en profundidad: el owner nunca debería estar en note_members
+        // (joinNote no lo inserta), pero si algún día llegara a estarlo, no se
+        // puede expulsar al creador.
+        if (member.getUser().getId().equals(note.getProject().getUser().getId())) {
+            throw new IllegalArgumentException("No puedes eliminar al creador de la nota");
+        }
+
+        noteMemberRepository.delete(member);
+
+        // Rota el shareToken: el expulsado conservaría el enlace de invitación
+        // y podría re-unirse con él; al regenerarlo, el enlace antiguo queda
+        // inválido y la expulsión es efectiva. (El propietario ve el nuevo
+        // enlace al abrir el diálogo de compartir.)
+        note.setShareToken(UUID.randomUUID().toString());
+        noteRepository.save(note);
+
+        // Avisa al expulsado (no recibe notificaciones de la nota a partir de ahora).
+        notificationService.createNotification(
+                memberUserId,
+                "Eliminado de la nota",
+                note.getProject().getUser().getName() + " te ha eliminado de la nota \"" + note.getTitle() + "\"",
+                "NOTE_MEMBER_REMOVED", note.getProject().getId(), noteId
+        );
     }
 
     @Override
@@ -587,6 +818,16 @@ public class NoteServiceImpl implements NoteService {
                         .build())
                 .collect(Collectors.toList());
 
+        // Colaboradores por-nota: solo existen si el compartido está activo
+        // (shareToken). Sin token no puede haber note_members, así que se evita
+        // una consulta por nota en las listas (N+1) para las notas no compartidas.
+        List<NoteMemberResponse> noteMembers = List.of();
+        if (note.getShareToken() != null && !note.getShareToken().isEmpty()) {
+            noteMembers = noteMemberRepository.findByNoteOrderByJoinedAtAsc(note).stream()
+                    .map(nm -> mapNoteMemberToResponse(note.getId(), nm))
+                    .collect(Collectors.toList());
+        }
+
         return NoteResponse.builder()
                 .id(note.getId())
                 .projectId(note.getProject().getId())
@@ -599,6 +840,7 @@ public class NoteServiceImpl implements NoteService {
                 .shareToken(note.getShareToken())
                 .tags(tagsList)
                 .attachments(attachmentsList)
+                .noteMembers(noteMembers)
                 .createdAt(note.getCreatedAt())
                 .updatedAt(note.getUpdatedAt())
                 .updatedBy(note.getUpdatedBy())

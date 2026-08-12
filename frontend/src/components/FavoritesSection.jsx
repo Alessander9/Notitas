@@ -115,9 +115,18 @@ export default function FavoritesSection({ projects, projectsLoading }) {
           const coverUrl = hasCover ? getAssetUrl(note.coverImage) : null;
 
           return (
-            <Box
+             <Box
               key={note.id}
+              role="button"
+              tabIndex={0}
+              aria-label={`Abrir nota ${note.title || 'sin título'}`}
               onClick={() => openNote(note)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  openNote(note);
+                }
+              }}
               sx={{
                 position: 'relative',
                 flex: '0 0 260px',
@@ -125,6 +134,11 @@ export default function FavoritesSection({ projects, projectsLoading }) {
                 borderRadius: 3,
                 overflow: 'hidden',
                 cursor: 'pointer',
+                '&:focus-visible': {
+                  outline: '2px solid',
+                  outlineColor: 'primary.main',
+                  outlineOffset: 3,
+                },
                 border: '1px solid',
                 borderColor: 'divider',
                 bgcolor: 'background.paper',
