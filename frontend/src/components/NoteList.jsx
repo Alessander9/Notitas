@@ -49,10 +49,13 @@ import InfiniteScroll from './InfiniteScroll';
 import { usePaginatedNotes } from '../hooks/usePaginatedNotes';
 import HighlightText from './HighlightText';
 import { getPlainText, getAssetUrl, formatRelativeTime } from '../utils/text';
+import ManageMembersDialog from './ManageMembersDialog';
+import { Group as GroupIcon } from '@mui/icons-material';
 
 export default function NoteList() {
-  const { currentProjectId, currentNoteId, setCurrentNote, searchQuery } = useUiStore();
+  const { currentProjectId, currentNoteId, setCurrentNote, searchQuery, setCurrentProject } = useUiStore();
   const { user } = useAuthStore();
+  const [manageMembersOpen, setManageMembersOpen] = React.useState(false);
   const queryClient = useQueryClient();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [pinnedNotes, setPinnedNotes] = useState(() => {
@@ -395,6 +398,60 @@ export default function NoteList() {
           )}
         </Box>
       )}
+
+      {/* Manage Members Banner (owner only, when project has collaborators) */}
+      {isProjectView && !isCollapsed && (() => {
+        const activeProject = projects.find((p) => p.id === currentProjectId);
+        const isOwner = activeProject?.currentUserRole === 'OWNER';
+        const collaboratorCount = activeProject?.collaborators?.length || 0;
+        if (!isOwner || collaboratorCount === 0) return null;
+        return (
+          <Box sx={{ px: 2, pt: 0.5, pb: 0.5 }}>
+            <Box
+              component="button"
+              onClick={() => setManageMembersOpen(true)}
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                width: '100%',
+                p: 1.2,
+                borderRadius: 2.5,
+                border: `1.5px solid ${activeProject?.color || '#386c5f'}50`,
+                bgcolor: `${activeProject?.color || '#386c5f'}10`,
+                color: activeProject?.color || 'primary.main',
+                cursor: 'pointer',
+                outline: 'none',
+                fontFamily: 'inherit',
+                transition: 'all 0.2s ease',
+                '&:hover': {
+                  bgcolor: `${activeProject?.color || '#386c5f'}20`,
+                  borderColor: activeProject?.color || 'primary.main',
+                  transform: 'scale(1.01)',
+                  boxShadow: `0 2px 12px ${activeProject?.color || '#386c5f'}25`,
+                },
+              }}
+            >
+              <GroupIcon sx={{ fontSize: 18, flexShrink: 0 }} />
+              <Box sx={{ textAlign: 'left', minWidth: 0 }}>
+                <Typography sx={{ fontSize: '0.78rem', fontWeight: 700, lineHeight: 1.2, color: 'inherit' }}>
+                  {collaboratorCount} colaborador{collaboratorCount !== 1 ? 'es' : ''} en este proyecto
+                </Typography>
+                <Typography sx={{ fontSize: '0.68rem', color: 'text.secondary', lineHeight: 1.2 }}>
+                  Toca para gestionar y eliminar miembros
+                </Typography>
+              </Box>
+            </Box>
+            {activeProject && (
+              <ManageMembersDialog
+                project={activeProject}
+                open={manageMembersOpen}
+                onClose={() => setManageMembersOpen(false)}
+              />
+            )}
+          </Box>
+        );
+      })()}
 
       {/* Notes Cards List */}
       <Box sx={{ flexGrow: 1, overflowY: 'auto', px: isCollapsed ? 0 : 2, pt: isCollapsed ? 1 : 2, pb: { xs: 10, md: 2 } }}>

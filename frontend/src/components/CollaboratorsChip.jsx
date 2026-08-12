@@ -11,7 +11,7 @@ import {
   Button,
   Divider,
 } from '@mui/material';
-import { People as PeopleIcon, ManageAccounts as ManageIcon } from '@mui/icons-material';
+import { People as PeopleIcon, ManageAccounts as ManageIcon, Group as GroupIcon } from '@mui/icons-material';
 import { getAssetUrl } from '../utils/text';
 import ManageMembersDialog from './ManageMembersDialog';
 
@@ -61,6 +61,7 @@ export default function CollaboratorsChip({ project }) {
   const [manageOpen, setManageOpen] = useState(false);
   const open = Boolean(anchorEl);
   const count = 1 + (project?.collaborators?.length || 0);
+  const collaboratorCount = project?.collaborators?.length || 0;
   const color = project?.color || '#1976d2';
   const isOwner = project?.currentUserRole === 'OWNER';
 
@@ -73,7 +74,6 @@ export default function CollaboratorsChip({ project }) {
 
   const handleOpen = (e) => {
     e.stopPropagation();
-    // Toggle: clicking the badge again while open closes the popover
     if (open) {
       handleClose();
       return;
@@ -81,6 +81,57 @@ export default function CollaboratorsChip({ project }) {
     setAnchorEl(e.currentTarget);
   };
 
+  // For owners with collaborators: show a prominent button that goes directly to ManageMembersDialog
+  if (isOwner && collaboratorCount > 0) {
+    return (
+      <>
+        <Box
+          component="button"
+          onClick={(e) => { e.stopPropagation(); setManageOpen(true); }}
+          sx={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 0.6,
+            px: 1.1,
+            py: 0.4,
+            borderRadius: '10px',
+            fontSize: '0.72rem',
+            fontWeight: 700,
+            lineHeight: 1.4,
+            border: `1.5px solid ${color}55`,
+            bgcolor: `${color}15`,
+            color: color,
+            whiteSpace: 'nowrap',
+            cursor: 'pointer',
+            transition: 'all 0.18s ease',
+            outline: 'none',
+            fontFamily: 'inherit',
+            '&:hover': {
+              bgcolor: `${color}28`,
+              borderColor: color,
+              boxShadow: `0 0 0 3px ${color}22`,
+              transform: 'scale(1.04)',
+            },
+            '&:focus-visible': {
+              outline: `2px solid ${color}`,
+              outlineOffset: 2,
+            },
+          }}
+        >
+          <GroupIcon sx={{ fontSize: 13 }} />
+          {collaboratorCount} colaborador{collaboratorCount !== 1 ? 'es' : ''} · Gestionar
+        </Box>
+
+        <ManageMembersDialog
+          project={project}
+          open={manageOpen}
+          onClose={() => setManageOpen(false)}
+        />
+      </>
+    );
+  }
+
+  // For non-owners or solo projects: original popover chip
   return (
     <>
       <Box
@@ -162,20 +213,6 @@ export default function CollaboratorsChip({ project }) {
               />
             ))}
           </List>
-          {isOwner && (
-            <>
-              <Divider sx={{ my: 1 }} />
-              <Button
-                fullWidth
-                size="small"
-                startIcon={<ManageIcon />}
-                onClick={handleManage}
-                sx={{ borderRadius: 2, fontWeight: 700 }}
-              >
-                Gestionar miembros
-              </Button>
-            </>
-          )}
         </Box>
       </Popover>
 
