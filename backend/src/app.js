@@ -50,17 +50,28 @@ app.use(cookieParser());
 app.use(express.json({ limit: '15mb' }));
 app.use(express.urlencoded({ extended: true, limit: '15mb' }));
 
-// Montaje de rutas
+// Montaje de rutas con y sin prefijo /api para soporte universal (Vercel Serverless + Standalone)
 app.use('/api/public', publicRoutes);
+app.use('/public', publicRoutes);
+
 app.use('/api/auth', authRoutes);
+app.use('/auth', authRoutes);
+
 app.use('/api/users', userRoutes);
+app.use('/users', userRoutes);
+
 app.use('/api/projects', projectRoutes);
+app.use('/projects', projectRoutes);
+
 app.use('/api/notes', noteRoutes);
+app.use('/notes', noteRoutes);
+
 app.use('/api/notifications', notificationRoutes);
+app.use('/notifications', notificationRoutes);
 
 // Health check en la raíz
 app.get('/', (req, res) => {
-  res.json({ status: 'ok', service: 'Notitas API (Node.js)', version: '1.0.0' });
+  res.json({ status: 'ok', service: 'Notitas API (Node.js en Vercel)', version: '1.0.0' });
 });
 
 // Manejador centralizado de errores
