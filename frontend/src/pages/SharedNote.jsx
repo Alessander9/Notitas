@@ -60,8 +60,8 @@ export default function SharedNote() {
         main: '#386c5f',
       },
       background: {
-        default: prefersDarkMode ? '#0f0f23' : '#f5f7fc',
-        paper: prefersDarkMode ? 'rgba(26, 26, 53, 0.85)' : 'rgba(255, 255, 255, 0.85)',
+        default: prefersDarkMode ? '#0f0f23' : '#f0f2f5',
+        paper: prefersDarkMode ? 'rgba(26, 26, 53, 0.85)' : 'rgba(255, 255, 255, 0.90)',
       },
     },
     typography: {
@@ -75,7 +75,7 @@ export default function SharedNote() {
             backgroundImage:
               theme.palette.mode === 'dark'
                 ? 'radial-gradient(1100px 700px at 88% -10%, rgba(56,108,95,0.28), transparent 60%), radial-gradient(900px 600px at -12% 28%, rgba(0,201,167,0.12), transparent 55%), radial-gradient(1000px 700px at 45% 115%, rgba(132,94,194,0.16), transparent 60%)'
-                : 'radial-gradient(1100px 700px at 88% -10%, rgba(56,108,95,0.12), transparent 60%), radial-gradient(900px 600px at -12% 28%, rgba(0,201,167,0.10), transparent 55%), radial-gradient(1000px 700px at 45% 115%, rgba(132,94,194,0.08), transparent 60%)',
+                : 'radial-gradient(1100px 700px at 88% -10%, rgba(56,108,95,0.08), transparent 60%), radial-gradient(900px 600px at -12% 28%, rgba(109,74,255,0.04), transparent 55%), radial-gradient(1000px 700px at 45% 115%, rgba(132,94,194,0.05), transparent 60%)',
             backgroundAttachment: 'fixed',
             minHeight: '100vh',
           },

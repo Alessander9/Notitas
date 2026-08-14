@@ -157,7 +157,7 @@ export default function Navbar() {
       sx={{
         zIndex: 1201,
         bgcolor: (theme) =>
-          theme.palette.mode === 'dark' ? 'rgba(26, 26, 53, 0.75)' : 'rgba(255, 255, 255, 0.75)',
+          theme.palette.mode === 'dark' ? 'rgba(26, 26, 53, 0.75)' : 'rgba(240, 243, 248, 0.88)',
         backdropFilter: 'blur(18px) saturate(140%)',
         WebkitBackdropFilter: 'blur(18px) saturate(140%)',
         borderBottom: '1px solid',

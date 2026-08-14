@@ -18,26 +18,6 @@ import {
   Divider,
   Tooltip,
   List,
-import { motion, AnimatePresence } from 'framer-motion';
-import React, { useState } from 'react';
-import {
-  Box,
-  Typography,
-  Card,
-  CardContent,
-  IconButton,
-  Button,
-  TextField,
-  InputAdornment,
-  ToggleButton,
-  ToggleButtonGroup,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Divider,
-  Tooltip,
-  List,
   ListItemButton,
   ListItemIcon,
   ListItemText,
@@ -55,9 +35,7 @@ import {
   Share as ShareIcon,
   Schedule as ScheduleIcon,
   Description as NoteIcon,
-  Group as GroupIcon,
 } from '@mui/icons-material';
-import ManageMembersDialog from './ManageMembersDialog';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import { useUiStore } from '../store/uiStore';
@@ -104,7 +82,7 @@ function NoteCountChip({ projectId, color }) {
 }
 
 // Componente de tarjeta individual para vista cuadrícula
-function ProjectGridCard({ project, index, onSelect, onEdit, onShare, onDelete, onManageMembers }) {
+function ProjectGridCard({ project, index, onSelect, onEdit, onShare, onDelete }) {
   const { rotateX, rotateY, handleMouseMove, handleMouseLeave } = useTiltHover(2.5);
   const hasCover = Boolean(project.coverImage);
   const coverUrl = hasCover ? getAssetUrl(project.coverImage) : null;
@@ -205,30 +183,6 @@ function ProjectGridCard({ project, index, onSelect, onEdit, onShare, onDelete, 
             border: '1px solid rgba(255,255,255,0.1)',
           }}
         >
-          {project.currentUserRole === 'OWNER' && (project.collaborators?.length ?? 0) > 0 && (
-            <Tooltip title="Gestionar miembros" placement="bottom">
-              <IconButton
-                size="small"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onManageMembers(project);
-                }}
-                sx={{
-                  color: 'rgba(255,255,255,0.8)',
-                  p: 1,
-                  borderRadius: 2,
-                  '&:hover': {
-                    color: '#fff',
-                    bgcolor: 'rgba(139, 92, 246, 0.35)',
-                    transform: 'scale(1.1)',
-                  },
-                  transition: 'all 0.2s ease',
-                }}
-              >
-                <GroupIcon sx={{ fontSize: 17 }} />
-              </IconButton>
-            </Tooltip>
-          )}
           <Tooltip title="Compartir proyecto" placement="bottom">
             <IconButton
               size="small"
@@ -379,13 +333,6 @@ export default function ProjectsDashboard() {
   const [icon, setIcon] = useState('folder');
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
-
-  // Manage Members Dialog
-  const [manageMembersProject, setManageMembersProject] = useState(null);
-  const handleOpenManageMembers = (project, e) => {
-    e?.stopPropagation();
-    setManageMembersProject(project);
-  };
 
   // Project Invite Share Modal
   const [openShareModal, setOpenShareModal] = useState(false);
@@ -605,6 +552,348 @@ export default function ProjectsDashboard() {
           onChange={(e) => setFilterQuery(e.target.value)}
            inputProps={{ 'aria-label': 'Filtrar proyectos' }}
            InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon color="action" />
+              </InputAdornment>
+            ),
+            sx: { borderRadius: 2, bgcolor: 'background.paper', width: { xs: '100%', sm: 280 } },
+          }}
+        />
+
+        <ToggleButtonGroup
+          value={viewMode}
+          exclusive
+          onChange={handleViewModeChange}
+          aria-label="view mode"
+          size="small"
+          sx={{ 
+            bgcolor: 'background.paper',
+            borderRadius: 3,
+            p: 0.5,
+            gap: 0.5,
+            border: '1px solid',
+            borderColor: 'divider',
+            '& .MuiToggleButton-root': {
+              borderRadius: 2.5,
+              border: 'none',
+              p: 1,
+              minWidth: 42,
+              transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+              '&:hover': {
+                bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(56, 108, 95, 0.2)' : 'rgba(56, 108, 95, 0.1)',
+                transform: 'scale(1.08)',
+              },
+              '&.Mui-selected': {
+                bgcolor: 'primary.main',
+                color: 'primary.contrastText',
+                boxShadow: '0 4px 12px rgba(56, 108, 95, 0.35)',
+                '&:hover': {
+                  bgcolor: 'primary.dark',
+                  transform: 'scale(1.05)',
+                },
+              },
+            },
+          }}
+        >
+          <ToggleButton value="grid" aria-label="grid view">
+            <Tooltip title="Vista Cuadrícula">
+              <motion.div
+                whileHover={{ rotate: 5 }}
+                whileTap={{ scale: 0.9 }}
+              >
+                <GridViewIcon fontSize="small" />
+              </motion.div>
+            </Tooltip>
+          </ToggleButton>
+          <ToggleButton value="list" aria-label="list view">
+            <Tooltip title="Vista Lista">
+              <motion.div
+                whileHover={{ rotate: -5 }}
+                whileTap={{ scale: 0.9 }}
+              >
+                <ListViewIcon fontSize="small" />
+              </motion.div>
+            </Tooltip>
+          </ToggleButton>
+        </ToggleButtonGroup>
+      </Box>
+
+      <Divider sx={{ mb: 4 }} />
+
+      {/* Projects Container */}
+      {isLoading ? (
+        <ProjectsDashboardSkeleton />
+      ) : filteredProjects.length === 0 ? (
+        <EmptyState
+          icon={<FolderOpenIcon />}
+          title={filterQuery ? 'No se encontraron proyectos' : 'No tienes proyectos todavía'}
+          description={
+            filterQuery
+              ? `Ningún proyecto coincide con "${filterQuery}". Prueba con otro término.`
+              : 'Crea tu primer proyecto para empezar a organizar tus notas, tareas y adjuntos.'
+          }
+          actionLabel={!filterQuery ? 'Crea tu primer proyecto' : undefined}
+          onAction={!filterQuery ? handleOpenCreateModal : undefined}
+        />
+      ) : viewMode === 'grid' ? (
+        /* GRID VIEW */
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: {
+              xs: 'repeat(1, 1fr)',
+              sm: 'repeat(2, 1fr)',
+              md: 'repeat(3, 1fr)',
+              lg: 'repeat(3, 1fr)',
+              xl: 'repeat(3, 1fr)',
+            },
+            gap: 3,
+          }}
+        >
+          <AnimatePresence mode="popLayout">
+            {filteredProjects.map((project, index) => (
+              <ProjectGridCard
+                key={project.id}
+                project={project}
+                index={index}
+                onSelect={setCurrentProject}
+                onEdit={handleOpenEditModal}
+                onShare={handleShareProject}
+                onDelete={handleDeleteProject}
+              />
+            ))}
+          </AnimatePresence>
+        </Box>
+      ) : (
+        /* LIST VIEW */
+        <Card variant="outlined" sx={{ borderRadius: 3, bgcolor: 'background.paper', p: 1.25 }}>
+          <List component="div" disablePadding>
+            {filteredProjects.map((project) => {
+              const hasCover = Boolean(project.coverImage);
+              const coverUrl = hasCover ? getAssetUrl(project.coverImage) : null;
+
+              return (
+                <Box
+                  key={project.id}
+                  sx={{
+                    position: 'relative',
+                    borderRadius: 2.5,
+                    mb: 0.75,
+                    '&:last-of-type': { mb: 0 },
+                    '&:hover': { bgcolor: 'action.hover' },
+                    '&:hover .project-list-actions': { opacity: 1, pointerEvents: 'auto' },
+                  }}
+                >
+                  <ListItemButton
+                    onClick={() => setCurrentProject(project.id)}
+                    sx={{ borderRadius: 2.5, py: 1.4, pl: 3.25, pr: 3 }}
+                  >
+                    {/* Color accent bar */}
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        left: 8,
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        width: 3,
+                        height: 32,
+                        borderRadius: 2,
+                        bgcolor: project.color || '#1976d2',
+                      }}
+                    />
+                    <ListItemIcon sx={{ minWidth: 52 }}>
+                      {coverUrl ? (
+                        <CoverImage
+                          src={coverUrl}
+                          alt={project.name}
+                          sx={{ width: 44, height: 44, borderRadius: 2.5, border: '1px solid', borderColor: 'divider' }}
+                        />
+                      ) : (
+                        <Box
+                          sx={{
+                            width: 44,
+                            height: 44,
+                            borderRadius: 2.5,
+                            bgcolor: `${project.color || '#1976d2'}1A`,
+                            boxShadow: `inset 0 0 0 1px ${project.color || '#1976d2'}26`,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          <Typography sx={{ fontSize: '1.5rem', lineHeight: 1 }}>
+                            {getProjectIcon(project.icon)}
+                          </Typography>
+                        </Box>
+                      )}
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={project.name}
+                      secondary={project.description || 'Sin descripción.'}
+                      primaryTypographyProps={{ fontWeight: 700, fontSize: '0.95rem' }}
+                      secondaryTypographyProps={{ noWrap: true, maxWidth: '520px', fontSize: '0.8rem' }}
+                    />
+                    <Box sx={{ mr: 4, display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 2 }}>
+                      <NoteCountChip projectId={project.id} color={project.color} />
+                      <CollaboratorsChip project={project} />
+                      <Tooltip title="Última actividad">
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.6 }}>
+                          <ScheduleIcon sx={{ fontSize: 13, color: 'text.disabled' }} />
+                          <Typography variant="caption" color="text.disabled">
+                            {formatShortDate(project.updatedAt || project.createdAt)}
+                          </Typography>
+                        </Box>
+                      </Tooltip>
+
+                      {/* Avatars in List View */}
+                      <AvatarGroup max={3} sx={{ '& .MuiAvatar-root': { width: 24, height: 24, fontSize: '0.65rem' } }}>
+                        {project.creator && (
+                          <Tooltip title={`Creador: ${project.creator.name}`}>
+                            <Avatar
+                              alt={project.creator.name}
+                              src={getAssetUrl(project.creator.avatar)}
+                              sx={{ border: `2px solid ${project.color || '#1976d2'} !important` }}
+                            />
+                          </Tooltip>
+                        )}
+                        {project.collaborators && project.collaborators.map((collab) => (
+                          <Tooltip key={collab.id} title={`Colaborador: ${collab.name}`}>
+                            <Avatar
+                              alt={collab.name}
+                              src={getAssetUrl(collab.avatar)}
+                            />
+                          </Tooltip>
+                        ))}
+                      </AvatarGroup>
+                    </Box>
+                  </ListItemButton>
+
+                  {/* Hover actions overlay */}
+                  <Box
+                    className="project-list-actions"
+                    sx={{
+                      position: 'absolute',
+                      right: 12,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 0.5,
+                      opacity: 0,
+                      pointerEvents: 'none',
+                      transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                      bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(26, 26, 53, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+                      backdropFilter: 'blur(12px)',
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      borderRadius: 3,
+                      boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+                      p: 0.5,
+                      zIndex: 2,
+                    }}
+                  >
+                    <Tooltip title="Compartir" placement="top">
+                      <IconButton 
+                        size="small" 
+                        onClick={(e) => handleShareProject(project, e)} 
+                        sx={{ 
+                          p: 1, 
+                          color: 'text.secondary', 
+                          borderRadius: 2,
+                          '&:hover': { 
+                            color: 'info.main', 
+                            bgcolor: 'rgba(53, 150, 181, 0.12)',
+                            transform: 'scale(1.1)',
+                          },
+                          transition: 'all 0.2s ease',
+                        }}
+                      >
+                        <ShareIcon sx={{ fontSize: 18 }} />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Editar" placement="top">
+                      <IconButton 
+                        size="small" 
+                        onClick={(e) => handleOpenEditModal(project, e)} 
+                        sx={{ 
+                          p: 1, 
+                          color: 'text.secondary', 
+                          borderRadius: 2,
+                          '&:hover': { 
+                            color: 'primary.main', 
+                            bgcolor: 'rgba(56, 108, 95, 0.12)',
+                            transform: 'scale(1.1)',
+                          },
+                          transition: 'all 0.2s ease',
+                        }}
+                      >
+                        <EditIcon sx={{ fontSize: 18 }} />
+                      </IconButton>
+                    </Tooltip>
+                    <Box sx={{ width: 1, height: 20, bgcolor: 'divider', mx: 0.25 }} />
+                    <Tooltip title="Eliminar" placement="top">
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          confirm({
+                            title: 'Eliminar proyecto',
+                            message: `¿Eliminar proyecto "${project.name}" y sus notas? Esta acción no se puede deshacer.`,
+                            confirmLabel: 'Eliminar',
+                            cancelLabel: 'Cancelar',
+                            color: 'error',
+                            onConfirm: () => deleteProjectMutation.mutate(project.id),
+                          });
+                        }}
+                        sx={{ 
+                          p: 1, 
+                          color: 'text.secondary', 
+                          borderRadius: 2,
+                          '&:hover': { 
+                            color: 'error.main', 
+                            bgcolor: 'rgba(239, 68, 68, 0.12)',
+                            transform: 'scale(1.1)',
+                          },
+                          transition: 'all 0.2s ease',
+                        }}
+                      >
+                        <DeleteIcon sx={{ fontSize: 18 }} />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                </Box>
+              );
+            })}
+          </List>
+        </Card>
+      )}
+
+      {/* Project Creation/Edition Modal */}
+      <ProjectFormDialog
+        open={openModal}
+        onClose={handleCloseModal}
+        isEditing={isEditing}
+        name={name}
+        onNameChange={setName}
+        description={description}
+        onDescriptionChange={setDescription}
+        color={color}
+        onColorChange={setColor}
+        icon={icon}
+        onIconChange={setIcon}
+        previewUrl={previewUrl}
+        onFileChange={handleFileChange}
+        onRemoveCover={handleRemoveCover}
+        canRemoveCover={!isEditing || Boolean(selectedFile)}
+        isPending={createProjectMutation.isPending || updateProjectMutation.isPending}
+        onSubmit={handleSave}
+      />
+
+      {/* Project Share Dialog */}
+      <Dialog open={openShareModal} onClose={() => setOpenShareModal(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontWeight: 'bold' }}>Invitar Colaboradores a "{shareProjectName}"</DialogTitle>
+        <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>
             Cualquier usuario registrado que acceda a este enlace se unirá como colaborador al proyecto y podrá editar y crear notas de forma compartida.
           </Typography>

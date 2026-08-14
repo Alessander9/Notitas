@@ -39,17 +39,16 @@ const queryClient = new QueryClient({
   },
 });
 
-// ── Light Mode ───────────────────────────────────────────────────
-// Primary verde esmeralda (#386c5f), Secondary violeta (#845EC2), Accent púrpura (#6D4AFF)
+// ── Light Mode (Eye-Comfort Soft Slate & Warm Mist) ──────────────
 const LIGHT_THEME = {
-  primary: { main: '#386c5f', light: '#6a968c', dark: '#264e44', contrastText: '#ffffff' },
-  secondary: { main: '#845EC2', light: '#B39CD0', dark: '#6a4aa3', contrastText: '#ffffff' },
-  accent: { main: '#6D4AFF', light: '#9F86FF', dark: '#4328D7', contrastText: '#ffffff' },
-  success: { main: '#386c5f', light: '#6a968c', dark: '#264e44', contrastText: '#ffffff' },
-  info: { main: '#3596B5', light: '#5bb1cf', dark: '#296073', contrastText: '#ffffff' },
-  background: { default: '#f5f7fc', paper: 'rgba(255, 255, 255, 0.85)' },
-  divider: 'rgba(230, 232, 242, 0.7)',
-  text: { primary: '#1a2332', secondary: '#5a6a7e' },
+  primary: { main: '#386c5f', light: '#528a7c', dark: '#244940', contrastText: '#ffffff' },
+  secondary: { main: '#7c54bd', light: '#a68cc7', dark: '#5e399b', contrastText: '#ffffff' },
+  accent: { main: '#6342e8', light: '#9378f5', dark: '#3b21b8', contrastText: '#ffffff' },
+  success: { main: '#2e7d6b', light: '#5a9e8f', dark: '#1f574a', contrastText: '#ffffff' },
+  info: { main: '#2c83a0', light: '#56a3bd', dark: '#1f5c70', contrastText: '#ffffff' },
+  background: { default: '#f0f2f5', paper: 'rgba(255, 255, 255, 0.90)' },
+  divider: 'rgba(215, 222, 232, 0.8)',
+  text: { primary: '#1e293b', secondary: '#526074' },
 };
 
 const DARK_THEME = {
@@ -196,12 +195,12 @@ export default function App() {
             styleOverrides: (theme) => ({
               body: {
                 scrollbarWidth: 'thin',
-                scrollbarColor: theme.palette.mode === 'dark' ? '#2a2a4a transparent' : '#e0e6ed transparent',
+                scrollbarColor: theme.palette.mode === 'dark' ? '#2a2a4a transparent' : '#cbd5e1 transparent',
                 backgroundColor: theme.palette.background.default,
                 backgroundImage:
                   theme.palette.mode === 'dark'
                     ? 'radial-gradient(1100px 700px at 88% -10%, rgba(56,108,95,0.28), transparent 60%), radial-gradient(900px 600px at -12% 28%, rgba(0,201,167,0.12), transparent 55%), radial-gradient(1000px 700px at 45% 115%, rgba(132,94,194,0.16), transparent 60%)'
-                    : 'radial-gradient(1100px 700px at 88% -10%, rgba(56,108,95,0.12), transparent 60%), radial-gradient(900px 600px at -12% 28%, rgba(0,201,167,0.10), transparent 55%), radial-gradient(1000px 700px at 45% 115%, rgba(132,94,194,0.08), transparent 60%)',
+                    : 'radial-gradient(1100px 700px at 88% -10%, rgba(56,108,95,0.08), transparent 60%), radial-gradient(900px 600px at -12% 28%, rgba(109,74,255,0.04), transparent 55%), radial-gradient(1000px 700px at 45% 115%, rgba(132,94,194,0.05), transparent 60%)',
                 transition: 'background-color 0.35s ease',
               },
             }),
@@ -214,7 +213,7 @@ export default function App() {
                 fontWeight: 600,
                 padding: '8px 20px',
                 transition: 'all 0.22s cubic-bezier(0.4, 0, 0.2, 1)',
-                '&:hover': { transform: 'translateY(-2px)', boxShadow: darkMode ? '0 8px 20px rgba(0,0,0,0.5)' : '0 8px 20px rgba(56,108,95,0.18)' },
+                '&:hover': { transform: 'translateY(-2px)', boxShadow: darkMode ? '0 8px 20px rgba(0,0,0,0.5)' : '0 8px 20px rgba(56,108,95,0.16)' },
               },
               containedPrimary: {
                 background: 'linear-gradient(135deg, #386c5f 0%, #264e44 100%)',
@@ -229,8 +228,8 @@ export default function App() {
                 borderRadius: 20,
                 backdropFilter: 'blur(12px)',
                 border: '1px solid',
-                borderColor: darkMode ? 'rgba(255,255,255,0.06)' : 'rgba(230,232,242,0.8)',
-                boxShadow: darkMode ? '0 6px 20px rgba(0,0,0,0.4)' : '0 6px 18px rgba(56,108,95,0.07)',
+                borderColor: darkMode ? 'rgba(255,255,255,0.06)' : 'rgba(215,222,232,0.85)',
+                boxShadow: darkMode ? '0 6px 20px rgba(0,0,0,0.4)' : '0 4px 16px rgba(30,41,59,0.05)',
                 transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
               },
             },
@@ -239,23 +238,23 @@ export default function App() {
             styleOverrides: {
               root: {
                 backgroundImage: 'none',
-                backgroundColor: darkMode ? 'rgba(26,26,53,0.85)' : 'rgba(255,255,255,0.85)',
+                backgroundColor: darkMode ? 'rgba(26,26,53,0.85)' : 'rgba(255,255,255,0.92)',
                 transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
               },
               outlined: {
                 border: '1px solid',
-                borderColor: darkMode ? 'rgba(255,255,255,0.08)' : 'rgba(230,232,242,0.8)',
+                borderColor: darkMode ? 'rgba(255,255,255,0.08)' : 'rgba(215,222,232,0.85)',
                 borderRadius: 16,
                 backdropFilter: 'blur(12px) saturate(150%)',
                 WebkitBackdropFilter: 'blur(12px) saturate(150%)',
                 boxShadow: darkMode 
                   ? '0 4px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.03)' 
-                  : '0 4px 16px rgba(56,108,95,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
+                  : '0 4px 16px rgba(30,41,59,0.04), inset 0 1px 0 rgba(255,255,255,0.9)',
                 '&:hover': {
-                  borderColor: darkMode ? 'rgba(255,255,255,0.12)' : 'rgba(56,108,95,0.2)',
+                  borderColor: darkMode ? 'rgba(255,255,255,0.12)' : 'rgba(56,108,95,0.25)',
                   boxShadow: darkMode 
                     ? '0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)' 
-                    : '0 8px 28px rgba(56,108,95,0.1), inset 0 1px 0 rgba(255,255,255,0.9)',
+                    : '0 8px 24px rgba(30,41,59,0.07), inset 0 1px 0 rgba(255,255,255,0.95)',
                   transform: 'translateY(-2px)',
                 },
               },
@@ -265,17 +264,17 @@ export default function App() {
               elevation1: {
                 boxShadow: darkMode 
                   ? '0 2px 12px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.03)' 
-                  : '0 2px 12px rgba(56,108,95,0.07), inset 0 1px 0 rgba(255,255,255,0.8)',
+                  : '0 2px 10px rgba(30,41,59,0.04), inset 0 1px 0 rgba(255,255,255,0.9)',
               },
               elevation2: {
                 boxShadow: darkMode 
                   ? '0 4px 20px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)' 
-                  : '0 4px 20px rgba(56,108,95,0.09), inset 0 1px 0 rgba(255,255,255,0.85)',
+                  : '0 4px 16px rgba(30,41,59,0.06), inset 0 1px 0 rgba(255,255,255,0.9)',
               },
               elevation3: {
                 boxShadow: darkMode 
                   ? '0 8px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.05)' 
-                  : '0 8px 28px rgba(56,108,95,0.11), inset 0 1px 0 rgba(255,255,255,0.9)',
+                  : '0 8px 24px rgba(30,41,59,0.08), inset 0 1px 0 rgba(255,255,255,0.95)',
               },
             },
           },

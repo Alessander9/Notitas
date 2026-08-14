@@ -92,7 +92,7 @@ export default function JoinProject() {
         background: (theme) =>
           theme.palette.mode === 'dark'
             ? 'linear-gradient(135deg, #0f0f23 0%, #1a1a35 50%, #0f0f23 100%)'
-            : 'linear-gradient(135deg, #f5f7fc 0%, #e8f5e9 50%, #f5f7fc 100%)',
+            : 'linear-gradient(135deg, #f0f2f5 0%, #e6edf4 50%, #f0f2f5 100%)',
         position: 'relative',
         overflow: 'hidden',
         px: { xs: 2, sm: 3 },

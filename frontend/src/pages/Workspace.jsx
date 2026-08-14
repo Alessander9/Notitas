@@ -85,12 +85,12 @@ export default function Workspace() {
               '& .MuiDrawer-paper': {
                 width: 300,
                 bgcolor: (theme) =>
-                  theme.palette.mode === 'dark' ? 'rgba(26, 26, 53, 0.88)' : 'rgba(255, 255, 255, 0.88)',
+                  theme.palette.mode === 'dark' ? 'rgba(26, 26, 53, 0.88)' : 'rgba(244, 246, 250, 0.94)',
                 backdropFilter: 'blur(24px) saturate(160%)',
                 WebkitBackdropFilter: 'blur(24px) saturate(160%)',
                 borderRight: '1px solid',
                 borderColor: (theme) =>
-                  theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(230, 232, 242, 0.8)',
+                  theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(215, 222, 232, 0.85)',
                 borderTopRightRadius: '24px',
                 borderBottomRightRadius: '24px',
                 boxShadow: (theme) =>

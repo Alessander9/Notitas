@@ -385,7 +385,7 @@ const noteItemVariants = {
         display: 'flex',
         flexDirection: 'column',
         bgcolor: (theme) =>
-          theme.palette.mode === 'dark' ? 'rgba(26, 26, 53, 0.92)' : 'rgba(255, 255, 255, 0.92)',
+          theme.palette.mode === 'dark' ? 'rgba(26, 26, 53, 0.92)' : 'rgba(244, 246, 250, 0.94)',
         backdropFilter: 'blur(24px) saturate(180%)',
         WebkitBackdropFilter: 'blur(24px) saturate(180%)',
         position: 'relative',
