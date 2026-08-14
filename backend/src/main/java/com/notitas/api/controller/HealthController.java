@@ -2,6 +2,8 @@ package com.notitas.api.controller;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.sql.DataSource;
@@ -33,7 +35,7 @@ public class HealthController {
      * de datos: su único propósito es mantener el proceso despierto y saber si
      * Spring Boot acepta peticiones.
      */
-    @GetMapping("/api/public/ping")
+    @RequestMapping(value = "/api/public/ping", method = {RequestMethod.GET, RequestMethod.HEAD})
     public ResponseEntity<Map<String, String>> ping() {
         return ResponseEntity.ok(Map.of(
                 "status", "ok",
@@ -42,7 +44,7 @@ public class HealthController {
         ));
     }
 
-    @GetMapping("/api/public/health")
+    @RequestMapping(value = "/api/public/health", method = {RequestMethod.GET, RequestMethod.HEAD})
     public ResponseEntity<Map<String, String>> health() {
         try (Connection connection = dataSource.getConnection()) {
             if (!connection.isValid(3)) {
