@@ -5,8 +5,9 @@ Guía para el **primer despliegue en producción**. La arquitectura es:
 | Pieza | Tecnología | Dónde vive |
 |---|---|---|
 | Frontend (React + Vite) | SPA estática | **Vercel** → `notitas-cleo.vercel.app` (dominio único) |
-| Backend (Spring Boot) | API REST en contenedor | **Koyeb** (24/7 sin apagar) o Render |
+| Backend (Node.js + Express) | API REST en contenedor | **Render** / **Koyeb** (arranque instantáneo) |
 | Base de datos | PostgreSQL | **Supabase** |
+| Archivos & Multimedia | **Cloudinary CDN** | Optimización automática de imágenes, portadas y adjuntos |
 
 > El backend **no** puede ejecutarse como función estática en Vercel: es una JVM.
 > El `Dockerfile` incluido en `backend/` permite desplegarlo como **Docker** en

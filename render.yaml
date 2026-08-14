@@ -14,6 +14,7 @@
 # ~1 min en despertar. Mantenerlo despierto con monitores externos gratuitos:
 # - UptimeRobot: GET /api/public/ping cada 5 minutos.
 # - cron-job.org: GET /api/public/ping cada 10 minutos como respaldo.
+# Render Blueprint — backend Notitas (API Node.js + Cloudinary) en el plan GRATIS.
 services:
   - type: web
     name: notitas-api
@@ -23,24 +24,24 @@ services:
     plan: free
     healthCheckPath: /api/public/ping
     envVars:
-      - key: SPRING_PROFILES_ACTIVE
-        value: prod
-      - key: APP_STORAGE_PROVIDER
-        value: supabase
+      - key: NODE_ENV
+        value: production
       - key: CORS_ALLOWED_ORIGINS
-        value: https://notitas-cleo.vercel.app
-        # Dominio único de producción: https://notitas-cleo.vercel.app
-        # Actualizar si cambia la URL del frontend en Vercel (un origen
-        # ausente aquí recibe 403 en el preflight CORS).
+        value: https://notitas-cleo.vercel.app,https://notitas-alessander.vercel.app
       - key: DB_URL
         sync: false
       - key: DB_USER
         sync: false
       - key: DB_PASSWORD
         sync: false
-      - key: SUPABASE_URL
-        sync: false
-      - key: SUPABASE_SERVICE_ROLE_KEY
-        sync: false
       - key: NOTITAS_JWT_SECRET
         sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        value: "128275187432123"
+      - key: CLOUDINARY_API_SECRET
+        value: "jU1f3sewX5jHoBZKCPQB47Z9oY8"
+      - key: RESEND_API_KEY
+        sync: false
+

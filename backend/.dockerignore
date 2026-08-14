@@ -1,6 +1,10 @@
+node_modules/
+npm-debug.log
 target/
-.mvn/wrapper/maven-wrapper.jar
 uploads/
 *.log
+.env
+.env.local
+.git
 .idea/
 .vscode/
