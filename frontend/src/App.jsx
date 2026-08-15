@@ -14,6 +14,8 @@ import ErrorBoundary from './components/ErrorBoundary';
 import IdleSessionGuard from './components/IdleSessionGuard';
 import CommandPalette from './components/CommandPalette';
 import ServerStatusBanner from './components/ServerStatusBanner';
+import AiAssistantDrawer from './components/AiAssistantDrawer';
+import AiFloatingButton from './components/AiFloatingButton';
 
 const Login = React.lazy(() => import('./pages/Login'));
 const Register = React.lazy(() => import('./pages/Register'));
@@ -397,6 +399,8 @@ export default function App() {
         <IdleSessionGuard />
         <CommandPalette />
         <ServerStatusBanner />
+        <AiAssistantDrawer />
+        <AiFloatingButton />
       </ThemeProvider>
     </QueryClientProvider>
   );

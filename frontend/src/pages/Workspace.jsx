@@ -14,8 +14,6 @@ import TrashView from '../components/TrashView';
 import FavoritesView from '../components/FavoritesView';
 import ArchivedView from '../components/ArchivedView';
 import MobileFab from '../components/MobileFab';
-import AiAssistantDrawer from '../components/AiAssistantDrawer';
-import AiFloatingButton from '../components/AiFloatingButton';
 
 // NoteList + NoteEditor se cargan bajo demanda: TipTap y el editor son el
 // chunk más pesado de la app y no hacen falta al abrir el dashboard.
@@ -279,12 +277,6 @@ export default function Workspace() {
           </motion.div>
         </AnimatePresence>
       </Box>
-
-      {/* Panel / Chat Flotante de Asistente de IA */}
-      <AiAssistantDrawer />
-
-      {/* Botón Flotante Permanente del Bot Asistente */}
-      <AiFloatingButton />
     </Box>
   );
 }

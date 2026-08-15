@@ -3,23 +3,18 @@ import { Box, Tooltip, Zoom } from '@mui/material';
 import { AutoAwesome as SparklesIcon, SmartToy as BotIcon } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { useUiStore } from '../store/uiStore';
-import { useAuthStore } from '../store/authStore';
 
 export default function AiFloatingButton() {
-  const { user } = useAuthStore();
   const { aiDrawerOpen, toggleAiDrawer } = useUiStore();
-
-  // Solo mostrar para usuarios autenticados
-  if (!user) return null;
 
   return (
     <Zoom in={!aiDrawerOpen} unmountOnExit>
       <Box
         sx={{
           position: 'fixed',
-          bottom: { xs: 24, sm: 28 },
-          right: { xs: 20, sm: 28 },
-          zIndex: 1250,
+          bottom: { xs: 20, sm: 28 },
+          right: { xs: 18, sm: 28 },
+          zIndex: 9999, // Muy alto para que nunca quede tapado por nada
           pointerEvents: 'auto',
         }}
       >
@@ -29,13 +24,13 @@ export default function AiFloatingButton() {
           arrow
         >
           <motion.div
-            whileHover={{ scale: 1.1, y: -3 }}
+            whileHover={{ scale: 1.12, y: -4 }}
             whileTap={{ scale: 0.92 }}
             animate={{
-              y: [0, -5, 0],
+              y: [0, -6, 0],
             }}
             transition={{
-              duration: 3,
+              duration: 3.2,
               repeat: Infinity,
               ease: 'easeInOut',
             }}
@@ -47,24 +42,25 @@ export default function AiFloatingButton() {
               sx={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: 1,
-                px: { xs: 2, sm: 2.2 },
-                py: { xs: 1.25, sm: 1.4 },
-                border: 'none',
+                gap: 1.2,
+                px: { xs: 1.8, sm: 2.2 },
+                py: { xs: 1.1, sm: 1.35 },
+                border: '1.5px solid rgba(255, 255, 255, 0.35)',
                 borderRadius: '50px',
                 cursor: 'pointer',
-                background: 'linear-gradient(135deg, #10b981 0%, #386c5f 50%, #1e3a34 100%)',
+                background: 'linear-gradient(135deg, #10b981 0%, #386c5f 50%, #173830 100%)',
                 color: '#ffffff',
                 fontWeight: 800,
-                fontSize: { xs: '0.85rem', sm: '0.92rem' },
-                boxShadow: '0 8px 25px rgba(16, 185, 129, 0.45), 0 2px 10px rgba(0,0,0,0.2)',
+                fontSize: { xs: '0.86rem', sm: '0.94rem' },
+                boxShadow: '0 8px 28px rgba(16, 185, 129, 0.55), 0 2px 10px rgba(0,0,0,0.3)',
                 outline: 'none',
-                transition: 'box-shadow 0.25s ease, background 0.25s ease',
+                transition: 'all 0.25s ease',
                 position: 'relative',
                 overflow: 'hidden',
                 '&:hover': {
-                  boxShadow: '0 12px 32px rgba(16, 185, 129, 0.65), 0 4px 14px rgba(0,0,0,0.3)',
-                  background: 'linear-gradient(135deg, #34d399 0%, #386c5f 50%, #132a24 100%)',
+                  boxShadow: '0 12px 36px rgba(16, 185, 129, 0.75), 0 4px 16px rgba(0,0,0,0.4)',
+                  background: 'linear-gradient(135deg, #34d399 0%, #386c5f 50%, #0f2b23 100%)',
+                  border: '1.5px solid rgba(255, 255, 255, 0.6)',
                 },
                 '&::after': {
                   content: '""',
@@ -73,8 +69,8 @@ export default function AiFloatingButton() {
                   left: '-50%',
                   width: '200%',
                   height: '200%',
-                  background: 'radial-gradient(circle, rgba(255,255,255,0.25) 0%, transparent 60%)',
-                  opacity: 0.6,
+                  background: 'radial-gradient(circle, rgba(255,255,255,0.3) 0%, transparent 60%)',
+                  opacity: 0.7,
                   pointerEvents: 'none',
                 },
               }}
@@ -88,14 +84,15 @@ export default function AiFloatingButton() {
                   justifyContent: 'center',
                 }}
               >
-                <BotIcon sx={{ fontSize: { xs: 22, sm: 24 }, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))' }} />
+                <BotIcon sx={{ fontSize: { xs: 24, sm: 26 }, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))' }} />
                 <SparklesIcon
                   sx={{
                     position: 'absolute',
                     top: -6,
                     right: -6,
-                    fontSize: 12,
+                    fontSize: 13,
                     color: '#fef08a',
+                    filter: 'drop-shadow(0 0 4px rgba(254, 240, 138, 0.8))',
                     animation: 'spin-slow 4s linear infinite',
                     '@keyframes spin-slow': {
                       '0%': { transform: 'rotate(0deg) scale(0.9)' },
@@ -110,9 +107,9 @@ export default function AiFloatingButton() {
               <Box
                 component="span"
                 sx={{
-                  letterSpacing: '0.02em',
-                  textShadow: '0 1px 3px rgba(0,0,0,0.3)',
-                  display: { xs: 'none', sm: 'inline-block' },
+                  letterSpacing: '0.03em',
+                  textShadow: '0 1px 3px rgba(0,0,0,0.35)',
+                  display: { xs: 'inline-block', sm: 'inline-block' },
                 }}
               >
                 Notitas AI

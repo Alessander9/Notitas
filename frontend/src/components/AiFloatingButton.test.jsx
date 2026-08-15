@@ -2,10 +2,8 @@ import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import AiFloatingButton from './AiFloatingButton';
-import { useAuthStore } from '../store/authStore';
 import { useUiStore } from '../store/uiStore';
 
-vi.mock('../store/authStore');
 vi.mock('../store/uiStore');
 
 describe('AiFloatingButton', () => {
@@ -13,16 +11,13 @@ describe('AiFloatingButton', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    useAuthStore.mockReturnValue({
-      user: { id: 1, name: 'Alessander', email: 'test@example.com' },
-    });
     useUiStore.mockReturnValue({
       aiDrawerOpen: false,
       toggleAiDrawer,
     });
   });
 
-  it('renderiza el botón flotante con texto e icono de Notitas AI cuando el usuario está autenticado', () => {
+  it('renderiza el botón flotante con texto e icono de Notitas AI', () => {
     render(<AiFloatingButton />);
     expect(screen.getByText('Notitas AI')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /abrir asistente de ia notitas/i })).toBeInTheDocument();
@@ -35,9 +30,12 @@ describe('AiFloatingButton', () => {
     expect(toggleAiDrawer).toHaveBeenCalledTimes(1);
   });
 
-  it('no renderiza nada si el usuario no está autenticado', () => {
-    useAuthStore.mockReturnValue({ user: null });
+  it('se oculta cuando el drawer de IA está abierto (aiDrawerOpen: true)', () => {
+    useUiStore.mockReturnValue({
+      aiDrawerOpen: true,
+      toggleAiDrawer,
+    });
     const { container } = render(<AiFloatingButton />);
-    expect(container.firstChild).toBeNull();
+    expect(container.querySelector('button')).toBeNull();
   });
 });
