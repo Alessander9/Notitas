@@ -393,14 +393,14 @@ export default function App() {
               </Routes>
             </Suspense>
           </ErrorBoundary>
+          <AiAssistantDrawer />
+          <AiFloatingButton />
         </BrowserRouter>
         <Toasts />
         <ConfirmDialog />
         <IdleSessionGuard />
         <CommandPalette />
         <ServerStatusBanner />
-        <AiAssistantDrawer />
-        <AiFloatingButton />
       </ThemeProvider>
     </QueryClientProvider>
   );
