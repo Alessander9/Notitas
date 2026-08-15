@@ -20,8 +20,6 @@ import {
   MenuItem,
   Breadcrumbs,
   Link,
-  useMediaQuery,
-  useTheme,
 } from '@mui/material';
 import {
   Star as StarIcon,
@@ -60,13 +58,14 @@ import {
   MicOff as MicOffIcon,
   FileDownload as DownloadIcon,
   PictureAsPdf as PdfIcon,
-  ArrowDropDown as ArrowDropDownIcon,
   Article as ArticleIcon,
   Html as HtmlIcon,
   TextSnippet as TextSnippetIcon,
   Archive as ArchiveIcon,
   Unarchive as UnarchiveIcon,
   PeopleAlt as PeopleAltIcon,
+  ContentCopy as DuplicateIcon,
+  FileUpload as ImportFileIcon,
 } from '@mui/icons-material';
 import { useEditor, EditorContent, ReactNodeViewRenderer } from '@tiptap/react';
 import { mergeAttributes } from '@tiptap/core';
@@ -100,6 +99,16 @@ import {
 } from '../utils/exportNote';
 import CommentsSection from './CommentsSection';
 import NoteCollaboratorsDialog from './NoteCollaboratorsDialog';
+import MediaPickerModal from './MediaPickerModal';
+import EmojiPickerPopover from './EmojiPickerPopover';
+import NoteTemplatesDialog from './NoteTemplatesDialog';
+import SlashCommandsMenu from './SlashCommandsMenu';
+import {
+  Animation as GifIcon,
+  Fullscreen as ZenIcon,
+  EmojiEmotions as EmojiIcon,
+  AutoAwesome as TemplateIcon,
+} from '@mui/icons-material';
 
 // Imágenes con posición libre (arrastrar a cualquier punto del lienzo) y
 // redimensionables desde la esquina (mantienen proporciones). La posición y
@@ -179,9 +188,6 @@ export default function NoteEditor() {
   const { currentNoteId, setCurrentNote, currentProjectId, setCurrentProject } = useUiStore();
   const queryClient = useQueryClient();
 
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef(null);
 
@@ -242,6 +248,18 @@ export default function NoteEditor() {
     };
   }, []);
 
+  // Escuchar inserciones automáticas generadas por Notitas AI
+  useEffect(() => {
+    const handleAiInsert = (e) => {
+      const content = e.detail?.content;
+      if (editor && content) {
+        editor.chain().focus().insertContent(content).run();
+      }
+    };
+    window.addEventListener('notitas-ai-insert', handleAiInsert);
+    return () => window.removeEventListener('notitas-ai-insert', handleAiInsert);
+  }, [editor]);
+
   const [title, setTitle] = useState('');
   const [tagInput, setTagInput] = useState('');
   const [openShareDialog, setOpenShareDialog] = useState(false);
@@ -251,7 +269,6 @@ export default function NoteEditor() {
    const [copyJoinSuccess, setCopyJoinSuccess] = useState(false);
    const [saveStatus, setSaveStatus] = useState('saved'); // 'saved' | 'saving' | 'unsaved'
    const [historyOpen, setHistoryOpen] = useState(false);
-   const [exportOpen, setExportOpen] = useState(false);
    const [exportMenuAnchor, setExportMenuAnchor] = useState(null);
    const [exporting, setExporting] = useState(null); // formato en curso: 'pdf' | 'png' | 'docx' | 'md'
 
@@ -268,9 +285,173 @@ export default function NoteEditor() {
   // Member whose profile is open (clicked avatar)
   const [profileMember, setProfileMember] = useState(null);
 
+  // Modal para selección de GIFs animados (GIPHY) / Gradientes / Portadas
+  const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
+  const [mediaPickerTarget, setMediaPickerTarget] = useState('cover'); // 'cover' | 'inline'
+  const [mediaPickerTab, setMediaPickerTab] = useState('gifs');
+
+  // Estados de Emoji Picker, Plantillas, Slash Commands, Modo Zen y Asistente IA
+  const { zenMode, toggleZenMode, toggleAiDrawer } = useUiStore();
+  const [emojiAnchor, setEmojiAnchor] = useState(null);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [slashOpen, setSlashOpen] = useState(false);
+  const [slashQuery, setSlashQuery] = useState('');
+  const [slashPosition, setSlashPosition] = useState(null);
+
   const fileInputRef = useRef(null);
   const coverInputRef = useRef(null);
   const inlineImageInputRef = useRef(null);
+  const importFileInputRef = useRef(null);
+
+  // Estados de Protección de Notas con PIN
+  const [unlockedNotes, setUnlockedNotes] = useState(() => new Set());
+  const [pinModalOpen, setPinModalOpen] = useState(false);
+  const [pinModalMode, setPinModalMode] = useState('unlock'); // 'unlock' | 'set' | 'remove'
+  const [pinInputValue, setPinInputValue] = useState('');
+  const [pinPending, setPinPending] = useState(false);
+
+  const isNoteLocked = Boolean(note?.hasPin && !unlockedNotes.has(currentNoteId));
+
+  const handleUnlockNote = async (e) => {
+    e?.preventDefault();
+    if (!pinInputValue.trim()) return;
+    setPinPending(true);
+    try {
+      const res = await api.post(`/notes/${currentNoteId}/verify-pin`, { pin: pinInputValue });
+      if (res.data?.verified) {
+        setUnlockedNotes((prev) => new Set([...prev, currentNoteId]));
+        setPinModalOpen(false);
+        setPinInputValue('');
+        toast.success('Nota desbloqueada');
+      } else {
+        toast.error('PIN incorrecto');
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'PIN incorrecto');
+    } finally {
+      setPinPending(false);
+    }
+  };
+
+  const handleSavePin = async (e) => {
+    e?.preventDefault();
+    if (!pinInputValue.trim() || pinInputValue.length < 4) {
+      toast.error('El PIN debe tener al menos 4 dígitos');
+      return;
+    }
+    setPinPending(true);
+    try {
+      const res = await api.post(`/notes/${currentNoteId}/pin`, { pin: pinInputValue });
+      queryClient.setQueryData(['note', currentNoteId], res.data);
+      queryClient.invalidateQueries({ queryKey: ['notes'] });
+      setUnlockedNotes((prev) => new Set([...prev, currentNoteId]));
+      setPinModalOpen(false);
+      setPinInputValue('');
+      toast.success('Nota protegida con PIN');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Error al guardar el PIN');
+    } finally {
+      setPinPending(false);
+    }
+  };
+
+  const handleRemovePin = async (e) => {
+    e?.preventDefault();
+    setPinPending(true);
+    try {
+      const res = await api.delete(`/notes/${currentNoteId}/pin`, { data: { pin: pinInputValue } });
+      queryClient.setQueryData(['note', currentNoteId], res.data);
+      queryClient.invalidateQueries({ queryKey: ['notes'] });
+      setPinModalOpen(false);
+      setPinInputValue('');
+      toast.success('Protección por PIN removida');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'PIN incorrecto');
+    } finally {
+      setPinPending(false);
+    }
+  };
+
+  const updateIconMutation = useMutation({
+    mutationFn: async (newIcon) => {
+      const res = await api.put(`/notes/${currentNoteId}`, { icon: newIcon });
+      return res.data;
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(['note', currentNoteId], data);
+      queryClient.invalidateQueries({ queryKey: ['notes'] });
+      toast.success(data.icon ? 'Icono actualizado' : 'Icono removido');
+    },
+    onError: () => toast.error('No se pudo actualizar el icono'),
+  });
+
+  const handleSelectEmoji = (emoji) => {
+    updateIconMutation.mutate(emoji);
+  };
+
+  const handleSelectTemplate = (template) => {
+    if (!editor || isReadOnly) return;
+    const newTitle = title.trim() ? title : template.title;
+    setTitle(newTitle);
+    editor.commands.setContent(template.content);
+    scheduleSave(newTitle, template.content);
+    if (template.icon && !note?.icon) {
+      updateIconMutation.mutate(template.icon);
+    }
+    toast.success(`Plantilla "${template.title}" aplicada`);
+  };
+
+  const handleEditorFileDrop = (e) => {
+    e.preventDefault();
+    if (isReadOnly) return;
+    const files = e.dataTransfer?.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      if (file.name.endsWith('.md') || file.name.endsWith('.txt')) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const text = event.target?.result || '';
+          if (editor) {
+            const formatted = text.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br/>');
+            editor.commands.setContent(`<p>${formatted}</p>`);
+            scheduleSave(title || file.name.replace(/\.[^/.]+$/, ''), `<p>${formatted}</p>`);
+            toast.success(`Archivo "${file.name}" importado con éxito`);
+          }
+        };
+        reader.readAsText(file);
+      }
+    }
+  };
+
+  const duplicateMutation = useMutation({
+    mutationFn: async () => {
+      const res = await api.post(`/notes/${currentNoteId}/duplicate`);
+      return res.data;
+    },
+    onSuccess: (newNote) => {
+      queryClient.invalidateQueries({ queryKey: ['notes'] });
+      setCurrentNote(newNote.id);
+      toast.success('Nota duplicada con éxito');
+    },
+    onError: () => toast.error('No se pudo duplicar la nota'),
+  });
+
+  const handleImportFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file || isReadOnly) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result || '';
+      if (editor) {
+        const formatted = text.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br/>');
+        editor.commands.setContent(`<p>${formatted}</p>`);
+        scheduleSave(title || file.name.replace(/\.[^/.]+$/, ''), `<p>${formatted}</p>`);
+        toast.success(`Archivo "${file.name}" importado con éxito`);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
 
   // Fetch Note Details
   const { data: note, isLoading } = useQuery({
@@ -405,14 +586,48 @@ export default function NoteEditor() {
             uploadInlineImage(imageFile);
             return true;
           }
+
+          const docFile = files.find((file) => file.name.endsWith('.md') || file.name.endsWith('.txt'));
+          if (docFile) {
+            event.preventDefault();
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              const text = e.target?.result || '';
+              if (editor) {
+                const formatted = text.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br/>');
+                editor.commands.insertContent(`<p>${formatted}</p>`);
+                toast.success(`Contenido de "${docFile.name}" insertado`);
+              }
+            };
+            reader.readAsText(docFile);
+            return true;
+          }
           return false;
         },
       },
     },
-    onUpdate: ({ editor }) => {
+    onUpdate: ({ editor: ed }) => {
       if (!isReadOnlyRef.current) {
-        contentRef.current = editor.getHTML();
-        scheduleSaveRef.current(titleRef.current, editor.getHTML());
+        contentRef.current = ed.getHTML();
+        scheduleSaveRef.current(titleRef.current, ed.getHTML());
+
+        // Detección de slash commands (/)
+        try {
+          const { selection } = ed.state;
+          const { $from } = selection;
+          const textBefore = $from.parent.textBetween(0, $from.parentOffset, null, '\uFFFC');
+          const slashMatch = textBefore.match(/(?:^|\s)\/([a-zA-Z0-9]*)$/);
+          if (slashMatch) {
+            setSlashQuery(slashMatch[0].trim());
+            setSlashOpen(true);
+            const coords = ed.view.coordsAtPos($from.pos);
+            setSlashPosition({ x: coords.left, y: coords.bottom });
+          } else {
+            setSlashOpen(false);
+          }
+        } catch {
+          setSlashOpen(false);
+        }
       }
     },
     // Mantiene el lienzo a la altura de las imágenes flotantes
@@ -735,6 +950,36 @@ export default function NoteEditor() {
       queryClient.invalidateQueries({ queryKey: ['notes'] });
     },
   });
+
+  // Set Cover Image from GIF or external URL
+  const setCoverUrlMutation = useMutation({
+    mutationFn: async (url) => {
+      const res = await api.put(`/notes/${currentNoteId}`, { coverImage: url });
+      return res.data;
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(['note', currentNoteId], data);
+      queryClient.invalidateQueries({ queryKey: ['notes'] });
+      toast.success('Portada actualizada');
+    },
+    onError: () => toast.error('No se pudo actualizar la portada'),
+  });
+
+  const handleSelectMedia = (url) => {
+    if (mediaPickerTarget === 'cover') {
+      setCoverUrlMutation.mutate(url);
+    } else if (mediaPickerTarget === 'inline' && editor) {
+      editor.chain().focus().setImage({ src: url, alignment: 'center' }).run();
+    }
+  };
+
+  const handleUploadFromPicker = (file) => {
+    if (mediaPickerTarget === 'cover') {
+      uploadCoverMutation.mutate(file);
+    } else if (mediaPickerTarget === 'inline') {
+      uploadInlineImage(file);
+    }
+  };
 
   // Upload Attachment
   const uploadAttachmentMutation = useMutation({
@@ -1179,7 +1424,22 @@ export default function NoteEditor() {
               </IconButton>
             </Tooltip>
 
-            <Tooltip title="Exportar nota">
+            <Tooltip title="Duplicar nota">
+              <IconButton
+                size="small"
+                onClick={() => duplicateMutation.mutate()}
+                disabled={duplicateMutation.isPending}
+                sx={{ p: 0.6 }}
+              >
+                {duplicateMutation.isPending ? (
+                  <CircularProgress size={15} thickness={5} />
+                ) : (
+                  <DuplicateIcon fontSize="small" />
+                )}
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip title="Exportar o importar nota">
               <IconButton
                 size="small"
                 onClick={(e) => setExportMenuAnchor(e.currentTarget)}
@@ -1191,6 +1451,16 @@ export default function NoteEditor() {
                 ) : (
                   <DownloadIcon fontSize="small" />
                 )}
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip title={zenMode ? 'Salir de Modo Zen (Esc)' : 'Modo Concentración (Ctrl+Shift+F)'}>
+              <IconButton
+                size="small"
+                onClick={toggleZenMode}
+                sx={{ p: 0.6, color: zenMode ? 'primary.main' : 'inherit' }}
+              >
+                <ZenIcon fontSize="small" />
               </IconButton>
             </Tooltip>
 
@@ -1263,6 +1533,13 @@ export default function NoteEditor() {
                 ref={fileInputRef}
                 onChange={(e) => e.target.files[0] && uploadAttachmentMutation.mutate(e.target.files[0])}
               />
+              <input
+                type="file"
+                accept=".md,.txt"
+                hidden
+                ref={importFileInputRef}
+                onChange={handleImportFile}
+              />
             </>
           )}
 
@@ -1293,6 +1570,40 @@ export default function NoteEditor() {
             <MenuItem onClick={exportAsTxt}>
               <TextSnippetIcon fontSize="small" sx={{ mr: 1 }} /> Texto plano (.txt)
             </MenuItem>
+            {!isReadOnly && (
+              <>
+                <Divider />
+                <MenuItem onClick={() => { setExportMenuAnchor(null); importFileInputRef.current?.click(); }}>
+                  <ImportFileIcon fontSize="small" sx={{ mr: 1 }} /> Importar archivo (.md / .txt)
+                </MenuItem>
+                <MenuItem
+                  onClick={() => {
+                    setExportMenuAnchor(null);
+                    setPinModalMode(note?.hasPin ? 'remove' : 'set');
+                    setPinInputValue('');
+                    setPinModalOpen(true);
+                  }}
+                >
+                  <LockIcon fontSize="small" sx={{ mr: 1, color: note?.hasPin ? 'error.main' : 'primary.main' }} />
+                  {note?.hasPin ? 'Quitar protección PIN' : 'Proteger nota con PIN'}
+                </MenuItem>
+                <MenuItem
+                  onClick={async () => {
+                    setExportMenuAnchor(null);
+                    try {
+                      await api.post(`/templates/from-note/${currentNoteId}`, {});
+                      queryClient.invalidateQueries({ queryKey: ['custom-templates'] });
+                      toast.success('Nota guardada en "Mis Plantillas" exitosamente');
+                    } catch (err) {
+                      console.error('Error saving note as template:', err);
+                      toast.error('No se pudo guardar la nota como plantilla');
+                    }
+                  }}
+                >
+                  <TemplateIcon fontSize="small" sx={{ mr: 1, color: '#f39c12' }} /> Guardar como plantilla personal
+                </MenuItem>
+              </>
+            )}
           </Menu>
 
           <Menu
@@ -1317,9 +1628,96 @@ export default function NoteEditor() {
       </Box>
 
       {/* Note Content Area */}
-      <Box sx={{ p: { xs: 2, sm: 4 }, pb: { xs: 12, sm: 4 }, maxWidth: 850, width: '100%', mx: 'auto' }}>
-        {/* Cover Image Banner */}
-        {coverUrl && (
+      <Box
+        onDragOver={(e) => {
+          if (e.dataTransfer?.types?.includes('Files')) {
+            e.preventDefault();
+          }
+        }}
+        onDrop={handleEditorFileDrop}
+        sx={{ p: { xs: 2, sm: 4 }, pb: { xs: 12, sm: 4 }, maxWidth: 850, width: '100%', mx: 'auto' }}
+      >
+        {isNoteLocked ? (
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              py: 8,
+              px: 2,
+            }}
+          >
+            <Paper
+              elevation={3}
+              sx={{
+                p: { xs: 3.5, sm: 5 },
+                borderRadius: 4,
+                maxWidth: 420,
+                width: '100%',
+                bgcolor: 'background.paper',
+                border: '1px solid',
+                borderColor: 'divider',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                textAlign: 'center',
+                gap: 2.5,
+              }}
+            >
+              <Box
+                sx={{
+                  width: 72,
+                  height: 72,
+                  borderRadius: '50%',
+                  bgcolor: 'primary.main',
+                  color: '#fff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 8px 24px rgba(56, 108, 95, 0.35)',
+                }}
+              >
+                <LockIcon sx={{ fontSize: 38 }} />
+              </Box>
+
+              <Typography variant="h5" fontWeight={800}>
+                Nota Protegida con PIN
+              </Typography>
+
+              <Typography variant="body2" color="text.secondary">
+                El contenido de esta nota es confidencial. Ingresa el PIN de seguridad para acceder.
+              </Typography>
+
+              <Box component="form" onSubmit={handleUnlockNote} sx={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <TextField
+                  type="password"
+                  placeholder="••••"
+                  autoFocus
+                  fullWidth
+                  value={pinInputValue}
+                  onChange={(e) => setPinInputValue(e.target.value)}
+                  inputProps={{ maxLength: 10, style: { textAlign: 'center', fontSize: '1.4rem', letterSpacing: 8, fontWeight: 700 } }}
+                />
+
+                <Button
+                  type="submit"
+                  variant="contained"
+                  size="large"
+                  fullWidth
+                  disabled={pinPending || !pinInputValue.trim()}
+                  startIcon={pinPending ? <CircularProgress size={18} color="inherit" /> : <LockIcon />}
+                  sx={{ borderRadius: 2.5, py: 1.2, fontWeight: 700, textTransform: 'none' }}
+                >
+                  {pinPending ? 'Verificando...' : 'Desbloquear Nota'}
+                </Button>
+              </Box>
+            </Paper>
+          </Box>
+        ) : (
+          <>
+            {/* Cover Image Banner */}
+            {coverUrl && (
           <Box sx={{ position: 'relative', mb: 3.5 }}>
             <CoverImage
               src={coverUrl}
@@ -1351,7 +1749,25 @@ export default function NoteEditor() {
             </Box>
             {!isReadOnly && (
               <Box sx={{ position: 'absolute', bottom: 12, right: 12, display: 'flex', gap: 0.75 }}>
-                <Tooltip title="Cambiar portada">
+                <Tooltip title="Elegir GIF animado o Fondo HD (GIPHY)">
+                  <IconButton
+                    size="small"
+                    onClick={() => {
+                      setMediaPickerTarget('cover');
+                      setMediaPickerTab('gifs');
+                      setMediaPickerOpen(true);
+                    }}
+                    sx={{
+                      bgcolor: 'rgba(15,15,35,0.6)',
+                      color: '#fff',
+                      backdropFilter: 'blur(6px)',
+                      '&:hover': { bgcolor: 'primary.main' },
+                    }}
+                  >
+                    <GifIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Subir portada desde archivo">
                   <IconButton
                     size="small"
                     onClick={() => coverInputRef.current?.click()}
@@ -1384,26 +1800,138 @@ export default function NoteEditor() {
           </Box>
         )}
 
-        {/* Title Input */}
-        <TextField
-          variant="standard"
-          placeholder="Título de la nota"
-          fullWidth
-          value={title}
-          onChange={handleTitleChange}
-          disabled={isReadOnly}
-          InputProps={{
-            disableUnderline: true,
-            sx: {
-              fontSize: { xs: '1.85rem', sm: '2.4rem' },
-              fontWeight: 800,
-              letterSpacing: '-0.02em',
-              lineHeight: 1.15,
-              '&::placeholder': { opacity: 0.38 },
-            },
-          }}
-          sx={{ mb: 1.5 }}
-        />
+        {/* Botones de acción rápida sobre el título */}
+        {!isReadOnly && (
+          <Box sx={{ mb: 1.5, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+            {!coverUrl && (
+              <Button
+                size="small"
+                startIcon={<GifIcon sx={{ fontSize: 18 }} />}
+                onClick={() => {
+                  setMediaPickerTarget('cover');
+                  setMediaPickerTab('gifs');
+                  setMediaPickerOpen(true);
+                }}
+                sx={{
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  fontSize: '0.8rem',
+                  borderRadius: 2,
+                  color: 'text.secondary',
+                  px: 1.2,
+                  py: 0.35,
+                  '&:hover': { color: 'primary.main', bgcolor: 'action.hover' },
+                }}
+              >
+                + Agregar Portada
+              </Button>
+            )}
+
+            {!note?.icon && (
+              <Button
+                size="small"
+                startIcon={<EmojiIcon sx={{ fontSize: 18 }} />}
+                onClick={(e) => setEmojiAnchor(e.currentTarget)}
+                sx={{
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  fontSize: '0.8rem',
+                  borderRadius: 2,
+                  color: 'text.secondary',
+                  px: 1.2,
+                  py: 0.35,
+                  '&:hover': { color: 'primary.main', bgcolor: 'action.hover' },
+                }}
+              >
+                + Agregar Icono
+              </Button>
+            )}
+
+            <Button
+              size="small"
+              startIcon={<TemplateIcon sx={{ fontSize: 18, color: '#f39c12' }} />}
+              onClick={() => setTemplatesOpen(true)}
+              sx={{
+                textTransform: 'none',
+                fontWeight: 600,
+                fontSize: '0.8rem',
+                borderRadius: 2,
+                color: 'text.secondary',
+                px: 1.2,
+                py: 0.35,
+                '&:hover': { color: 'primary.main', bgcolor: 'action.hover' },
+              }}
+            >
+              Plantillas
+            </Button>
+
+            <Button
+              size="small"
+              startIcon={<TemplateIcon sx={{ fontSize: 18, color: 'primary.main' }} />}
+              onClick={toggleAiDrawer}
+              sx={{
+                textTransform: 'none',
+                fontWeight: 600,
+                fontSize: '0.8rem',
+                borderRadius: 2,
+                color: 'text.secondary',
+                px: 1.2,
+                py: 0.35,
+                '&:hover': { color: 'primary.main', bgcolor: 'action.hover' },
+              }}
+            >
+              Asistente IA
+            </Button>
+          </Box>
+        )}
+
+        {/* Note Icon + Title Row */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
+          {note?.icon && (
+            <Tooltip title={isReadOnly ? undefined : 'Cambiar o quitar icono'}>
+              <Box
+                component={isReadOnly ? 'div' : 'button'}
+                onClick={isReadOnly ? undefined : (e) => setEmojiAnchor(e.currentTarget)}
+                sx={{
+                  fontSize: { xs: '2rem', sm: '2.5rem' },
+                  lineHeight: 1,
+                  p: 0.5,
+                  borderRadius: 2.5,
+                  bgcolor: 'action.hover',
+                  border: 'none',
+                  cursor: isReadOnly ? 'default' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  transition: 'all 0.15s ease',
+                  '&:hover': isReadOnly ? {} : { transform: 'scale(1.15)', bgcolor: 'action.selected' },
+                }}
+              >
+                {note.icon}
+              </Box>
+            </Tooltip>
+          )}
+
+          <TextField
+            variant="standard"
+            placeholder="Título de la nota"
+            fullWidth
+            value={title}
+            onChange={handleTitleChange}
+            disabled={isReadOnly}
+            InputProps={{
+              disableUnderline: true,
+              sx: {
+                fontSize: { xs: '1.85rem', sm: '2.4rem' },
+                fontWeight: 800,
+                letterSpacing: '-0.02em',
+                lineHeight: 1.15,
+                '&::placeholder': { opacity: 0.38 },
+              },
+            }}
+          />
+        </Box>
 
         {/* Meta row: tags + members + last editor + date */}
         <Box
@@ -1473,7 +2001,7 @@ export default function NoteEditor() {
               </Typography>
             )}
             <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.7rem', whiteSpace: 'nowrap' }}>
-              {new Date(note.updatedAt || note.createdAt).toLocaleDateString(undefined, {
+              {new Date(note?.updatedAt || note?.createdAt || Date.now()).toLocaleDateString(undefined, {
                 month: 'short',
                 day: 'numeric',
                 year: 'numeric',
@@ -1662,6 +2190,20 @@ export default function NoteEditor() {
             <Tooltip title="Insertar Imagen Local">
               <IconButton size="small" onClick={() => inlineImageInputRef.current?.click()}>
                 <ImageIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip title="Insertar GIF Animado (GIPHY)">
+              <IconButton
+                size="small"
+                onClick={() => {
+                  setMediaPickerTarget('inline');
+                  setMediaPickerTab('gifs');
+                  setMediaPickerOpen(true);
+                }}
+                sx={{ color: 'primary.main' }}
+              >
+                <GifIcon fontSize="small" />
               </IconButton>
             </Tooltip>
 
@@ -2011,6 +2553,8 @@ export default function NoteEditor() {
 
         {/* Comentarios de la nota */}
         <CommentsSection noteId={currentNoteId} />
+        </>
+      )}
       </Box>
 
       {/* Member profile (clicked avatar) */}
@@ -2191,6 +2735,111 @@ export default function NoteEditor() {
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
           <Button onClick={() => setOpenShareDialog(false)}>Cerrar</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Version History Dialog */}
+      <NoteHistoryDialog
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        noteId={note?.id}
+        currentContent={editor ? editor.getHTML() : (note?.content || '')}
+        members={members}
+        canRestore={!isReadOnly}
+        onRestoreStart={() => clearPendingSave?.()}
+      />
+
+      {/* Universal Media & GIF Picker Modal */}
+      <MediaPickerModal
+        open={mediaPickerOpen}
+        onClose={() => setMediaPickerOpen(false)}
+        onSelectMedia={handleSelectMedia}
+        onUploadFile={handleUploadFromPicker}
+        initialTab={mediaPickerTab}
+        title={mediaPickerTarget === 'cover' ? 'Elegir Portada o GIF Animado' : 'Insertar GIF Animado en la Nota'}
+      />
+
+      {/* Emoji Picker Popover */}
+      <EmojiPickerPopover
+        anchorEl={emojiAnchor}
+        open={Boolean(emojiAnchor)}
+        onClose={() => setEmojiAnchor(null)}
+        onSelectEmoji={handleSelectEmoji}
+        currentEmoji={note?.icon}
+      />
+
+      {/* Note Templates Catalog Dialog */}
+      <NoteTemplatesDialog
+        open={templatesOpen}
+        onClose={() => setTemplatesOpen(false)}
+        onSelectTemplate={handleSelectTemplate}
+      />
+
+      {/* Floating Slash Commands Menu */}
+      <SlashCommandsMenu
+        editor={editor}
+        open={slashOpen}
+        anchorPosition={slashPosition}
+        query={slashQuery}
+        onClose={() => setSlashOpen(false)}
+        onOpenMediaPicker={() => {
+          setMediaPickerTarget('inline');
+          setMediaPickerTab('gifs');
+          setMediaPickerOpen(true);
+        }}
+        onOpenTemplates={() => setTemplatesOpen(true)}
+        onOpenAi={toggleAiDrawer}
+      />
+
+      {/* PIN Configuration Dialog (Set / Remove PIN) */}
+      <Dialog
+        open={pinModalOpen}
+        onClose={() => !pinPending && setPinModalOpen(false)}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3.5, p: 1 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: 1 }}>
+          <LockIcon color="primary" />
+          {pinModalMode === 'remove' ? 'Quitar protección por PIN' : 'Proteger nota con PIN'}
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            {pinModalMode === 'remove'
+              ? 'Ingresa el PIN actual de esta nota para desbloquearla y quitar la protección permanentemente.'
+              : 'Establece un código PIN de 4 dígitos o más. La nota requerirá este PIN antes de mostrar su contenido.'}
+          </Typography>
+          <Box
+            component="form"
+            onSubmit={pinModalMode === 'remove' ? handleRemovePin : handleSavePin}
+            sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}
+          >
+            <TextField
+              type="password"
+              label={pinModalMode === 'remove' ? 'PIN actual' : 'Nuevo PIN (mín. 4 dígitos)'}
+              fullWidth
+              autoFocus
+              required
+              value={pinInputValue}
+              onChange={(e) => setPinInputValue(e.target.value)}
+              inputProps={{ maxLength: 10, style: { letterSpacing: 4, fontWeight: 700 } }}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setPinModalOpen(false)} disabled={pinPending} color="inherit">
+            Cancelar
+          </Button>
+          <Button
+            onClick={pinModalMode === 'remove' ? handleRemovePin : handleSavePin}
+            variant="contained"
+            color={pinModalMode === 'remove' ? 'error' : 'primary'}
+            disabled={pinPending || !pinInputValue.trim() || pinInputValue.length < 4}
+            startIcon={pinPending ? <CircularProgress size={16} color="inherit" /> : <LockIcon />}
+            sx={{ borderRadius: 2, fontWeight: 700 }}
+          >
+            {pinPending ? 'Guardando...' : pinModalMode === 'remove' ? 'Quitar PIN' : 'Guardar PIN'}
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>

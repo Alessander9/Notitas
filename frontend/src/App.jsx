@@ -377,7 +377,16 @@ export default function App() {
                 <Route path="/join/project/:token" element={<JoinProject />} />
                 <Route path="/join/note/:token" element={<JoinNote />} />
                 <Route path="/shared/note/:token" element={<SharedNote />} />
-                <Route path="/" element={<Workspace />} />
+                <Route
+                  path="/"
+                  element={
+                    !sessionReady && isAuthenticated ? (
+                      <LoadingPage message="Verificando tu sesión..." />
+                    ) : (
+                      <Workspace />
+                    )
+                  }
+                />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </Suspense>

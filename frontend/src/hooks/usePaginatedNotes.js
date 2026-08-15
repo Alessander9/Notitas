@@ -32,7 +32,9 @@ export const usePaginatedNotes = ({
     },
     initialPageParam: 0,
     getNextPageParam: (lastPage) => {
-      if (!lastPage || lastPage.last || !Array.isArray(lastPage.content) || lastPage.content.length === 0) {
+      if (!lastPage) return undefined;
+      if (Array.isArray(lastPage)) return undefined;
+      if (lastPage.last || !Array.isArray(lastPage.content) || lastPage.content.length === 0) {
         return undefined;
       }
       return (lastPage.number ?? 0) + 1;
@@ -47,8 +49,9 @@ export const usePaginatedNotes = ({
     const seen = new Set();
     const all = [];
     for (const page of query.data?.pages ?? []) {
-      for (const note of page.content ?? []) {
-        if (!seen.has(note.id)) {
+      const items = Array.isArray(page) ? page : (page?.content ?? []);
+      for (const note of items) {
+        if (note && typeof note === 'object' && note.id != null && !seen.has(note.id)) {
           seen.add(note.id);
           all.push(note);
         }
@@ -57,9 +60,14 @@ export const usePaginatedNotes = ({
     return all;
   }, [query.data]);
 
+  const firstPage = query.data?.pages?.[0];
+  const totalCount = Array.isArray(firstPage)
+    ? notes.length
+    : (firstPage?.totalElements ?? notes.length);
+
   return {
     notes,
-    totalCount: query.data?.pages?.[0]?.totalElements ?? notes.length,
+    totalCount,
     isLoading: query.isLoading,
     isFetching: query.isFetching,
     isFetchingNextPage: query.isFetchingNextPage,

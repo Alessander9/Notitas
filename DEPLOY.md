@@ -1,30 +1,15 @@
-# 🚀 Deploy de Notitas
+# 🚀 Deploy de Notitas (Full Vercel + Supabase)
 
-Guía para el **primer despliegue en producción**. La arquitectura es:
+Guía para el **despliegue en producción**. La arquitectura es:
 
 | Pieza | Tecnología | Dónde vive |
 |---|---|---|
-| Frontend (React + Vite) | SPA estática | **Vercel** → `notitas-cleo.vercel.app` (dominio único) |
-| Backend (Node.js + Express) | API REST en contenedor | **Render** / **Koyeb** (arranque instantáneo) |
-| Base de datos | PostgreSQL | **Supabase** |
-| Archivos & Multimedia | **Cloudinary CDN** | Optimización automática de imágenes, portadas y adjuntos |
+| Frontend (React + Vite) | SPA estática | **Vercel** → `notitas-cleo.vercel.app` |
+| Backend (Node.js + Express) | Serverless API REST | **Vercel** → `notitas-api.vercel.app` |
+| Base de datos | PostgreSQL | **Supabase** (Transaction pooler) |
+| Archivos & Multimedia | **Cloudinary CDN** | Optimización y entrega de portadas y adjuntos |
 
-> El backend **no** puede ejecutarse como función estática en Vercel: es una JVM.
-> El `Dockerfile` incluido en `backend/` permite desplegarlo como **Docker** en
-> Koyeb, Render, Railway o cualquier host de contenedores. La configuración de BD ya está lista para Supabase.
-
----
-
-## ⭐ Deploy a costo cero 24/7 (Koyeb + Supabase + Vercel)
-
-Combinación 100 % gratuita sin apagar el backend (sin tarjeta de crédito):
-
-| Pieza | Servicio gratis | Detalle |
-|---|---|---|
-| Frontend (React + Vite) | **Vercel** (Hobby) | `notitas-cleo.vercel.app` — dominio único de producción |
-| Backend (Spring Boot) | **Koyeb** (free Nano) | Usa `backend/Dockerfile` o `koyeb.yaml`. **No se duerme (24/7)** |
-| Base de datos | **Supabase** (free) | PostgreSQL con pooler; 500 MB gratis |
-| Archivos (portadas, adjuntos, avatares, imágenes) | **Supabase Storage** (free) | Bucket público `uploads` (1 GB). El backend ya lo soporta con `APP_STORAGE_PROVIDER=supabase` |
+> ⚡ **Ventaja de Node.js en Vercel:** Arranque instantáneo (Serverless) sin suspensiones por inactividad ("cold starts" de Render eliminados) y despliegue unificado en Vercel.
 
 > ⚠️ Los archivos **no** pueden vivir en el disco del backend en Render free
 > (es efímero: se borra en cada reinicio/redeploy). Por eso el proyecto ya

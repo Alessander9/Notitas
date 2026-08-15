@@ -18,6 +18,8 @@ import {
   Badge,
   TextField,
   InputAdornment,
+  ToggleButton,
+  ToggleButtonGroup,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -28,13 +30,14 @@ import {
   EditNote as EditNoteIcon,
   PushPin as PinIcon,
   PushPinOutlined as PinOutlinedIcon,
-  CalendarMonth as DateIcon,
-  Schedule as TimeIcon,
   OpenInFull as MaximizeIcon,
-  Description as NoteIcon,
   ArrowBack as ArrowBackIcon,
   Search as SearchIcon,
   Close as CloseIcon,
+  ContentCopy as DuplicateIcon,
+  GridView as MasonryIcon,
+  ViewList as ListIcon,
+  ViewKanban as KanbanIcon,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
@@ -53,7 +56,7 @@ import ManageMembersDialog from './ManageMembersDialog';
 import { Group as GroupIcon } from '@mui/icons-material';
 
 export default function NoteList() {
-  const { currentProjectId, currentNoteId, setCurrentNote, searchQuery, setCurrentProject } = useUiStore();
+  const { currentProjectId, currentNoteId, setCurrentNote, searchQuery, setCurrentProject, notesViewMode = 'masonry', setNotesViewMode } = useUiStore();
   const { user } = useAuthStore();
   const [manageMembersOpen, setManageMembersOpen] = React.useState(false);
   const queryClient = useQueryClient();
@@ -70,6 +73,44 @@ export default function NoteList() {
   // Filtro local de notas dentro de un proyecto (texto + tag)
   const [filterText, setFilterText] = useState('');
   const [filterTag, setFilterTag] = useState(null);
+
+  // Duplicar nota
+  const duplicateNoteMutation = useMutation({
+    mutationFn: async (id) => {
+      const res = await api.post(`/notes/${id}/duplicate`);
+      return res.data;
+    },
+    onSuccess: (newNote) => {
+      queryClient.invalidateQueries({ queryKey: ['notes'] });
+      setCurrentNote(newNote.id);
+      toast.success('Nota duplicada');
+    },
+    onError: () => toast.error('No se pudo duplicar la nota'),
+  });
+
+  // Drag & drop de archivos Markdown o texto
+  const handleDragOver = (e) => {
+    e.preventDefault();
+  };
+  const handleDrop = async (e) => {
+    e.preventDefault();
+    if (typeof currentProjectId !== 'number') return;
+    const files = Array.from(e.dataTransfer.files || []);
+    for (const file of files) {
+      if (file.name.endsWith('.md') || file.name.endsWith('.txt')) {
+        const text = await file.text();
+        const formatted = text.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br/>');
+        const title = file.name.replace(/\.[^/.]+$/, '');
+        const res = await api.post(`/projects/${currentProjectId}/notes`, {
+          title,
+          content: `<p>${formatted}</p>`,
+        });
+        queryClient.invalidateQueries({ queryKey: ['notes'] });
+        setCurrentNote(res.data.id);
+        toast.success(`Nota creada desde "${file.name}"`);
+      }
+    }
+  };
 
   // Al cambiar de vista/proyecto se limpia el filtro
   useEffect(() => {
@@ -180,6 +221,40 @@ export default function NoteList() {
     },
   });
 
+  // Mover nota entre columnas Kanban (actualiza tags)
+  const updateNoteTagsMutation = useMutation({
+    mutationFn: async ({ id, tags }) => {
+      const res = await api.put(`/notes/${id}`, { tags });
+      return res.data;
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['notes'] });
+    },
+  });
+
+  const [draggingNoteId, setDraggingNoteId] = useState(null);
+  const [activeDropCol, setActiveDropCol] = useState(null);
+
+  const handleDropOnColumn = (targetColId, noteId) => {
+    setActiveDropCol(null);
+    setDraggingNoteId(null);
+    const nId = Number(noteId);
+    const targetNote = notes.find((n) => n.id === nId);
+    if (!targetNote) return;
+
+    const statusTags = new Set(['todo', 'doing', 'done', 'progreso', 'proceso', 'en curso', 'wip', 'terminado', 'completado', 'listo', 'finalizado', 'pendiente', 'por hacer', 'hacer']);
+    const nonStatusTags = (targetNote.tags || []).filter((t) => !statusTags.has((t || '').toLowerCase()));
+    
+    let newTag = 'todo';
+    if (targetColId === 'doing') newTag = 'doing';
+    else if (targetColId === 'done') newTag = 'done';
+    else if (targetColId === 'other') newTag = null;
+
+    const newTags = newTag ? [...nonStatusTags, newTag] : nonStatusTags;
+    updateNoteTagsMutation.mutate({ id: nId, tags: newTags });
+    toast.success(`Nota movida a "${targetColId === 'todo' ? 'Por Hacer' : targetColId === 'doing' ? 'En Progreso' : targetColId === 'done' ? 'Terminado' : 'Otras'}"`);
+  };
+
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [profileMember, setProfileMember] = useState(null);
 
@@ -215,8 +290,9 @@ export default function NoteList() {
     return [...set].sort();
   }, [notes]);
 
+  const isFiltering = isProjectView && (Boolean(filterText.trim()) || Boolean(filterTag));
+
   // Filtro local: aplica sobre las notas cargadas (texto en título/contenido y/o tag)
-  const isFiltering = isProjectView && (filterText.trim() !== '' || filterTag !== null);
   const visibleNotes = isFiltering
     ? sortedNotes.filter((n) => {
         if (filterTag && !(n.tags || []).includes(filterTag)) return false;
@@ -229,11 +305,41 @@ export default function NoteList() {
       })
     : sortedNotes;
 
+  // Agrupación para Tablero Kanban
+  const kanbanGroups = React.useMemo(() => {
+    const todo = [];
+    const doing = [];
+    const done = [];
+    const other = [];
+
+    visibleNotes.forEach((n) => {
+      const tagsLower = (n.tags || []).map((t) => (t || '').toLowerCase());
+      if (tagsLower.some((t) => ['done', 'terminado', 'completado', 'listo', 'finalizado'].includes(t))) {
+        done.push(n);
+      } else if (tagsLower.some((t) => ['doing', 'progreso', 'proceso', 'en curso', 'wip'].includes(t))) {
+        doing.push(n);
+      } else if (tagsLower.some((t) => ['todo', 'pendiente', 'por hacer', 'hacer'].includes(t))) {
+        todo.push(n);
+      } else {
+        other.push(n);
+      }
+    });
+
+    return [
+      { id: 'todo', title: 'Por Hacer', color: '#f39c12', count: todo.length, notes: todo },
+      { id: 'doing', title: 'En Progreso', color: '#3498db', count: doing.length, notes: doing },
+      { id: 'done', title: 'Terminado', color: '#2ecc71', count: done.length, notes: done },
+      ...(other.length > 0 ? [{ id: 'other', title: 'General / Otras', color: '#8e44ad', count: other.length, notes: other }] : []),
+    ];
+  }, [visibleNotes]);
+
   return (
     <Box
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
       sx={{
-        width: isCollapsed ? 60 : { xs: '100%', md: 320 },
-        minWidth: isCollapsed ? 60 : { xs: '100%', md: 320 },
+        width: isCollapsed ? 60 : notesViewMode === 'kanban' ? { xs: '100%', md: 440, lg: 560 } : { xs: '100%', md: 320 },
+        minWidth: isCollapsed ? 60 : notesViewMode === 'kanban' ? { xs: '100%', md: 440, lg: 560 } : { xs: '100%', md: 320 },
         height: '100%',
         flexShrink: 0,
         borderRight: '1px solid',
@@ -250,7 +356,7 @@ export default function NoteList() {
       ) : (
         <>
       {/* Header */}
-      <Box sx={{ p: isCollapsed ? 1 : 2, display: 'flex', alignItems: 'center', justifyContent: isCollapsed ? 'center' : 'space-between', borderBottom: '1px solid', borderColor: 'divider', minHeight: 56 }}>
+      <Box sx={{ p: isCollapsed ? 1 : 1.5, display: 'flex', alignItems: 'center', justifyContent: isCollapsed ? 'center' : 'space-between', borderBottom: '1px solid', borderColor: 'divider', minHeight: 56, gap: 1 }}>
         {isCollapsed ? (
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
             <Box
@@ -300,14 +406,13 @@ export default function NoteList() {
           </Box>
         ) : (
           <>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0 }}>
               <Tooltip title="Volver a Proyectos">
                 <IconButton
                   size="small"
                   onClick={() => setCurrentProject(null)}
                   sx={{
-                    mr: 0.5,
-                    p: 0.8,
+                    p: 0.6,
                     borderRadius: 2,
                     '&:hover': { bgcolor: 'action.hover' },
                   }}
@@ -315,37 +420,45 @@ export default function NoteList() {
                   <ArrowBackIcon sx={{ fontSize: 18 }} />
                 </IconButton>
               </Tooltip>
-              <Typography variant="subtitle1" fontWeight="bold" color="text.secondary" sx={{ fontSize: '0.85rem' }}>
+              <Typography variant="subtitle1" fontWeight="bold" color="text.secondary" noWrap sx={{ fontSize: '0.82rem' }}>
                 {getHeaderTitle().toUpperCase()} ({isFiltering ? `${visibleNotes.length} / ${totalCount}` : totalCount})
               </Typography>
-              <Tooltip title="Colapsar panel">
-                <IconButton
-                  size="small"
-                  onClick={() => setIsCollapsed(true)}
-                  sx={{
-                    p: 0.8,
-                    borderRadius: 2,
-                    '&:hover': { bgcolor: 'action.hover' },
-                  }}
-                >
-                  <Box sx={{ width: 16, height: 2, bgcolor: 'text.secondary', borderRadius: 1 }} />
-                </IconButton>
-              </Tooltip>
             </Box>
-            {isProjectView && (
-              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <Button
-                  size="small"
-                  variant="contained"
-                  startIcon={<AddIcon />}
-                  onClick={() => createNoteMutation.mutate()}
-                  disabled={createNoteMutation.isPending}
-                 sx={{ textTransform: 'none', borderRadius: 2, py: 0.5, minHeight: 40, fontSize: '0.78rem' }}
-                >
-                  Añadir
-                </Button>
-              </motion.div>
-            )}
+
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, flexShrink: 0 }}>
+              <ToggleButtonGroup
+                size="small"
+                value={notesViewMode}
+                exclusive
+                onChange={(_, val) => val && setNotesViewMode(val)}
+                sx={{ height: 28 }}
+              >
+                <ToggleButton value="masonry" sx={{ px: 0.6, py: 0.2 }}>
+                  <Tooltip title="Galería / Tarjetas"><MasonryIcon sx={{ fontSize: 15 }} /></Tooltip>
+                </ToggleButton>
+                <ToggleButton value="list" sx={{ px: 0.6, py: 0.2 }}>
+                  <Tooltip title="Lista Compacta"><ListIcon sx={{ fontSize: 15 }} /></Tooltip>
+                </ToggleButton>
+                <ToggleButton value="kanban" sx={{ px: 0.6, py: 0.2 }}>
+                  <Tooltip title="Tablero Kanban"><KanbanIcon sx={{ fontSize: 15 }} /></Tooltip>
+                </ToggleButton>
+              </ToggleButtonGroup>
+
+              {isProjectView && (
+                <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}>
+                  <Button
+                    size="small"
+                    variant="contained"
+                    startIcon={<AddIcon />}
+                    onClick={() => createNoteMutation.mutate()}
+                    disabled={createNoteMutation.isPending}
+                    sx={{ textTransform: 'none', borderRadius: 2, py: 0.4, minHeight: 30, fontSize: '0.75rem', px: 1.2 }}
+                  >
+                    Añadir
+                  </Button>
+                </motion.div>
+              )}
+            </Box>
           </>
         )}
       </Box>
@@ -548,7 +661,217 @@ export default function NoteList() {
               </Typography>
             )}
           </Box>
+        ) : notesViewMode === 'kanban' ? (
+          /* Kanban Board View con Drag & Drop Interactivo */
+          <Box sx={{ display: 'flex', gap: 2, overflowX: 'auto', p: 1.5, height: '100%', alignItems: 'flex-start' }}>
+            {kanbanGroups.map((col) => {
+              const isDropTarget = activeDropCol === col.id;
+              return (
+                <Box
+                  key={col.id}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    if (activeDropCol !== col.id) setActiveDropCol(col.id);
+                  }}
+                  onDragLeave={(e) => {
+                    if (e.currentTarget.contains(e.relatedTarget)) return;
+                    setActiveDropCol(null);
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const noteId = e.dataTransfer.getData('text/plain');
+                    handleDropOnColumn(col.id, noteId);
+                  }}
+                  sx={{
+                    width: 240,
+                    minWidth: 240,
+                    bgcolor: isDropTarget ? 'action.selected' : 'action.hover',
+                    border: isDropTarget ? '2px dashed' : '2px solid transparent',
+                    borderColor: isDropTarget ? col.color : 'transparent',
+                    borderRadius: 3,
+                    p: 1.5,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    maxHeight: '100%',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: col.color }} />
+                      <Typography variant="subtitle2" fontWeight={700} sx={{ fontSize: '0.82rem' }}>
+                        {col.title}
+                      </Typography>
+                    </Box>
+                    <Chip label={col.count} size="small" sx={{ height: 20, fontSize: '0.68rem', fontWeight: 700 }} />
+                  </Box>
+                  <Box sx={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 1.5, pr: 0.5, flexGrow: 1, minHeight: 80 }}>
+                    {col.notes.length === 0 ? (
+                      <Typography variant="caption" color="text.disabled" sx={{ fontStyle: 'italic', py: 3, textAlign: 'center' }}>
+                        Arrastra notas aquí
+                      </Typography>
+                    ) : (
+                      col.notes.map((note) => {
+                        const isSelected = currentNoteId === note.id;
+                        const isDragging = draggingNoteId === note.id;
+                        return (
+                          <Card
+                            key={note.id}
+                            variant="outlined"
+                            draggable={true}
+                            onDragStart={(e) => {
+                              e.dataTransfer.setData('text/plain', String(note.id));
+                              setDraggingNoteId(note.id);
+                            }}
+                            onDragEnd={() => {
+                              setDraggingNoteId(null);
+                              setActiveDropCol(null);
+                            }}
+                            onClick={() => setCurrentNote(note.id)}
+                            sx={{
+                              cursor: 'grab',
+                              borderRadius: 2.5,
+                              p: 1.5,
+                              bgcolor: isSelected ? 'action.selected' : 'background.paper',
+                              borderColor: isSelected ? 'primary.main' : 'divider',
+                              opacity: isDragging ? 0.45 : 1,
+                              transition: 'all 0.2s ease',
+                              '&:hover': {
+                                transform: 'translateY(-2px)',
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                              },
+                              '&:active': {
+                                cursor: 'grabbing',
+                              },
+                            }}
+                          >
+                            <Typography
+                              variant="body2"
+                              fontWeight={700}
+                              noWrap
+                              sx={{
+                                mb: 0.5,
+                                fontSize: '0.85rem',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 0.6,
+                              }}
+                            >
+                              {note.icon && (
+                                <Box component="span" sx={{ fontSize: '1.05rem', lineHeight: 1, flexShrink: 0 }}>
+                                  {note.icon}
+                                </Box>
+                              )}
+                              <Box component="span" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {note.title || 'Sin título'}
+                              </Box>
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', mb: 1, fontSize: '0.72rem' }}>
+                              {getPlainText(note.content, 'Sin contenido')}
+                            </Typography>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 0.5 }}>
+                              <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.65rem' }}>
+                                {formatRelativeTime(note.updatedAt || note.createdAt)}
+                              </Typography>
+                              <Box sx={{ display: 'flex', gap: 0.3 }}>
+                                <Tooltip title="Duplicar">
+                                  <IconButton size="small" onClick={(e) => { e.stopPropagation(); duplicateNoteMutation.mutate(note.id); }} sx={{ p: 0.3 }}>
+                                    <DuplicateIcon sx={{ fontSize: 13 }} />
+                                  </IconButton>
+                                </Tooltip>
+                                <Tooltip title="Eliminar">
+                                  <IconButton size="small" onClick={(e) => { e.stopPropagation(); deleteNoteMutation.mutate(note.id); }} sx={{ p: 0.3 }}>
+                                    <DeleteIcon sx={{ fontSize: 13 }} />
+                                  </IconButton>
+                                </Tooltip>
+                              </Box>
+                            </Box>
+                          </Card>
+                        );
+                      })
+                    )}
+                  </Box>
+                </Box>
+              );
+            })}
+          </Box>
+        ) : notesViewMode === 'list' ? (
+          /* Compact List View */
+          <InfiniteScroll hasMore={hasNextPage} loading={isFetchingNextPage} onLoadMore={fetchNextPage}>
+            <Stack spacing={0.8} sx={{ px: 0.5 }}>
+              {visibleNotes.map((note) => {
+                const isSelected = currentNoteId === note.id;
+                const project = projects.find((p) => p.id === note.projectId);
+                const color = project?.color || '#386c5f';
+                return (
+                  <Box
+                    key={note.id}
+                    onClick={() => setCurrentNote(note.id)}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      p: 1.2,
+                      px: 1.5,
+                      borderRadius: 2,
+                      cursor: 'pointer',
+                      bgcolor: isSelected ? 'action.selected' : 'background.paper',
+                      border: '1px solid',
+                      borderColor: isSelected ? color : 'divider',
+                      borderLeft: `4px solid ${color}`,
+                      transition: 'all 0.15s ease',
+                      '&:hover': {
+                        bgcolor: 'action.hover',
+                        transform: 'translateX(3px)',
+                      },
+                    }}
+                  >
+                    <Box sx={{ minWidth: 0, flex: 1, mr: 1 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
+                        {note.icon && (
+                          <Box component="span" sx={{ fontSize: '1.05rem', lineHeight: 1, flexShrink: 0 }}>
+                            {note.icon}
+                          </Box>
+                        )}
+                        <Typography variant="body2" fontWeight={isSelected ? 700 : 600} noWrap sx={{ fontSize: '0.84rem' }}>
+                          {note.title || 'Sin título'}
+                        </Typography>
+                        {pinnedNotes.includes(note.id) && (
+                          <PinIcon sx={{ fontSize: 12, color: 'primary.main', transform: 'rotate(45deg)' }} />
+                        )}
+                        {note.favorite && (
+                          <StarIcon sx={{ fontSize: 13, color: '#fbc02d' }} />
+                        )}
+                      </Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.3 }}>
+                        <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.68rem' }}>
+                          {formatRelativeTime(note.updatedAt || note.createdAt)}
+                        </Typography>
+                        {note.tags && note.tags.length > 0 && (
+                          <Chip label={note.tags[0]} size="small" sx={{ height: 16, fontSize: '0.6rem' }} />
+                        )}
+                      </Box>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.2 }}>
+                      <Tooltip title="Duplicar">
+                        <IconButton size="small" onClick={(e) => { e.stopPropagation(); duplicateNoteMutation.mutate(note.id); }} sx={{ p: 0.4 }}>
+                          <DuplicateIcon sx={{ fontSize: 14 }} />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Eliminar">
+                        <IconButton size="small" onClick={(e) => { e.stopPropagation(); deleteNoteMutation.mutate(note.id); }} sx={{ p: 0.4 }}>
+                          <DeleteIcon sx={{ fontSize: 14 }} />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                  </Box>
+                );
+              })}
+            </Stack>
+          </InfiniteScroll>
         ) : (
+          /* Masonry Cards View */
           <InfiniteScroll hasMore={hasNextPage} loading={isFetchingNextPage} onLoadMore={fetchNextPage}>
             <AnimatePresence mode="popLayout">
             <Stack spacing={isCollapsed ? 0.5 : 2}>
@@ -654,13 +977,23 @@ export default function NoteList() {
                               fontSize: '0.95rem',
                               letterSpacing: '-0.01em',
                               color: isSelected ? 'primary.main' : 'text.primary',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 0.6,
                             }}
                           >
-                            {isSearch ? (
-                              <HighlightText text={note.title || 'Sin Título'} query={searchQuery} />
-                            ) : (
-                              note.title || 'Sin Título'
+                            {note.icon && (
+                              <Box component="span" sx={{ fontSize: '1.1rem', lineHeight: 1, flexShrink: 0 }}>
+                                {note.icon}
+                              </Box>
                             )}
+                            <Box component="span" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {isSearch ? (
+                                <HighlightText text={note.title || 'Sin Título'} query={searchQuery} />
+                              ) : (
+                                note.title || 'Sin Título'
+                              )}
+                            </Box>
                           </Typography>
 
                           {/* Favorite star + Pin + hover actions */}
@@ -711,6 +1044,18 @@ export default function NoteList() {
                                 transition: 'opacity 0.18s ease, visibility 0.18s',
                               }}
                             >
+                              <Tooltip title="Duplicar nota">
+                                <IconButton
+                                  size="small"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    duplicateNoteMutation.mutate(note.id);
+                                  }}
+                                  sx={{ p: 0.4, color: 'text.secondary', '&:hover': { color: 'primary.main' } }}
+                                >
+                                  <DuplicateIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
                               {isTrash ? (
                                 <>
                                   <Tooltip title="Restaurar nota">

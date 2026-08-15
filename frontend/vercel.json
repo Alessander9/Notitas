@@ -6,11 +6,11 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "https://notitas-api.onrender.com/api/$1"
+      "destination": "https://notitas-api.vercel.app/api/$1"
     },
     {
       "source": "/uploads/(.*)",
-      "destination": "https://notitas-api.onrender.com/uploads/$1"
+      "destination": "https://notitas-api.vercel.app/uploads/$1"
     },
     {
       "source": "/(.*)",

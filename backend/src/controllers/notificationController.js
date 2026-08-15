@@ -35,7 +35,7 @@ export const getUnreadCount = async (req, res, next) => {
     `, [userId]);
 
     const count = parseInt(result.rows[0]?.count || '0', 10);
-    return res.status(200).json({ unreadCount: count });
+    return res.status(200).json({ count, unreadCount: count });
   } catch (error) {
     next(error);
   }
@@ -58,6 +58,16 @@ export const markAllAsRead = async (req, res, next) => {
     const userId = req.user.id;
     await query('UPDATE notifications SET read = true WHERE user_id = $1', [userId]);
     return res.status(200).json({ message: 'Todas las notificaciones marcadas como leídas' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const clearNotifications = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    await query('DELETE FROM notifications WHERE user_id = $1', [userId]);
+    return res.status(200).json({ message: 'Historial de notificaciones eliminado' });
   } catch (error) {
     next(error);
   }

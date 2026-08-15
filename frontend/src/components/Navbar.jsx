@@ -3,7 +3,6 @@ import { motion } from 'framer-motion';
 import {
   AppBar,
   Toolbar,
-  Typography,
   IconButton,
   Box,
   InputBase,
@@ -22,6 +21,7 @@ import {
   PhotoCamera as PhotoCameraIcon,
   AccountCircle as AccountCircleIcon,
   Menu as MenuIcon,
+  AutoAwesome as SparklesIcon,
 } from '@mui/icons-material';
 import { styled, alpha } from '@mui/material/styles';
 import { useAuthStore } from '../store/authStore';
@@ -75,7 +75,19 @@ const StyledInputBase = styled(InputBase)(({ theme }) => ({
 
 export default function Navbar() {
   const { user, logout, updateAvatar } = useAuthStore();
-  const { darkMode, toggleDarkMode, searchQuery, setSearchQuery, setCurrentProject, setShowWelcome, setWelcomeUser, sidebarMobileOpen, setSidebarMobileOpen } = useUiStore();
+  const {
+    darkMode,
+    toggleDarkMode,
+    searchQuery,
+    setSearchQuery,
+    setCurrentProject,
+    setShowWelcome,
+    setWelcomeUser,
+    sidebarMobileOpen,
+    setSidebarMobileOpen,
+    toggleAiDrawer,
+    aiDrawerOpen,
+  } = useUiStore();
   const [anchorEl, setAnchorEl] = useState(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const avatarInputRef = useRef(null);
@@ -255,7 +267,35 @@ export default function Navbar() {
         {!isMobile && searchBar}
 
         {/* Acciones */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexShrink: 0 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, flexShrink: 0 }}>
+          {user && (
+            <Tooltip title="Asistente de IA (Ctrl+J)">
+              <motion.div whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.92 }}>
+                <IconButton
+                  onClick={toggleAiDrawer}
+                  sx={{
+                    bgcolor: aiDrawerOpen
+                      ? 'primary.main'
+                      : (theme) => (theme.palette.mode === 'dark' ? 'rgba(56, 108, 95, 0.25)' : 'rgba(56, 108, 95, 0.12)'),
+                    color: aiDrawerOpen ? '#fff' : 'primary.main',
+                    border: '1px solid',
+                    borderColor: 'primary.main',
+                    p: 0.85,
+                    borderRadius: 2.5,
+                    transition: 'all 0.2s ease',
+                    boxShadow: aiDrawerOpen ? '0 4px 14px rgba(56, 108, 95, 0.35)' : 'none',
+                    '&:hover': {
+                      bgcolor: 'primary.main',
+                      color: '#fff',
+                    },
+                  }}
+                >
+                  <SparklesIcon sx={{ fontSize: 20 }} />
+                </IconButton>
+              </motion.div>
+            </Tooltip>
+          )}
+
           {user && <NotificationBell />}
 
           <IconButton onClick={toggleDarkMode} color="inherit">

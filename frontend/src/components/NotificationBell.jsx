@@ -6,10 +6,8 @@ import {
   Box,
   Typography,
   List,
-  ListItem,
   ListItemText,
   Button,
-  Divider,
   Tooltip,
   CircularProgress,
   ListItemButton,
@@ -80,7 +78,7 @@ export default function NotificationBell() {
     refetchInterval: 15000, // Poll every 15s
   });
 
-  const unreadCount = countData?.count || 0;
+  const unreadCount = countData?.unreadCount ?? countData?.count ?? 0;
 
   // 2. Fetch full list of notifications when open
   const { data: notifications = [], isLoading, refetch } = useQuery({

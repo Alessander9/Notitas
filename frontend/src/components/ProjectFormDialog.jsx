@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Box,
@@ -18,7 +18,9 @@ import {
   Delete as DeleteIcon,
   Check as CheckIcon,
   Gif as GifIcon,
+  Animation as AnimationIcon,
 } from '@mui/icons-material';
+import MediaPickerModal from './MediaPickerModal';
 
 export const COLOR_OPTIONS = [
   // Violetas
@@ -114,12 +116,14 @@ export default function ProjectFormDialog({
   onIconChange,
   previewUrl,
   onFileChange,
+  onSelectMediaUrl,
   onRemoveCover,
   canRemoveCover = true,
   isPending,
   onSubmit,
 }) {
   const fileRef = useRef(null);
+  const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
 
   // Los padres pasan setters de useState (setName/setDescription) directamente
   // como onNameChange/onDescriptionChange. MUI invoca onChange(event), así que
@@ -223,7 +227,24 @@ export default function ProjectFormDialog({
 
           {/* Foto de portada */}
           <Box>
-            <SectionLabel color={color}>Foto de portada</SectionLabel>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
+              <SectionLabel color={color}>Foto de portada</SectionLabel>
+              <Button
+                size="small"
+                startIcon={<AnimationIcon sx={{ fontSize: 16 }} />}
+                onClick={() => setMediaPickerOpen(true)}
+                sx={{
+                  textTransform: 'none',
+                  fontWeight: 700,
+                  fontSize: '0.75rem',
+                  borderRadius: 2,
+                  py: 0.2,
+                  px: 1,
+                }}
+              >
+                Buscar GIFs en GIPHY / Fondos
+              </Button>
+            </Box>
             <Box
               sx={{
                 position: 'relative',
@@ -476,6 +497,18 @@ export default function ProjectFormDialog({
           {isPending ? 'Guardando...' : isEditing ? 'Guardar cambios' : 'Crear proyecto'}
         </Button>
       </DialogActions>
+
+      <MediaPickerModal
+        open={mediaPickerOpen}
+        onClose={() => setMediaPickerOpen(false)}
+        onSelectMedia={(url) => {
+          if (onSelectMediaUrl) onSelectMediaUrl(url);
+        }}
+        onUploadFile={(file) => {
+          if (onFileChange) onFileChange({ target: { files: [file] } });
+        }}
+        title="Elegir Portada o GIF Animado para el Proyecto"
+      />
     </Dialog>
   );
 }

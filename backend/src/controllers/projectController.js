@@ -53,6 +53,84 @@ const formatProjectResponse = async (project, currentUserId) => {
   };
 };
 
+// Helper para formatear proyectos en lote con solo 2 consultas a la BD (evita saturación N+1)
+export const formatProjectsBulk = async (projects, currentUserId) => {
+  if (!projects || !Array.isArray(projects) || projects.length === 0) return [];
+  const projectIds = projects.map((p) => Number(p.id)).filter((id) => !isNaN(id) && id > 0);
+  const userIds = [...new Set(projects.map((p) => Number(p.user_id)).filter((id) => !isNaN(id) && id > 0))];
+
+  // 1 consulta para todos los creadores
+  let creatorsById = {};
+  if (userIds.length > 0) {
+    try {
+      const creatorRes = await query('SELECT id, name, email, avatar FROM users WHERE id = ANY($1)', [userIds]);
+      creatorRes.rows.forEach((u) => {
+        creatorsById[Number(u.id)] = {
+          id: Number(u.id),
+          name: u.name,
+          email: u.email,
+          avatar: u.avatar,
+        };
+      });
+    } catch (e) {
+      console.error('Error fetching project creators in bulk', e);
+    }
+  }
+
+  // 1 consulta para todos los colaboradores
+  let membersByProject = {};
+  if (projectIds.length > 0) {
+    try {
+      const membersRes = await query(`
+        SELECT pm.project_id, u.id, u.name, u.email, u.avatar, pm.role 
+        FROM project_members pm
+        JOIN users u ON u.id = pm.user_id
+        WHERE pm.project_id = ANY($1)
+      `, [projectIds]);
+      membersRes.rows.forEach((m) => {
+        const pid = Number(m.project_id);
+        if (!membersByProject[pid]) membersByProject[pid] = [];
+        membersByProject[pid].push({
+          id: Number(m.id),
+          name: m.name,
+          email: m.email,
+          avatar: m.avatar,
+          role: m.role || 'EDITOR',
+        });
+      });
+    } catch (e) {
+      console.error('Error fetching project members in bulk', e);
+    }
+  }
+
+  return projects.map((p) => {
+    const pid = Number(p.id);
+    const isOwner = Number(p.user_id) === Number(currentUserId);
+    const creator = creatorsById[Number(p.user_id)] || null;
+    const collaborators = membersByProject[pid] || [];
+
+    let currentUserRole = isOwner ? 'OWNER' : null;
+    if (!currentUserRole) {
+      const userRole = collaborators.find((c) => c.id === Number(currentUserId));
+      currentUserRole = userRole ? userRole.role : 'VIEWER';
+    }
+
+    return {
+      id: pid,
+      name: p.name,
+      icon: p.icon,
+      color: p.color,
+      description: p.description,
+      coverImage: p.cover_image,
+      currentUserRole,
+      creator,
+      collaborators,
+      createdAt: p.created_at,
+      updatedAt: p.updated_at,
+    };
+  });
+};
+
 export const getAllProjects = async (req, res, next) => {
   try {
     const userId = req.user.id;
@@ -63,7 +141,7 @@ export const getAllProjects = async (req, res, next) => {
       ORDER BY p.updated_at DESC NULLS LAST, p.created_at DESC
     `, [userId]);
 
-    const formatted = await Promise.all(result.rows.map((p) => formatProjectResponse(p, userId)));
+    const formatted = await formatProjectsBulk(result.rows, userId);
     return res.status(200).json(formatted);
   } catch (error) {
     next(error);
@@ -94,7 +172,7 @@ export const getProjectById = async (req, res, next) => {
 
 export const createProject = async (req, res, next) => {
   try {
-    const { name, description, color, icon } = req.body;
+    const { name, description, color, icon, coverImage } = req.body;
     if (!name || !name.trim()) {
       return res.status(400).json({ message: 'El nombre del proyecto es requerido' });
     }
@@ -103,10 +181,10 @@ export const createProject = async (req, res, next) => {
     const inviteToken = crypto.randomBytes(16).toString('hex');
 
     const result = await query(`
-      INSERT INTO projects (user_id, name, description, color, icon, invite_token, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+      INSERT INTO projects (user_id, name, description, color, icon, cover_image, invite_token, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
       RETURNING *
-    `, [userId, name.trim(), description || null, color || '#386c5f', icon || 'folder', inviteToken]);
+    `, [userId, name.trim(), description || null, color || '#386c5f', icon || 'folder', coverImage || null, inviteToken]);
 
     const formatted = await formatProjectResponse(result.rows[0], userId);
     return res.status(200).json(formatted);

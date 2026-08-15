@@ -9,6 +9,8 @@ import projectRoutes from './routes/projectRoutes.js';
 import noteRoutes from './routes/noteRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import publicRoutes from './routes/publicRoutes.js';
+import aiRoutes from './routes/aiRoutes.js';
+import templateRoutes from './routes/templateRoutes.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
 dotenv.config();
@@ -69,8 +71,21 @@ app.use('/notes', noteRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/notifications', notificationRoutes);
 
-// Health check en la raíz
-app.get('/', (req, res) => {
+app.use('/api/ai', aiRoutes);
+app.use('/ai', aiRoutes);
+
+app.use('/api/templates', templateRoutes);
+app.use('/templates', templateRoutes);
+
+// Redirección de /uploads/:filename a Supabase Storage para compatibilidad de imágenes anteriores
+app.get(['/uploads/:filename', '/api/uploads/:filename'], (req, res) => {
+  const { filename } = req.params;
+  const target = `https://psohmafcklylghcohcns.supabase.co/storage/v1/object/public/uploads/${filename}`;
+  return res.redirect(302, target);
+});
+
+// Health check
+app.get(['/', '/health', '/api/health', '/api/ping'], (req, res) => {
   res.json({ status: 'ok', service: 'Notitas API (Node.js en Vercel)', version: '1.0.0' });
 });
 

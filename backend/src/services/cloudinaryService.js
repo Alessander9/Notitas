@@ -1,5 +1,4 @@
 import cloudinary from '../config/cloudinary.js';
-import streamifier from 'streamifier';
 
 /**
  * Sube un buffer de archivo directamente a Cloudinary vía streaming

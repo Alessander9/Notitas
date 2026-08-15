@@ -10,9 +10,7 @@ import {
 } from '@mui/material';
 import {
   Delete as DeleteIcon,
-  Height as ResizeIcon,
   AspectRatio as AspectRatioIcon,
-  Close as CloseIcon,
   Check as CheckIcon,
   ZoomIn as ZoomInIcon,
   ZoomOut as ZoomOutIcon,
@@ -26,14 +24,6 @@ const MAX_WIDTH = 1400;
 const HANDLE_ZONE = 18; // área alrededor de la esquina donde el clic redimensiona
 const LONG_PRESS_MS = 450;
 const TOUCH_MOVE_THRESHOLD = 8;
-
-// Presets de tamaño de imagen
-const SIZE_PRESETS = [
-  { label: 'Pequeña', width: 200 },
-  { label: 'Mediana', width: 400 },
-  { label: 'Grande', width: 600 },
-  { label: 'Original', width: null },
-];
 
 /**
  * NodeView para las imágenes de las notas:

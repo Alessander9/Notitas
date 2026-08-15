@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Box,
   Typography,
@@ -8,8 +8,6 @@ import {
   ListItemText,
   InputBase,
   CircularProgress,
-  Chip,
-  Divider,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -23,7 +21,6 @@ import {
   KeyboardReturn as ReturnIcon,
   NoteAdd as NoteAddIcon,
   FolderOpen as FolderOpenIcon,
-  Bolt as ActionIcon,
 } from '@mui/icons-material';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -320,34 +317,39 @@ export default function CommandPalette() {
             alignItems: 'flex-start',
             justifyContent: 'center',
             paddingTop: '12vh',
-            background: 'rgba(10,10,25,0.45)',
-            backdropFilter: 'blur(6px)',
+            background: 'rgba(10,10,25,0.55)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
           }}
         >
           <motion.div
-            initial={{ opacity: 0, scale: 0.97, y: -8 }}
+            initial={{ opacity: 0, scale: 0.96, y: -12 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.97, y: -8 }}
-            transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+            exit={{ opacity: 0, scale: 0.96, y: -12 }}
+            transition={{ type: 'spring', stiffness: 420, damping: 32 }}
             onClick={(e) => e.stopPropagation()}
             style={{
               width: 'calc(100% - 32px)',
-              maxWidth: 600,
+              maxWidth: 620,
               display: 'flex',
               flexDirection: 'column',
             }}
           >
             <Box
               sx={{
-                bgcolor: 'background.paper',
-                borderRadius: 3,
+                bgcolor: (theme) =>
+                  theme.palette.mode === 'dark' ? 'rgba(20, 24, 38, 0.85)' : 'rgba(255, 255, 255, 0.88)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                borderRadius: 3.5,
                 border: '1px solid',
-                borderColor: 'divider',
-                boxShadow: '0 24px 80px rgba(0,0,0,0.35)',
+                borderColor: (theme) =>
+                  theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)',
+                boxShadow: '0 24px 80px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05)',
                 overflow: 'hidden',
                 display: 'flex',
                 flexDirection: 'column',
-                maxHeight: '62vh',
+                maxHeight: '65vh',
               }}
             >
               {/* Input */}

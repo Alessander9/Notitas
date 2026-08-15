@@ -1,0 +1,25 @@
+{
+  "short_name": "Notitas",
+  "name": "Notitas — Gestión Inteligente de Notas y Proyectos",
+  "description": "Plataforma moderna y colaborativa para organizar tus ideas, notas y proyectos con Inteligencia Artificial.",
+  "icons": [
+    {
+      "src": "/assets/logo notitas.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/logo notitas.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#121224",
+  "theme_color": "#386c5f",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "scope": "/"
+}

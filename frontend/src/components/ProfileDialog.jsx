@@ -26,9 +26,13 @@ import {
   Mail as MailIcon,
   Visibility as VisibilityIcon,
   VisibilityOff as VisibilityOffIcon,
+  FolderZip as BackupIcon,
+  Download as DownloadIcon,
 } from '@mui/icons-material';
 import { useAuthStore } from '../store/authStore';
 import { getAvatarUrl } from '../utils/text';
+import { exportWorkspaceBackup } from '../utils/exportWorkspace';
+import { toast } from '../store/toastStore';
 
 function TabPanel({ value, index, children }) {
   return (
@@ -65,6 +69,20 @@ export default function ProfileDialog({ open, onClose }) {
   const [showPasswords, setShowPasswords] = useState(false);
   const [pwdMsg, setPwdMsg] = useState(null);
   const [pwdPending, setPwdPending] = useState(false);
+  const [backupPending, setBackupPending] = useState(false);
+
+  const handleDownloadBackup = async () => {
+    setBackupPending(true);
+    try {
+      await exportWorkspaceBackup();
+      toast.success('Copia de seguridad descargada exitosamente');
+    } catch (err) {
+      console.error('Error generating backup:', err);
+      toast.error('No se pudo generar la copia de seguridad');
+    } finally {
+      setBackupPending(false);
+    }
+  };
 
   // El Navbar re-monta este diálogo en cada apertura, así que los useState
   // se inicializan frescos con los datos actuales del usuario.
@@ -206,6 +224,7 @@ export default function ProfileDialog({ open, onClose }) {
       >
         <Tab icon={<PersonIcon fontSize="small" />} iconPosition="start" label="Perfil" />
         <Tab icon={<LockIcon fontSize="small" />} iconPosition="start" label="Contraseña" />
+        <Tab icon={<BackupIcon fontSize="small" />} iconPosition="start" label="Copia de Seguridad" />
       </Tabs>
 
       <DialogContent sx={{ px: 3, pt: 0, pb: 1 }}>
@@ -324,6 +343,33 @@ export default function ProfileDialog({ open, onClose }) {
                 sx={{ minWidth: 210, borderRadius: 2 }}
               >
                 {pwdPending ? 'Cambiando...' : 'Cambiar contraseña'}
+              </Button>
+            </Box>
+          </Box>
+        </TabPanel>
+
+        {/* ── Tab Copia de Seguridad ────────────────────────────── */}
+        <TabPanel value={tab} index={2}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, py: 1 }}>
+            <Box sx={{ p: 2.5, borderRadius: 3, bgcolor: 'action.hover', border: '1px solid', borderColor: 'divider' }}>
+              <Typography variant="subtitle1" fontWeight={800} gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <BackupIcon color="primary" /> Exportación Completa en Markdown (.ZIP)
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+                Descarga una copia de seguridad con todos tus proyectos estructurados en carpetas y cada una de tus notas en archivos estándar <strong>.md (Markdown)</strong>, compatible con Obsidian, Notion o Visual Studio Code.
+              </Typography>
+            </Box>
+
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={handleDownloadBackup}
+                disabled={backupPending}
+                startIcon={backupPending ? <CircularProgress size={16} color="inherit" /> : <DownloadIcon />}
+                sx={{ borderRadius: 2.5, px: 3, py: 1, fontWeight: 700, textTransform: 'none' }}
+              >
+                {backupPending ? 'Generando archivo .ZIP...' : 'Descargar todas mis notas (.ZIP)'}
               </Button>
             </Box>
           </Box>

@@ -43,17 +43,22 @@ export const formatRelativeTime = (iso) => {
 
 import { API_BASE_URL } from '../services/api';
 
+const SUPABASE_STORAGE_URL = 'https://psohmafcklylghcohcns.supabase.co/storage/v1/object/public/uploads';
+
 /**
  * Convierte una ruta del servidor (p. ej. "/uploads/x.png") en una URL
- * absoluta usando la base de la API. Si ya es una URL completa, la devuelve
- * tal cual. Reemplaza el patrón `x.startsWith('http') ? x : 'http://localhost:8080' + x`
- * que se repetía en decenas de componentes con el host hardcodeado.
+ * absoluta usando la base de la API o el CDN de almacenamiento.
  * @param {string} url - Ruta del servidor o URL completa.
  * @returns {string|null}
  */
 export const getAssetUrl = (url) => {
   if (!url) return null;
-  return url.startsWith('http') ? url : `${API_BASE_URL}${url}`;
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  if (url.startsWith('/uploads/')) {
+    const filename = url.replace(/^\/uploads\//, '');
+    return `${SUPABASE_STORAGE_URL}/${filename}`;
+  }
+  return `${API_BASE_URL}${url}`;
 };
 
 /**
@@ -62,3 +67,4 @@ export const getAssetUrl = (url) => {
  * @returns {string|null}
  */
 export const getAvatarUrl = (avatar) => getAssetUrl(avatar);
+

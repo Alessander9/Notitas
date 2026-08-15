@@ -1,8 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Container,
   Box,
   Typography,
   Button,
@@ -33,8 +32,11 @@ export default function JoinNote() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [exiting, setExiting] = useState(false);
+  const joinedRef = useRef(false);
 
   const handleJoin = useCallback(async () => {
+    if (joinedRef.current) return;
+    joinedRef.current = true;
     setLoading(true);
     setError('');
     try {

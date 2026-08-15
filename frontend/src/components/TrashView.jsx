@@ -41,7 +41,7 @@ export default function TrashView() {
   // Restore note (set deleted = false)
   const restoreMutation = useMutation({
     mutationFn: async (noteId) => {
-      const res = await api.put(`/notes/${noteId}`, { deleted: false });
+      const res = await api.post(`/notes/${noteId}/restore`);
       return res.data;
     },
     onSuccess: () => {

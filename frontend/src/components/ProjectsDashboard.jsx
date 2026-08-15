@@ -332,6 +332,7 @@ export default function ProjectsDashboard() {
   const [color, setColor] = useState(COLOR_OPTIONS[0]);
   const [icon, setIcon] = useState('folder');
   const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedMediaUrl, setSelectedMediaUrl] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
 
   // Project Invite Share Modal
@@ -468,15 +469,23 @@ export default function ProjectsDashboard() {
   };
 
   const handleFileChange = (e) => {
-    const file = e.target.files[0];
+    const file = e.target?.files?.[0] || e;
     if (file) {
       setSelectedFile(file);
+      setSelectedMediaUrl(null);
       setPreviewUrl(URL.createObjectURL(file));
     }
   };
 
+  const handleSelectMediaUrl = (url) => {
+    setSelectedMediaUrl(url);
+    setSelectedFile(null);
+    setPreviewUrl(url);
+  };
+
   const handleRemoveCover = () => {
     setSelectedFile(null);
+    setSelectedMediaUrl(null);
     const project = projects.find((p) => p.id === selectedProjectId);
     if (isEditing && project?.coverImage) {
       setPreviewUrl(getAssetUrl(project.coverImage));
@@ -493,6 +502,7 @@ export default function ProjectsDashboard() {
     setColor(COLOR_OPTIONS[0]);
     setIcon('folder');
     setSelectedFile(null);
+    setSelectedMediaUrl(null);
     setPreviewUrl(null);
   };
 
@@ -500,7 +510,13 @@ export default function ProjectsDashboard() {
     e.preventDefault();
     if (!name.trim()) return;
 
-    const payload = { name, description, color, icon };
+    const payload = {
+      name,
+      description,
+      color,
+      icon,
+      ...(selectedMediaUrl ? { coverImage: selectedMediaUrl } : {}),
+    };
 
     if (isEditing) {
       updateProjectMutation.mutate({ id: selectedProjectId, data: payload });
@@ -884,8 +900,9 @@ export default function ProjectsDashboard() {
         onIconChange={setIcon}
         previewUrl={previewUrl}
         onFileChange={handleFileChange}
+        onSelectMediaUrl={handleSelectMediaUrl}
         onRemoveCover={handleRemoveCover}
-        canRemoveCover={!isEditing || Boolean(selectedFile)}
+        canRemoveCover={!isEditing || Boolean(selectedFile) || Boolean(selectedMediaUrl)}
         isPending={createProjectMutation.isPending || updateProjectMutation.isPending}
         onSubmit={handleSave}
       />

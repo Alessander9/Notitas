@@ -213,6 +213,21 @@ export default function CollaboratorsChip({ project }) {
               />
             ))}
           </List>
+          {isOwner && (
+            <>
+              <Divider sx={{ my: 1 }} />
+              <Button
+                fullWidth
+                size="small"
+                variant="outlined"
+                startIcon={<ManageIcon />}
+                onClick={handleManage}
+                sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}
+              >
+                Gestionar miembros
+              </Button>
+            </>
+          )}
         </Box>
       </Popover>
 

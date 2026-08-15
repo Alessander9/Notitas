@@ -56,4 +56,20 @@ describe('uiStore', () => {
     useUiStore.getState().setSidebarMobileOpen(true);
     expect(useUiStore.getState().sidebarMobileOpen).toBe(true);
   });
+
+  it('toggleZenMode y setZenMode alternan el modo concentración', () => {
+    expect(useUiStore.getState().zenMode).toBe(false);
+    useUiStore.getState().toggleZenMode();
+    expect(useUiStore.getState().zenMode).toBe(true);
+    useUiStore.getState().setZenMode(false);
+    expect(useUiStore.getState().zenMode).toBe(false);
+  });
+
+  it('toggleAiDrawer y setAiDrawerOpen alternan el panel de IA', () => {
+    expect(useUiStore.getState().aiDrawerOpen).toBe(false);
+    useUiStore.getState().toggleAiDrawer();
+    expect(useUiStore.getState().aiDrawerOpen).toBe(true);
+    useUiStore.getState().setAiDrawerOpen(false);
+    expect(useUiStore.getState().aiDrawerOpen).toBe(false);
+  });
 });

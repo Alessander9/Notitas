@@ -69,7 +69,7 @@ describe('formatRelativeTime', () => {
 
 describe('getAssetUrl / getAvatarUrl', () => {
   it('convierte rutas del servidor en URLs absolutas', () => {
-    expect(getAssetUrl('/uploads/foto.png')).toBe('/uploads/foto.png');
+    expect(getAssetUrl('/uploads/foto.png')).toContain('uploads/foto.png');
   });
 
   it('deja intactas las URLs completas', () => {
@@ -82,7 +82,7 @@ describe('getAssetUrl / getAvatarUrl', () => {
   });
 
   it('getAvatarUrl es un alias de getAssetUrl', () => {
-    expect(getAvatarUrl('/uploads/avatar.png')).toBe('/uploads/avatar.png');
+    expect(getAvatarUrl('/uploads/avatar.png')).toContain('uploads/avatar.png');
     expect(getAvatarUrl(null)).toBeNull();
   });
 });

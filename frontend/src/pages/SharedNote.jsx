@@ -267,19 +267,25 @@ export default function SharedNote() {
                   />
                 )}
 
-                {/* Title */}
-                <Typography 
-                  variant="h3" 
-                  fontWeight={800} 
-                  gutterBottom 
-                  sx={{ 
-                    fontSize: { xs: '1.8rem', sm: '2.8rem' },
-                    letterSpacing: '-0.025em',
-                    lineHeight: 1.2
-                  }}
-                >
-                  {note.title || 'Sin Título'}
-                </Typography>
+                {/* Title with Icon */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
+                  {note.icon && (
+                    <Box component="span" sx={{ fontSize: { xs: '2rem', sm: '2.8rem' }, lineHeight: 1 }}>
+                      {note.icon}
+                    </Box>
+                  )}
+                  <Typography 
+                    variant="h3" 
+                    fontWeight={800} 
+                    sx={{ 
+                      fontSize: { xs: '1.8rem', sm: '2.8rem' },
+                      letterSpacing: '-0.025em',
+                      lineHeight: 1.2
+                    }}
+                  >
+                    {note.title || 'Sin Título'}
+                  </Typography>
+                </Box>
 
                 {/* Date & Info */}
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3, color: 'text.secondary' }}>

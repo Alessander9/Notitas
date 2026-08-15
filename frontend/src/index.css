@@ -104,3 +104,57 @@ body,
     opacity: 0.5;
   }
 }
+
+/* Glassmorphism Classes */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.dark .glass-panel,
+[data-theme='dark'] .glass-panel {
+  background: rgba(18, 22, 34, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Ambient Glow container */
+.ambient-glow {
+  position: relative;
+  transition: box-shadow 0.3s ease, border-color 0.3s ease, transform 0.2s ease;
+}
+
+/* Diff Visual Styles for Version History */
+.diff-chunk-added {
+  background-color: rgba(46, 204, 113, 0.18);
+  color: #27ae60;
+  padding: 1px 3px;
+  border-radius: 3px;
+  text-decoration: none;
+}
+
+.diff-chunk-removed {
+  background-color: rgba(231, 76, 60, 0.18);
+  color: #e74c3c;
+  padding: 1px 3px;
+  border-radius: 3px;
+  text-decoration: line-through;
+  opacity: 0.75;
+}
+
+.diff-chunk-unchanged {
+  color: inherit;
+}
+
+/* Kanban column custom horizontal scroll */
+.kanban-board {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  padding-bottom: 16px;
+  align-items: flex-start;
+}
+

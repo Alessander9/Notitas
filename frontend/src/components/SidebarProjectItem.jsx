@@ -450,16 +450,22 @@ export default function SidebarProjectItem({
                           },
                         }}
                       >
-                        <NoteIcon
-                          className="note-icon"
-                          sx={{
-                            fontSize: 14,
-                            color: `${accentColor}80`,
-                            flexShrink: 0,
-                            mt: 0.25,
-                            transition: 'all 0.2s ease',
-                          }}
-                        />
+                        {note.icon ? (
+                          <Box component="span" sx={{ fontSize: 13, flexShrink: 0, mt: 0.1, lineHeight: 1 }}>
+                            {note.icon}
+                          </Box>
+                        ) : (
+                          <NoteIcon
+                            className="note-icon"
+                            sx={{
+                              fontSize: 14,
+                              color: `${accentColor}80`,
+                              flexShrink: 0,
+                              mt: 0.25,
+                              transition: 'all 0.2s ease',
+                            }}
+                          />
+                        )}
                         <Box sx={{ minWidth: 0, flexGrow: 1 }}>
                           <Typography
                             variant="body2"

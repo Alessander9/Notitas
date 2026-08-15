@@ -3,7 +3,7 @@ import { useUiStore } from '../store/uiStore';
 
 export const API_BASE_URL =
   import.meta.env.VITE_API_URL ||
-  (import.meta.env.PROD ? 'https://notitas-api.onrender.com' : '');
+  (import.meta.env.PROD ? 'https://notitas-api.vercel.app' : '');
 const API_URL = `${API_BASE_URL}/api`;
 
 let onUnauthorized = null;

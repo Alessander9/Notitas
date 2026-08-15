@@ -2,12 +2,10 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Container,
   Box,
   Typography,
   Button,
   Alert,
-  Chip,
   Divider,
 } from '@mui/material';
 import {

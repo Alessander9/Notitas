@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Box, Typography, Avatar, Button } from '@mui/material';
+import { Box, Avatar, Button } from '@mui/material';
 import { ArrowForward as ArrowForwardIcon } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { useUiStore } from '../store/uiStore';
