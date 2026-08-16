@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect } from 'react';
+import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Drawer, useMediaQuery, useTheme, Tooltip, IconButton, Typography } from '@mui/material';
 import { FullscreenExit as ZenExitIcon } from '@mui/icons-material';
@@ -14,6 +14,7 @@ import TrashView from '../components/TrashView';
 import FavoritesView from '../components/FavoritesView';
 import ArchivedView from '../components/ArchivedView';
 import MobileFab from '../components/MobileFab';
+import { AiAssistantPanel } from '../components/AiAssistantDrawer';
 
 // NoteList + NoteEditor se cargan bajo demanda: TipTap y el editor son el
 // chunk más pesado de la app y no hacen falta al abrir el dashboard.
@@ -37,6 +38,17 @@ export default function Workspace() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
+  // Slide direction for note transitions
+  const prevNoteIdRef = useRef(currentNoteId);
+  const [slideDir, setSlideDir] = useState(1); // 1=right-to-left, -1=left-to-right
+
+  useEffect(() => {
+    if (currentNoteId !== prevNoteIdRef.current) {
+      setSlideDir(currentNoteId ? 1 : -1);
+      prevNoteIdRef.current = currentNoteId;
+    }
+  }, [currentNoteId]);
+
   // Fetch projects to resolve ambient glow color
   const { data: projects = [] } = useQuery({
     queryKey: ['projects'],
@@ -55,6 +67,24 @@ export default function Workspace() {
       navigate('/login');
     }
   }, [isAuthenticated, navigate]);
+
+  // Swipe-to-open / swipe-to-close sidebar (mobile only)
+  useEffect(() => {
+    if (!isMobile) return;
+    let startX = 0;
+    const onTouchStart = (e) => { startX = e.touches[0].clientX; };
+    const onTouchEnd = (e) => {
+      const deltaX = e.changedTouches[0].clientX - startX;
+      if (!sidebarMobileOpen && deltaX > 60 && startX < 40) setSidebarMobileOpen(true);
+      else if (sidebarMobileOpen && deltaX < -60) setSidebarMobileOpen(false);
+    };
+    document.addEventListener('touchstart', onTouchStart, { passive: true });
+    document.addEventListener('touchend', onTouchEnd, { passive: true });
+    return () => {
+      document.removeEventListener('touchstart', onTouchStart);
+      document.removeEventListener('touchend', onTouchEnd);
+    };
+  }, [isMobile, sidebarMobileOpen, setSidebarMobileOpen]);
 
   // Atajos de teclado para Modo Zen (Ctrl/Cmd+Shift+F o Escape) y Asistente IA (Ctrl/Cmd+J)
   useEffect(() => {
@@ -78,6 +108,38 @@ export default function Workspace() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentNoteId, zenMode, toggleZenMode, setZenMode, toggleAiDrawer, aiDrawerOpen]);
+
+  // Focus editor container when Zen Mode activates
+  useEffect(() => {
+    const isZen = Boolean(zenMode && currentNoteId && !isMobile);
+    if (isZen) {
+      requestAnimationFrame(() => {
+        document.querySelector('[data-zen-container]')?.focus();
+      });
+    }
+  }, [zenMode, currentNoteId, isMobile]);
+
+  // Fix: push content up when virtual keyboard appears on mobile
+  useEffect(() => {
+    if (!isMobile) return;
+    const vv = window.visualViewport;
+    if (!vv) return;
+
+    const onResize = () => {
+      const offset = window.innerHeight - vv.height;
+      document.documentElement.style.setProperty('--vv-offset', `${Math.max(0, offset)}px`);
+    };
+
+    vv.addEventListener('resize', onResize);
+    vv.addEventListener('scroll', onResize);
+    onResize();
+
+    return () => {
+      vv.removeEventListener('resize', onResize);
+      vv.removeEventListener('scroll', onResize);
+      document.documentElement.style.removeProperty('--vv-offset');
+    };
+  }, [isMobile]);
 
   if (!isAuthenticated) return null;
 
@@ -191,6 +253,7 @@ export default function Workspace() {
             variant="temporary"
             open={sidebarMobileOpen}
             onClose={closeSidebar}
+            aria-hidden={isZenActive || undefined}
             ModalProps={{ keepMounted: true }}
             sx={{
               display: { xs: 'block', md: 'none' },
@@ -229,12 +292,25 @@ export default function Workspace() {
 
         {/* Transición de vistas */}
         <AnimatePresence mode="wait" initial={false}>
+          {(() => {
+            const isNoteView = viewKey === 'editor' || viewKey === 'zen-editor';
+            const motionProps = isNoteView
+              ? {
+                  initial: { opacity: 0, x: slideDir * 40 },
+                  animate: { opacity: 1, x: 0 },
+                  exit: { opacity: 0, x: -slideDir * 40 },
+                  transition: { duration: 0.18, ease: 'easeOut' },
+                }
+              : {
+                  initial: { opacity: 0, y: 14 },
+                  animate: { opacity: 1, y: 0 },
+                  exit: { opacity: 0, y: -10 },
+                  transition: { duration: 0.18, ease: 'easeOut' },
+                };
+            return (
           <motion.div
             key={viewKey}
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.18, ease: 'easeOut' }}
+            {...motionProps}
             style={{ flexGrow: 1, display: 'flex', minWidth: 0, overflow: 'hidden' }}
           >
             {showDashboard && <ProjectsDashboard />}
@@ -246,7 +322,7 @@ export default function Workspace() {
               <>
                 {/* En Modo Zen de escritorio: se muestra exclusivamente el Editor centrado */}
                 {isZenActive ? (
-                  <Box sx={{ width: '100%', height: '100%', display: 'flex', justifyContent: 'center' }}>
+                  <Box sx={{ width: '100%', height: '100%', display: 'flex', justifyContent: 'center' }} data-zen-container tabIndex={-1}>
                     <Suspense fallback={null}>
                       <NoteEditor />
                     </Suspense>
@@ -275,7 +351,12 @@ export default function Workspace() {
               </>
             )}
           </motion.div>
+            );
+          })()}
         </AnimatePresence>
+
+        {/* AI panel inline on desktop (hidden on mobile — handled by AiAssistantDrawer) */}
+        {!isMobile && <AiAssistantPanel />}
       </Box>
     </Box>
   );

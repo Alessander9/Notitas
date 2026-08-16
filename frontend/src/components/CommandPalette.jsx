@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+﻿import React, { useEffect, useRef, useState } from 'react';
 import {
   Box,
   Typography,
@@ -8,6 +8,7 @@ import {
   ListItemText,
   InputBase,
   CircularProgress,
+  Chip,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -21,6 +22,7 @@ import {
   KeyboardReturn as ReturnIcon,
   NoteAdd as NoteAddIcon,
   FolderOpen as FolderOpenIcon,
+  History as HistoryIcon,
 } from '@mui/icons-material';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -30,6 +32,20 @@ import { useAuthStore } from '../store/authStore';
 import { toast } from '../store/toastStore';
 import { getProjectIcon } from '../constants/projectOptions';
 import HighlightText from './HighlightText';
+
+const stripHtml = (html = '') => html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+
+const getSnippet = (content = '', query = '') => {
+  const plain = stripHtml(content);
+  if (!plain) return '';
+  const lq = query.toLowerCase();
+  const idx = plain.toLowerCase().indexOf(lq);
+  if (idx > -1) {
+    const start = Math.max(0, idx - 30);
+    return (start > 0 ? '…' : '') + plain.slice(start, start + 90) + (plain.length > start + 90 ? '…' : '');
+  }
+  return plain.slice(0, 90) + (plain.length > 90 ? '…' : '');
+};
 
 function Hint({ kbd, label }) {
   return (
@@ -78,6 +94,12 @@ export default function CommandPalette() {
   const [query, setQuery] = useState('');
   const [debounced, setDebounced] = useState('');
   const [active, setActive] = useState(0);
+  const [filterProjectId, setFilterProjectId] = useState(null);
+  const [filterTag, setFilterTag] = useState(null);
+  const [recentSearches, setRecentSearches] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('notitas-recent-searches') || '[]'); }
+    catch { return []; }
+  });
   const inputRef = useRef(null);
 
   // Abrir/cerrar con Ctrl/Cmd+K
@@ -99,6 +121,8 @@ export default function CommandPalette() {
       setQuery('');
       setDebounced('');
       setActive(0);
+      setFilterProjectId(null);
+      setFilterTag(null);
       const t = setTimeout(() => inputRef.current?.focus(), 30);
       return () => clearTimeout(t);
     }
@@ -107,6 +131,8 @@ export default function CommandPalette() {
 
   // Debounce de la búsqueda
   useEffect(() => {
+    setFilterProjectId(null);
+    setFilterTag(null);
     const t = setTimeout(() => setDebounced(query), 200);
     return () => clearTimeout(t);
   }, [query]);
@@ -138,6 +164,13 @@ export default function CommandPalette() {
   useEffect(() => {
     setActive(0);
   }, [debounced, open, searching]);
+
+  const saveSearch = (q) => {
+    if (!q.trim() || q.length < 2) return;
+    const next = [q, ...recentSearches.filter(s => s !== q)].slice(0, 5);
+    setRecentSearches(next);
+    try { localStorage.setItem('notitas-recent-searches', JSON.stringify(next)); } catch {}
+  };
 
   const createNote = async () => {
     if (typeof currentProjectId !== 'number') return;
@@ -255,9 +288,13 @@ export default function CommandPalette() {
           kind: 'note',
           label: n.title || 'Sin título',
           hint: proj?.name || 'Nota',
+          secondary: getSnippet(n.content, trimmed),
           icon: <NoteIcon sx={{ fontSize: 20 }} />,
           color: proj?.color || '#386c5f',
+          projectId: n.projectId,
+          tags: n.tags || [],
           run: () => {
+            saveSearch(trimmed);
             setCurrentProject(n.projectId);
             setCurrentNote(n.id);
           },
@@ -279,7 +316,31 @@ export default function CommandPalette() {
     return list;
   };
 
-  const items = buildItems();
+  const allItems = buildItems();
+  const items = allItems.filter(item => {
+    if (item.kind !== 'note') return true;
+    if (filterProjectId && item.projectId !== filterProjectId) return false;
+    if (filterTag && !item.tags?.includes(filterTag)) return false;
+    return true;
+  });
+
+  // Chip data derived from raw note results (before filtering)
+  const noteItems = allItems.filter(i => i.kind === 'note');
+  const availableProjects = (() => {
+    const seen = new Map();
+    noteItems.forEach(i => {
+      if (i.projectId && !seen.has(i.projectId)) {
+        const proj = projects.find(p => p.id === i.projectId);
+        if (proj) seen.set(i.projectId, proj);
+      }
+    });
+    return [...seen.values()];
+  })();
+  const availableTags = (() => {
+    const freq = {};
+    noteItems.forEach(i => (i.tags || []).forEach(t => { freq[t] = (freq[t] || 0) + 1; }));
+    return Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([t]) => t);
+  })();
 
   const handleKeyDown = (e) => {
     if (items.length === 0) return;
@@ -390,8 +451,72 @@ export default function CommandPalette() {
                 </Box>
               </Box>
 
+              {/* Filter chips */}
+              {trimmed && notes.length > 0 && (availableProjects.length > 1 || availableTags.length > 0) && (
+                <Box sx={{ px: 2, py: 1, display: 'flex', gap: 0.75, flexWrap: 'wrap', borderBottom: '1px solid', borderColor: 'divider' }}>
+                  {availableProjects.map(p => (
+                    <Chip
+                      key={p.id}
+                      label={p.name}
+                      size="small"
+                      variant={filterProjectId === p.id ? 'filled' : 'outlined'}
+                      color={filterProjectId === p.id ? 'primary' : 'default'}
+                      onClick={() => setFilterProjectId(prev => prev === p.id ? null : p.id)}
+                      sx={{ height: 22, fontSize: '0.7rem' }}
+                    />
+                  ))}
+                  {availableTags.map(tag => (
+                    <Chip
+                      key={tag}
+                      label={`#${tag}`}
+                      size="small"
+                      variant={filterTag === tag ? 'filled' : 'outlined'}
+                      color={filterTag === tag ? 'secondary' : 'default'}
+                      onClick={() => setFilterTag(prev => prev === tag ? null : tag)}
+                      sx={{ height: 22, fontSize: '0.7rem' }}
+                    />
+                  ))}
+                </Box>
+              )}
+
               {/* Resultados */}
               <Box sx={{ overflowY: 'auto', py: 1, minHeight: 120 }}>
+                {/* Recent searches */}
+                {!trimmed && recentSearches.length > 0 && (
+                  <Box sx={{ px: 2, pt: 1.5, pb: 0.5 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <HistoryIcon sx={{ fontSize: 13, color: 'text.disabled' }} />
+                        <Typography variant="caption" color="text.disabled" sx={{ fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', fontSize: '0.62rem' }}>
+                          Recientes
+                        </Typography>
+                      </Box>
+                      <Typography
+                        variant="caption"
+                        color="text.disabled"
+                        sx={{ fontSize: '0.62rem', cursor: 'pointer', '&:hover': { color: 'text.secondary' } }}
+                        onClick={() => {
+                          setRecentSearches([]);
+                          try { localStorage.removeItem('notitas-recent-searches'); } catch {}
+                        }}
+                      >
+                        Limpiar
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', mt: 0.5 }}>
+                      {recentSearches.map(s => (
+                        <Chip
+                          key={s}
+                          label={s}
+                          size="small"
+                          variant="outlined"
+                          sx={{ height: 22, fontSize: '0.72rem', cursor: 'pointer' }}
+                          onClick={() => { setQuery(s); inputRef.current?.focus(); }}
+                        />
+                      ))}
+                    </Box>
+                  </Box>
+                )}
                 {searching && trimmed ? (
                   <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 4, gap: 1.5 }}>
                     <CircularProgress size={18} thickness={3} />
@@ -451,9 +576,18 @@ export default function CommandPalette() {
                             <Box sx={{ fontSize: '1.15rem', lineHeight: 1, display: 'flex' }}>{item.icon}</Box>
                           </ListItemIcon>
                           <ListItemText
-                            primary={<HighlightText text={item.label} query={trimmed} />}
+                            primary={
+                              <>
+                                <HighlightText text={item.label} query={trimmed} />
+                                {item.secondary && (
+                                  <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.3, display: 'block', mt: 0.2, fontWeight: 400, whiteSpace: 'normal' }}>
+                                    {item.secondary}
+                                  </Typography>
+                                )}
+                              </>
+                            }
                             secondary={item.hint}
-                            primaryTypographyProps={{ fontWeight: 600, fontSize: '0.9rem', noWrap: true }}
+                            primaryTypographyProps={{ fontWeight: 600, fontSize: '0.9rem', noWrap: !item.secondary }}
                             secondaryTypographyProps={{ fontSize: '0.72rem', noWrap: true, color: 'text.secondary' }}
                           />
                           {i === active && (

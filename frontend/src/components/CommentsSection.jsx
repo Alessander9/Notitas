@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Box,
   Typography,
@@ -10,6 +10,10 @@ import {
   CircularProgress,
   Tooltip,
   Stack,
+  Popover,
+  List,
+  ListItemButton,
+  ListItemText,
 } from '@mui/material';
 import {
   Send as SendIcon,
@@ -34,12 +38,16 @@ const MAX_COMMENT_LENGTH = 5000;
  * comentar (también los VIEWER); cada comentario notifica a los demás
  * colaboradores. Solo el autor puede editar o borrar el suyo.
  */
-export default function CommentsSection({ noteId }) {
+export default function CommentsSection({ noteId, members = [] }) {
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [editValue, setEditValue] = useState('');
+  const [mentionAnchor, setMentionAnchor] = useState(null);
+  const [mentionQuery, setMentionQuery] = useState('');
+  const [mentionStart, setMentionStart] = useState(-1);
+  const draftInputRef = useRef(null);
 
   const { data: comments = [], isLoading } = useQuery({
     queryKey: ['comments', noteId],
@@ -115,6 +123,35 @@ export default function CommentsSection({ noteId }) {
     });
   };
 
+  const handleDraftChange = (e) => {
+    const val = e.target.value.slice(0, MAX_COMMENT_LENGTH);
+    setDraft(val);
+    const cursor = e.target.selectionStart;
+    const textBefore = val.slice(0, cursor);
+    const atMatch = textBefore.match(/@(\w*)$/);
+    if (atMatch && members.length > 0) {
+      setMentionQuery(atMatch[1].toLowerCase());
+      setMentionStart(cursor - atMatch[0].length);
+      setMentionAnchor(e.currentTarget);
+    } else {
+      if (mentionAnchor) setMentionAnchor(null);
+    }
+  };
+
+  const insertMention = (member) => {
+    const before = draft.slice(0, mentionStart);
+    const after = draft.slice(mentionStart + 1 + mentionQuery.length);
+    const newDraft = `${before}@${member.name} ${after}`;
+    setDraft(newDraft.slice(0, MAX_COMMENT_LENGTH));
+    setMentionAnchor(null);
+    setMentionStart(-1);
+    setTimeout(() => draftInputRef.current?.focus(), 0);
+  };
+
+  const filteredMembers = members.filter(m =>
+    m.name.toLowerCase().includes(mentionQuery)
+  );
+
   return (
     <Box sx={{ mt: 5, pt: 3, borderTop: '1px solid', borderColor: 'divider' }}>
       {/* Header */}
@@ -154,9 +191,14 @@ export default function CommentsSection({ noteId }) {
             size="small"
             placeholder="Escribe un comentario… (Enter para enviar, Shift+Enter para salto de línea)"
             value={draft}
-            onChange={(e) => setDraft(e.target.value.slice(0, MAX_COMMENT_LENGTH))}
+            inputRef={draftInputRef}
+            onChange={handleDraftChange}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
+              if (e.key === 'Escape' && mentionAnchor) {
+                e.stopPropagation();
+                setMentionAnchor(null);
+              }
+              if (e.key === 'Enter' && !e.shiftKey && !mentionAnchor) {
                 e.preventDefault();
                 handleSubmit(e);
               }
@@ -185,6 +227,26 @@ export default function CommentsSection({ noteId }) {
             </Button>
           </Box>
         </Box>
+        <Popover
+          open={Boolean(mentionAnchor) && filteredMembers.length > 0}
+          anchorEl={mentionAnchor}
+          onClose={() => setMentionAnchor(null)}
+          disableAutoFocus
+          disableEnforceFocus
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+          PaperProps={{ sx: { maxHeight: 200, width: 220, borderRadius: 2 } }}
+        >
+          <List dense disablePadding>
+            {filteredMembers.map(m => (
+              <ListItemButton key={m.id} onClick={() => insertMention(m)}>
+                <Avatar src={getAvatarUrl(m.avatar)} sx={{ width: 24, height: 24, mr: 1, fontSize: '0.75rem', bgcolor: 'primary.main' }}>
+                  {(m.name || '?').charAt(0).toUpperCase()}
+                </Avatar>
+                <ListItemText primary={m.name} primaryTypographyProps={{ variant: 'body2' }} />
+              </ListItemButton>
+            ))}
+          </List>
+        </Popover>
       </Box>
 
       {/* Lista de comentarios */}

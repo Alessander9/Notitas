@@ -53,3 +53,25 @@ export const getProjectIcon = (iconId) => {
   const found = ICON_OPTIONS.find((opt) => opt.id === iconId);
   return found ? found.icon : '📁';
 };
+
+export const PROJECT_TEMPLATES = [
+  { id: 'none', label: 'Sin plantilla', notes: [] },
+  {
+    id: 'sprint',
+    label: 'Sprint de desarrollo',
+    notes: [
+      { title: 'Backlog del Sprint', content: '<h2>Objetivos del Sprint</h2><ul><li>Definir objetivos</li></ul><p></p>' },
+      { title: 'Daily Standup', content: '<h2>Que hice ayer?</h2><p></p><h2>Que hare hoy?</h2><p></p><h2>Hay bloqueos?</h2><p></p>' },
+      { title: 'Retrospectiva', content: '<h2>Que salio bien?</h2><p></p><h2>Que mejorar?</h2><p></p><h2>Acciones</h2><ul><li>Accion 1</li></ul>' },
+    ],
+  },
+  {
+    id: 'editorial',
+    label: 'Proyecto Editorial',
+    notes: [
+      { title: 'Ideas de contenido', content: '<h2>Ideas</h2><ul><li>Idea 1</li><li>Idea 2</li></ul>' },
+      { title: 'Borrador', content: '<h2>Titulo tentativo</h2><p>Introduce el tema aqui...</p>' },
+      { title: 'Calendario editorial', content: '<h2>Publicaciones planificadas</h2><ul><li>Semana 1</li><li>Semana 2</li></ul>' },
+    ],
+  },
+];

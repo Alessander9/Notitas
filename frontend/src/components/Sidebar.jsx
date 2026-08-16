@@ -37,7 +37,7 @@ import { toast } from '../store/toastStore';
 import { confirm } from '../store/confirmStore';
 import SidebarSkeleton from './skeletons/SidebarSkeleton';
 import ProjectFormDialog from './ProjectFormDialog';
-import { COLOR_OPTIONS } from '../constants/projectOptions';
+import { COLOR_OPTIONS, PROJECT_TEMPLATES } from '../constants/projectOptions';
 import SidebarProjectItem from './SidebarProjectItem';
 import { getAssetUrl } from '../utils/text';
 import logoImage from '../assets/logo notitas.png';
@@ -99,6 +99,7 @@ export default function Sidebar({ embedded = false }) {
   const [selectedFile, setSelectedFile] = useState(null);
   const [selectedMediaUrl, setSelectedMediaUrl] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
+  const [selectedTemplate, setSelectedTemplate] = useState('none');
 
   // Project Invite Share Modal
   const [openShareModal, setOpenShareModal] = useState(false);
@@ -183,6 +184,16 @@ export default function Sidebar({ embedded = false }) {
     onSuccess: async (data) => {
       if (selectedFile) {
         await uploadProjectCover(data.id, selectedFile);
+      }
+      const template = PROJECT_TEMPLATES.find((t) => t.id === selectedTemplate);
+      if (template && template.notes.length > 0) {
+        for (const note of template.notes) {
+          try {
+            await api.post(`/projects/${data.id}/notes`, note);
+          } catch {
+            // non-fatal: project created, template notes optional
+          }
+        }
       }
       queryClient.invalidateQueries(['projects']);
       setCurrentProject(data.id);
@@ -309,6 +320,7 @@ export default function Sidebar({ embedded = false }) {
     setSelectedFile(null);
     setSelectedMediaUrl(null);
     setPreviewUrl(null);
+    setSelectedTemplate('none');
   };
 
   const handleSave = (e) => {
@@ -836,6 +848,8 @@ const navItemVariants = {
         canRemoveCover={!isEditing || Boolean(selectedFile) || Boolean(selectedMediaUrl)}
         isPending={createProjectMutation.isPending || updateProjectMutation.isPending}
         onSubmit={handleSave}
+        selectedTemplate={selectedTemplate}
+        onTemplateChange={setSelectedTemplate}
       />
 
       {/* Dialog for Sharing Project */}

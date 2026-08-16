@@ -4,6 +4,7 @@ import {
   Box,
   Typography,
   TextField,
+  Autocomplete,
   IconButton,
   Chip,
   CircularProgress,
@@ -66,8 +67,12 @@ import {
   PeopleAlt as PeopleAltIcon,
   ContentCopy as DuplicateIcon,
   FileUpload as ImportFileIcon,
+  AlarmAdd as AlarmAddIcon,
 } from '@mui/icons-material';
 import { useEditor, EditorContent, ReactNodeViewRenderer } from '@tiptap/react';
+import FloatingSelectionToolbar from './FloatingSelectionToolbar';
+import WikiLinkMenu from './WikiLinkMenu';
+import BacklinksPanel from './BacklinksPanel';
 import { mergeAttributes } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -82,11 +87,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import { useUiStore } from '../store/uiStore';
 import { toast } from '../store/toastStore';
+import { saveReminder, removeReminder, getReminderForNote } from '../hooks/useNoteReminders';
 import { confirm } from '../store/confirmStore';
 import { useAuthStore } from '../store/authStore';
 import NoteEditorSkeleton from './skeletons/NoteEditorSkeleton';
 import CoverImage from './CoverImage';
 import AuthorAvatars from './AuthorAvatars';
+import ActiveEditorsIndicator from './ActiveEditorsIndicator';
 import MemberProfileDialog from './MemberProfileDialog';
 import NoteHistoryDialog from './NoteHistoryDialog';
 import FloatingImageNodeView from './FloatingImageNodeView';
@@ -261,6 +268,10 @@ export default function NoteEditor() {
    const [historyOpen, setHistoryOpen] = useState(false);
    const [exportMenuAnchor, setExportMenuAnchor] = useState(null);
    const [exporting, setExporting] = useState(null); // formato en curso: 'pdf' | 'png' | 'docx' | 'md'
+   const [reminderDialogOpen, setReminderDialogOpen] = useState(false);
+  const [wikiOpen, setWikiOpen] = useState(false);
+  const [wikiQuery, setWikiQuery] = useState('');
+  const [wikiMenuPos, setWikiMenuPos] = useState({ top: 0, left: 0 });
 
   // Menu state for moving note to project
   const [projectMenuAnchor, setProjectMenuAnchor] = useState(null);
@@ -463,6 +474,22 @@ export default function NoteEditor() {
     },
   });
 
+  // Fetch all notes in the current project to build tag autocomplete options
+  const { data: notes } = useQuery({
+    queryKey: ['notes', 'project', currentProjectId],
+    queryFn: async () => {
+      if (!currentProjectId || typeof currentProjectId !== 'number') return [];
+      const res = await api.get(`/projects/${currentProjectId}/notes`);
+      return res.data?.notes ?? res.data ?? [];
+    },
+    enabled: Boolean(currentProjectId) && typeof currentProjectId === 'number',
+    staleTime: 60_000,
+  });
+  const projectTags = React.useMemo(
+    () => [...new Set((notes || []).flatMap((n) => n.tags || []))].sort(),
+    [notes],
+  );
+
   const activeProject = projects.find((p) => p.id === note?.projectId);
   const userRole = activeProject?.currentUserRole || 'OWNER'; // Default to OWNER
   // Rol del usuario actual como colaborador por-nota: un NoteMember EDITOR
@@ -615,8 +642,22 @@ export default function NoteEditor() {
           } else {
             setSlashOpen(false);
           }
+
+          // Detección de enlaces wiki [[
+          const wikiMatch = textBefore.match(/\[\[([^\]]*)$/);
+          if (wikiMatch) {
+            setWikiQuery(wikiMatch[1] || '');
+            setWikiOpen(true);
+            try {
+              const coords = ed.view.coordsAtPos($from.pos);
+              setWikiMenuPos({ top: coords.bottom + 8, left: coords.left });
+            } catch {}
+          } else if (wikiOpen) {
+            setWikiOpen(false);
+          }
         } catch {
           setSlashOpen(false);
+          setWikiOpen(false);
         }
       }
     },
@@ -1074,6 +1115,16 @@ export default function NoteEditor() {
     }
   };
 
+  const handleAddTagValue = (val) => {
+    const trimmed = (val || '').trim();
+    if (!trimmed || isReadOnly) return;
+    const currentTags = note?.tags || [];
+    if (!currentTags.includes(trimmed)) {
+      updateNoteMutation.mutate({ tags: [...currentTags, trimmed] });
+    }
+    setTagInput('');
+  };
+
   const handleRemoveTag = (tagToRemove) => {
     if (isReadOnly) return;
     const currentTags = note?.tags || [];
@@ -1292,7 +1343,8 @@ export default function NoteEditor() {
     );
   }
 
-  if (isLoading) {
+  const showSkeleton = isLoading || !editor;
+  if (showSkeleton) {
     return <NoteEditorSkeleton />;
   }
 
@@ -1438,6 +1490,16 @@ export default function NoteEditor() {
              <Tooltip title="Historial de versiones">
               <IconButton size="small" onClick={() => setHistoryOpen(true)} sx={{ p: 0.6 }}>
                 <HistoryIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip title={getReminderForNote(currentNoteId) ? `Recordatorio: ${new Date(getReminderForNote(currentNoteId).remindAt).toLocaleString()}` : 'Agregar recordatorio'}>
+              <IconButton
+                size="small"
+                onClick={() => setReminderDialogOpen(true)}
+                sx={{ p: 0.6, color: getReminderForNote(currentNoteId) ? 'warning.main' : 'inherit' }}
+              >
+                <AlarmAddIcon fontSize="small" />
               </IconButton>
             </Tooltip>
 
@@ -1653,6 +1715,7 @@ export default function NoteEditor() {
         }}
         onDrop={handleEditorFileDrop}
         sx={{ p: { xs: 2, sm: 4 }, pb: { xs: 12, sm: 4 }, maxWidth: 850, width: '100%', mx: 'auto' }}
+        className="mobile-editor-area"
       >
         {isNoteLocked ? (
           <Box
@@ -1984,22 +2047,35 @@ export default function NoteEditor() {
               />
             ))}
             {!isReadOnly && (
-              <TextField
-                variant="standard"
-                placeholder="+ Etiqueta"
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                onKeyDown={handleAddTag}
-                InputProps={{
-                  disableUnderline: true,
-                  sx: { fontSize: '0.8rem' },
-                }}
+              <Autocomplete
+                freeSolo
+                disableClearable
+                blurOnSelect
+                size="small"
                 sx={{ minWidth: 110 }}
+                options={projectTags.filter((t) => !(note?.tags || []).includes(t))}
+                value={tagInput}
+                onInputChange={(_, val) => setTagInput(val)}
+                onChange={(_, val) => { if (val) handleAddTagValue(val); }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    variant="standard"
+                    placeholder="+ Etiqueta"
+                    onKeyDown={handleAddTag}
+                    InputProps={{
+                      ...params.InputProps,
+                      disableUnderline: true,
+                      sx: { fontSize: '0.8rem' },
+                    }}
+                  />
+                )}
               />
             )}
           </Box>
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, ml: 'auto', flexShrink: 0 }}>
+            <ActiveEditorsIndicator noteId={currentNoteId} members={members || []} />
             <AuthorAvatars
               creator={activeProject?.creator}
               collaborators={activeProject?.collaborators}
@@ -2332,6 +2408,7 @@ export default function NoteEditor() {
 
         {/* TipTap Rich Editor */}
         <Box
+          data-print-content
           sx={{
             minHeight: 400,
     '& .tiptap': {
@@ -2459,6 +2536,7 @@ export default function NoteEditor() {
           }}
         >
           <EditorContent editor={editor} />
+          <FloatingSelectionToolbar editor={editor} />
         </Box>
 
         {/* Attachments & Images Section */}
@@ -2568,8 +2646,15 @@ export default function NoteEditor() {
           </Box>
         )}
 
+        {/* Backlinks de la nota */}
+        <BacklinksPanel
+          currentNoteId={currentNoteId}
+          notes={notes || []}
+          onNoteClick={(id) => setCurrentNote(id)}
+        />
+
         {/* Comentarios de la nota */}
-        <CommentsSection noteId={currentNoteId} />
+        <CommentsSection noteId={currentNoteId} members={members || []} />
         </>
       )}
       </Box>
@@ -2808,6 +2893,32 @@ export default function NoteEditor() {
         onOpenAi={toggleAiDrawer}
       />
 
+      {/* Floating Wiki Link Menu [[ */}
+      <WikiLinkMenu
+        open={wikiOpen}
+        query={wikiQuery}
+        notes={notes || []}
+        position={wikiMenuPos}
+        onSelect={(selectedNote) => {
+          setWikiOpen(false);
+          if (!editor) return;
+          const { from, $from } = editor.state.selection;
+          const textInNode = $from.parent.textBetween(0, $from.parentOffset, null, '\uFFFC');
+          const startIdx = textInNode.lastIndexOf('[[');
+          if (startIdx === -1) return;
+          const deleteFrom = from - (textInNode.length - startIdx);
+          editor
+            .chain()
+            .focus()
+            .deleteRange({ from: deleteFrom, to: from })
+            .insertContent(
+              `<a href="#note-${selectedNote.id}" data-note-id="${selectedNote.id}" class="note-link">${selectedNote.icon ? selectedNote.icon + ' ' : ''}${selectedNote.title || 'Sin título'}</a>&nbsp;`
+            )
+            .run();
+        }}
+        onClose={() => setWikiOpen(false)}
+      />
+
       {/* PIN Configuration Dialog (Set / Remove PIN) */}
       <Dialog
         open={pinModalOpen}
@@ -2859,6 +2970,38 @@ export default function NoteEditor() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {reminderDialogOpen && (
+        <Dialog open onClose={() => setReminderDialogOpen(false)} maxWidth="xs" fullWidth>
+          <DialogTitle sx={{ fontWeight: 700 }}>Recordatorio</DialogTitle>
+          <DialogContent>
+            <input
+              type="datetime-local"
+              defaultValue={getReminderForNote(currentNoteId)?.remindAt?.slice(0, 16) || ''}
+              id="reminder-dt"
+              style={{ width: '100%', padding: '8px', borderRadius: 4, border: '1px solid #ccc', fontSize: 15 }}
+              min={new Date().toISOString().slice(0, 16)}
+            />
+          </DialogContent>
+          <DialogActions>
+            {getReminderForNote(currentNoteId) && (
+              <Button color="error" onClick={() => { removeReminder(currentNoteId); setReminderDialogOpen(false); toast.success('Recordatorio eliminado'); }}>
+                Eliminar
+              </Button>
+            )}
+            <Button onClick={() => setReminderDialogOpen(false)}>Cancelar</Button>
+            <Button variant="contained" onClick={() => {
+              const val = document.getElementById('reminder-dt')?.value;
+              if (!val) return;
+              saveReminder(currentNoteId, title || 'Sin titulo', val);
+              setReminderDialogOpen(false);
+              toast.success(`Recordatorio para ${new Date(val).toLocaleDateString()}`);
+            }}>
+              Guardar
+            </Button>
+          </DialogActions>
+        </Dialog>
+      )}
     </Box>
   );
 }

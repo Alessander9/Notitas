@@ -16,6 +16,7 @@ import CommandPalette from './components/CommandPalette';
 import ServerStatusBanner from './components/ServerStatusBanner';
 import AiAssistantDrawer from './components/AiAssistantDrawer';
 import AiFloatingButton from './components/AiFloatingButton';
+import { useNoteReminders } from './hooks/useNoteReminders';
 
 const Login = React.lazy(() => import('./pages/Login'));
 const Register = React.lazy(() => import('./pages/Register'));
@@ -66,6 +67,8 @@ const DARK_THEME = {
 export default function App() {
   const { isAuthenticated, user, forceLogout, refreshSession } = useAuthStore();
   const { darkMode, showWelcome, welcomeKind, welcomeUser, setShowWelcome, setWelcomeUser } = useUiStore();
+
+  useNoteReminders();
 
   const [booting, setBooting] = React.useState(() => !sessionStorage.getItem('notitas-booted'));
   const [exiting, setExiting] = React.useState(false);

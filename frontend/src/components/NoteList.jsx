@@ -38,6 +38,7 @@ import {
   GridView as MasonryIcon,
   ViewList as ListIcon,
   ViewKanban as KanbanIcon,
+  Dashboard as ChecklistKanbanIcon,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
@@ -54,6 +55,7 @@ import HighlightText from './HighlightText';
 import { getPlainText, getAssetUrl, formatRelativeTime } from '../utils/text';
 import ManageMembersDialog from './ManageMembersDialog';
 import { Group as GroupIcon } from '@mui/icons-material';
+import KanbanView from './KanbanView';
 
 export default function NoteList() {
   const { currentProjectId, currentNoteId, setCurrentNote, searchQuery, setCurrentProject, notesViewMode = 'masonry', setNotesViewMode } = useUiStore();
@@ -73,6 +75,25 @@ export default function NoteList() {
   // Filtro local de notas dentro de un proyecto (texto + tag)
   const [filterText, setFilterText] = useState('');
   const [filterTag, setFilterTag] = useState(null);
+
+  // Manual drag-to-reorder state
+  const [manualOrder, setManualOrder] = useState({});
+  const [dragNoteId, setDragNoteId] = useState(null);
+  const [dragOverNoteId, setDragOverNoteId] = useState(null);
+
+  // Load manual order from localStorage when project changes
+  useEffect(() => {
+    if (typeof currentProjectId !== 'number') return;
+    try {
+      const stored = localStorage.getItem(`notitas-note-order-${currentProjectId}`);
+      setManualOrder(stored ? JSON.parse(stored) : {});
+    } catch { setManualOrder({}); }
+  }, [currentProjectId]);
+
+  const saveOrder = (order) => {
+    if (typeof currentProjectId !== 'number') return;
+    try { localStorage.setItem(`notitas-note-order-${currentProjectId}`, JSON.stringify(order)); } catch {}
+  };
 
   // Duplicar nota
   const duplicateNoteMutation = useMutation({
@@ -283,6 +304,16 @@ export default function NoteList() {
     return new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt);
   });
 
+  // Apply manual drag order on top of default sort
+  const orderedNotes = React.useMemo(() => {
+    if (!Object.keys(manualOrder).length) return sortedNotes;
+    return [...sortedNotes].sort((a, b) => {
+      const oa = manualOrder[a.id] ?? 999999;
+      const ob = manualOrder[b.id] ?? 999999;
+      return oa - ob;
+    });
+  }, [sortedNotes, manualOrder]);
+
   // Tags disponibles en las notas cargadas (para los chips de filtro)
   const allTags = React.useMemo(() => {
     const set = new Set();
@@ -294,7 +325,7 @@ export default function NoteList() {
 
   // Filtro local: aplica sobre las notas cargadas (texto en título/contenido y/o tag)
   const visibleNotes = isFiltering
-    ? sortedNotes.filter((n) => {
+    ? orderedNotes.filter((n) => {
         if (filterTag && !(n.tags || []).includes(filterTag)) return false;
         const q = filterText.trim().toLowerCase();
         if (q) {
@@ -303,7 +334,7 @@ export default function NoteList() {
         }
         return true;
       })
-    : sortedNotes;
+    : orderedNotes;
 
   // Agrupación para Tablero Kanban
   const kanbanGroups = React.useMemo(() => {
@@ -338,8 +369,8 @@ export default function NoteList() {
       onDragOver={handleDragOver}
       onDrop={handleDrop}
       sx={{
-        width: isCollapsed ? 60 : notesViewMode === 'kanban' ? { xs: '100%', md: 440, lg: 560 } : { xs: '100%', md: 320 },
-        minWidth: isCollapsed ? 60 : notesViewMode === 'kanban' ? { xs: '100%', md: 440, lg: 560 } : { xs: '100%', md: 320 },
+        width: isCollapsed ? 60 : (notesViewMode === 'kanban' || notesViewMode === 'checklist-kanban') ? { xs: '100%', md: 440, lg: 560 } : { xs: '100%', md: 320 },
+        minWidth: isCollapsed ? 60 : (notesViewMode === 'kanban' || notesViewMode === 'checklist-kanban') ? { xs: '100%', md: 440, lg: 560 } : { xs: '100%', md: 320 },
         height: '100%',
         flexShrink: 0,
         borderRight: '1px solid',
@@ -442,6 +473,9 @@ export default function NoteList() {
                 <ToggleButton value="kanban" sx={{ px: 0.6, py: 0.2 }}>
                   <Tooltip title="Tablero Kanban"><KanbanIcon sx={{ fontSize: 15 }} /></Tooltip>
                 </ToggleButton>
+                <ToggleButton value="checklist-kanban" sx={{ px: 0.6, py: 0.2 }}>
+                  <Tooltip title="Kanban por Checklists"><ChecklistKanbanIcon sx={{ fontSize: 15 }} /></Tooltip>
+                </ToggleButton>
               </ToggleButtonGroup>
 
               {isProjectView && (
@@ -457,6 +491,21 @@ export default function NoteList() {
                     Añadir
                   </Button>
                 </motion.div>
+              )}
+              {isProjectView && Object.keys(manualOrder).length > 0 && (
+                <Button
+                  size="small"
+                  variant="text"
+                  sx={{ textTransform: 'none', fontSize: '0.68rem', color: 'text.disabled', minHeight: 0, py: 0.2, px: 0.8 }}
+                  onClick={() => {
+                    setManualOrder({});
+                    if (typeof currentProjectId === 'number') {
+                      try { localStorage.removeItem(`notitas-note-order-${currentProjectId}`); } catch {}
+                    }
+                  }}
+                >
+                  Restablecer orden
+                </Button>
               )}
             </Box>
           </>
@@ -796,6 +845,9 @@ export default function NoteList() {
               );
             })}
           </Box>
+        ) : notesViewMode === 'checklist-kanban' ? (
+          /* Checklist-based Kanban View */
+          <KanbanView notes={visibleNotes} onNoteClick={setCurrentNote} />
         ) : notesViewMode === 'list' ? (
           /* Compact List View */
           <InfiniteScroll hasMore={hasNextPage} loading={isFetchingNextPage} onLoadMore={fetchNextPage}>
@@ -808,6 +860,27 @@ export default function NoteList() {
                   <Box
                     key={note.id}
                     onClick={() => setCurrentNote(note.id)}
+                    draggable
+                    onDragStart={(e) => { e.dataTransfer.setData('note-reorder', String(note.id)); setDragNoteId(note.id); }}
+                    onDragEnd={() => { setDragNoteId(null); setDragOverNoteId(null); }}
+                    onDragOver={(e) => { e.preventDefault(); setDragOverNoteId(note.id); }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      const sourceId = Number(e.dataTransfer.getData('note-reorder'));
+                      if (!sourceId || sourceId === note.id) return;
+                      const ids = orderedNotes.map(x => x.id);
+                      const from = ids.indexOf(sourceId);
+                      const to = ids.indexOf(note.id);
+                      if (from === -1 || to === -1) return;
+                      const newIds = [...ids];
+                      newIds.splice(from, 1);
+                      newIds.splice(to, 0, sourceId);
+                      const newOrder = Object.fromEntries(newIds.map((id, i) => [id, i]));
+                      setManualOrder(newOrder);
+                      saveOrder(newOrder);
+                      setDragNoteId(null);
+                      setDragOverNoteId(null);
+                    }}
                     sx={{
                       display: 'flex',
                       alignItems: 'center',
@@ -815,7 +888,10 @@ export default function NoteList() {
                       p: 1.2,
                       px: 1.5,
                       borderRadius: 2,
-                      cursor: 'pointer',
+                      cursor: 'grab',
+                      opacity: dragNoteId === note.id ? 0.5 : 1,
+                      outline: dragOverNoteId === note.id && dragNoteId !== note.id ? '2px dashed' : 'none',
+                      outlineColor: 'primary.main',
                       bgcolor: isSelected ? 'action.selected' : 'background.paper',
                       border: '1px solid',
                       borderColor: isSelected ? color : 'divider',
@@ -900,8 +976,32 @@ export default function NoteList() {
                     <Card
                       variant="outlined"
                       onClick={() => setCurrentNote(note.id)}
+                      draggable
+                      onDragStart={(e) => { e.dataTransfer.setData('note-reorder', String(note.id)); setDragNoteId(note.id); }}
+                      onDragEnd={() => { setDragNoteId(null); setDragOverNoteId(null); }}
+                      onDragOver={(e) => { e.preventDefault(); setDragOverNoteId(note.id); }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        const sourceId = Number(e.dataTransfer.getData('note-reorder'));
+                        if (!sourceId || sourceId === note.id) return;
+                        const ids = orderedNotes.map(x => x.id);
+                        const from = ids.indexOf(sourceId);
+                        const to = ids.indexOf(note.id);
+                        if (from === -1 || to === -1) return;
+                        const newIds = [...ids];
+                        newIds.splice(from, 1);
+                        newIds.splice(to, 0, sourceId);
+                        const newOrder = Object.fromEntries(newIds.map((id, i) => [id, i]));
+                        setManualOrder(newOrder);
+                        saveOrder(newOrder);
+                        setDragNoteId(null);
+                        setDragOverNoteId(null);
+                      }}
                       sx={{
-                        cursor: 'pointer',
+                        cursor: 'grab',
+                        opacity: dragNoteId === note.id ? 0.5 : 1,
+                        outline: dragOverNoteId === note.id && dragNoteId !== note.id ? '2px dashed' : 'none',
+                        outlineColor: 'primary.main',
                         borderRadius: 3,
                         border: '1px solid',
                         borderColor: isSelected ? color : 'divider',

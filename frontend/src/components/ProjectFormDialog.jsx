@@ -11,6 +11,10 @@ import {
   IconButton,
   Tooltip,
   CircularProgress,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -21,7 +25,7 @@ import {
   Animation as AnimationIcon,
 } from '@mui/icons-material';
 import MediaPickerModal from './MediaPickerModal';
-import { COLOR_OPTIONS, ICON_OPTIONS, getProjectIcon } from '../constants/projectOptions';
+import { COLOR_OPTIONS, ICON_OPTIONS, getProjectIcon, PROJECT_TEMPLATES } from '../constants/projectOptions';
 
 const SectionLabel = ({ color, children }) => (
   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
@@ -66,6 +70,8 @@ export default function ProjectFormDialog({
   canRemoveCover = true,
   isPending,
   onSubmit,
+  selectedTemplate = 'none',
+  onTemplateChange,
 }) {
   const fileRef = useRef(null);
   const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
@@ -167,6 +173,30 @@ export default function ProjectFormDialog({
                 onChange={handleDescriptionChange}
                 placeholder="¿De qué trata este proyecto?"
               />
+              {!isEditing && (
+                <FormControl fullWidth size="small">
+                  <InputLabel>Plantilla</InputLabel>
+                  <Select
+                    value={selectedTemplate}
+                    label="Plantilla"
+                    onChange={(e) => onTemplateChange?.(e.target.value)}
+                  >
+                    {PROJECT_TEMPLATES.map((t) => (
+                      <MenuItem key={t.id} value={t.id}>
+                        {t.label}
+                        {t.notes.length > 0 && (
+                          <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                            ({t.notes.length} notas)
+                          </Typography>
+                        )}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, ml: 0.5 }}>
+                    La plantilla crea notas predefinidas al crear el proyecto.
+                  </Typography>
+                </FormControl>
+              )}
             </Box>
           </Box>
 

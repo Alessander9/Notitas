@@ -261,32 +261,79 @@ export default function NoteHistoryDialog({ open, onClose, noteId, currentConten
               <Typography variant="body2">Selecciona una versión para ver los detalles</Typography>
             </Box>
           ) : viewMode === 'diff' ? (
-            <Paper elevation={0} variant="outlined" sx={{ p: { xs: 2, sm: 3 }, borderRadius: 3 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5, flexWrap: 'wrap' }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
                 <Typography variant="subtitle1" fontWeight={700}>
                   Comparación con el estado actual
                 </Typography>
                 <Chip label="Verde: Agregado en versión actual" size="small" sx={{ bgcolor: 'rgba(46, 204, 113, 0.15)', color: '#27ae60', fontSize: '0.72rem' }} />
                 <Chip label="Rojo: Eliminado respecto a esta versión" size="small" sx={{ bgcolor: 'rgba(231, 76, 60, 0.15)', color: '#e74c3c', fontSize: '0.72rem' }} />
               </Box>
-              <Divider sx={{ mb: 2 }} />
-              <Box sx={{ lineHeight: 1.8, fontSize: '0.95rem', fontFamily: 'inherit', whiteSpace: 'pre-wrap' }}>
-                {diffChunks.map((chunk, i) => (
-                  <span
-                    key={i}
-                    className={
-                      chunk.type === 'added'
-                        ? 'diff-chunk-added'
-                        : chunk.type === 'removed'
-                        ? 'diff-chunk-removed'
-                        : 'diff-chunk-unchanged'
-                    }
-                  >
-                    {chunk.text}
-                  </span>
-                ))}
+              <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+                {/* Left panel: selected (older) version rendered as HTML */}
+                <Paper elevation={0} variant="outlined" sx={{ flex: '0 0 300px', borderRadius: 2, overflow: 'hidden' }}>
+                  <Box sx={{ px: 1.5, py: 0.75, bgcolor: 'rgba(231, 76, 60, 0.08)', borderBottom: '1px solid', borderColor: 'divider' }}>
+                    <Typography variant="caption" fontWeight={700} color="#e74c3c">Versión anterior</Typography>
+                  </Box>
+                  <Box
+                    dangerouslySetInnerHTML={{ __html: selected.content }}
+                    sx={{
+                      p: 2,
+                      overflowY: 'auto',
+                      maxHeight: '45vh',
+                      fontSize: '0.9rem',
+                      lineHeight: 1.6,
+                      '& ul': { pl: 2 },
+                      '& ol': { pl: 2 },
+                      '& h1,& h2,& h3': { my: 1 },
+                      '& p': { my: 0.5 },
+                      '& code': { bgcolor: 'action.hover', px: 0.5, borderRadius: 1, fontSize: '0.85em' },
+                    }}
+                  />
+                </Paper>
+                {/* Right panel: current version rendered as HTML */}
+                <Paper elevation={0} variant="outlined" sx={{ flex: 1, borderRadius: 2, overflow: 'hidden' }}>
+                  <Box sx={{ px: 1.5, py: 0.75, bgcolor: 'rgba(46, 204, 113, 0.08)', borderBottom: '1px solid', borderColor: 'divider' }}>
+                    <Typography variant="caption" fontWeight={700} color="#27ae60">Estado actual</Typography>
+                  </Box>
+                  <Box
+                    dangerouslySetInnerHTML={{ __html: currentContent }}
+                    sx={{
+                      p: 2,
+                      overflowY: 'auto',
+                      maxHeight: '45vh',
+                      fontSize: '0.9rem',
+                      lineHeight: 1.6,
+                      '& ul': { pl: 2 },
+                      '& ol': { pl: 2 },
+                      '& h1,& h2,& h3': { my: 1 },
+                      '& p': { my: 0.5 },
+                      '& code': { bgcolor: 'action.hover', px: 0.5, borderRadius: 1, fontSize: '0.85em' },
+                    }}
+                  />
+                </Paper>
               </Box>
-            </Paper>
+              {/* Word diff summary strip */}
+              <Paper elevation={0} variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5, fontWeight: 600 }}>Cambios palabra por palabra</Typography>
+                <Box sx={{ lineHeight: 1.8, fontSize: '0.85rem', fontFamily: 'inherit', whiteSpace: 'pre-wrap' }}>
+                  {diffChunks.map((chunk, i) => (
+                    <span
+                      key={i}
+                      className={
+                        chunk.type === 'added'
+                          ? 'diff-chunk-added'
+                          : chunk.type === 'removed'
+                          ? 'diff-chunk-removed'
+                          : 'diff-chunk-unchanged'
+                      }
+                    >
+                      {chunk.text}
+                    </span>
+                  ))}
+                </Box>
+              </Paper>
+            </Box>
           ) : (
             <Paper elevation={0} variant="outlined" sx={{ p: { xs: 2, sm: 3.5 }, borderRadius: 3 }}>
               <Typography variant="h5" fontWeight={700} sx={{ mb: 0.75, wordBreak: 'break-word' }}>

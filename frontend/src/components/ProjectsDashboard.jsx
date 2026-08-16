@@ -23,6 +23,7 @@ import {
   ListItemText,
   Avatar,
   AvatarGroup,
+  Paper,
 } from '@mui/material';
 import {
   ViewModule as GridViewIcon,
@@ -35,17 +36,19 @@ import {
   Share as ShareIcon,
   Schedule as ScheduleIcon,
   Description as NoteIcon,
+  PlayArrow as PlayArrowIcon,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import { useUiStore } from '../store/uiStore';
+import { useAuthStore } from '../store/authStore';
 import { toast } from '../store/toastStore';
 import { confirm } from '../store/confirmStore';
 import ProjectsDashboardSkeleton from './skeletons/ProjectsDashboardSkeleton';
 import EmptyState from './EmptyState';
 import CoverImage from './CoverImage';
 import ProjectFormDialog from './ProjectFormDialog';
-import { COLOR_OPTIONS, getProjectIcon } from '../constants/projectOptions';
+import { COLOR_OPTIONS, getProjectIcon, PROJECT_TEMPLATES } from '../constants/projectOptions';
 import FavoritesSection from './FavoritesSection';
 import CollaboratorsChip from './CollaboratorsChip';
 import { useProjectNotes } from '../hooks/useProjectNotes';
@@ -314,9 +317,25 @@ function ProjectGridCard({ project, index, onSelect, onEdit, onShare, onDelete }
   );
 }
 
+const DEMO_NOTES = [
+  {
+    title: '👋 Bienvenido a Notitas',
+    content: '<h2>¿Qué podés hacer aquí?</h2><ul><li>Escribir notas con formato rico</li><li>Colaborar con tu equipo</li><li>Organizar por proyectos y etiquetas</li></ul><p>Presioná <code>/</code> en el editor para ver todos los comandos disponibles.</p>',
+  },
+  {
+    title: '✅ Lista de tareas de ejemplo',
+    content: '<ul data-type="taskList"><li data-type="taskItem" data-checked="false">Explorar el editor</li><li data-type="taskItem" data-checked="false">Probar el asistente IA (Ctrl+J)</li><li data-type="taskItem" data-checked="false">Invitar a un colaborador</li><li data-type="taskItem" data-checked="true">Crear mi primer proyecto</li></ul>',
+  },
+  {
+    title: '💡 Tips y atajos de teclado',
+    content: '<h2>Atajos principales</h2><table><tbody><tr><td><strong>Ctrl+K</strong></td><td>Paleta de comandos</td></tr><tr><td><strong>Ctrl+J</strong></td><td>Asistente IA</td></tr><tr><td><strong>Ctrl+Shift+F</strong></td><td>Modo Zen</td></tr><tr><td><strong>/</strong></td><td>Comandos del editor</td></tr></tbody></table>',
+  },
+];
+
 export default function ProjectsDashboard() {
   const { setCurrentProject } = useUiStore();
   const queryClient = useQueryClient();
+  const firstName = useAuthStore((s) => s.user?.name?.split(' ')[0] || 'Usuario');
 
   // Local states
   const [viewMode, setViewMode] = useState(() => {
@@ -335,6 +354,7 @@ export default function ProjectsDashboard() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [selectedMediaUrl, setSelectedMediaUrl] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
+  const [selectedTemplate, setSelectedTemplate] = useState('none');
 
   // Project Invite Share Modal
   const [openShareModal, setOpenShareModal] = useState(false);
@@ -360,6 +380,16 @@ export default function ProjectsDashboard() {
     onSuccess: async (data) => {
       if (selectedFile) {
         await uploadProjectCover(data.id, selectedFile);
+      }
+      const template = PROJECT_TEMPLATES.find((t) => t.id === selectedTemplate);
+      if (template && template.notes.length > 0) {
+        for (const note of template.notes) {
+          try {
+            await api.post(`/projects/${data.id}/notes`, note);
+          } catch {
+            // non-fatal
+          }
+        }
       }
       queryClient.invalidateQueries(['projects']);
       handleCloseModal();
@@ -505,6 +535,7 @@ export default function ProjectsDashboard() {
     setSelectedFile(null);
     setSelectedMediaUrl(null);
     setPreviewUrl(null);
+    setSelectedTemplate('none');
   };
 
   const handleSave = (e) => {
@@ -533,6 +564,29 @@ export default function ProjectsDashboard() {
       (p.description && p.description.toLowerCase().includes(term))
     );
   });
+
+  const createDemoProject = async () => {
+    try {
+      const res = await api.post('/projects', {
+        name: 'Mi primer proyecto',
+        description: 'Proyecto de ejemplo para explorar Notitas',
+        color: '#386c5f',
+      });
+      const newProject = res.data;
+      for (const note of DEMO_NOTES) {
+        try {
+          await api.post(`/projects/${newProject.id}/notes`, note);
+        } catch {
+          // non-fatal
+        }
+      }
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      toast.success('Proyecto de demo creado');
+      setCurrentProject(newProject.id);
+    } catch {
+      toast.error('No se pudo crear el proyecto de demo');
+    }
+  };
 
   return (
     <Box sx={{ flexGrow: 1, height: '100%', p: { xs: 2, sm: 4 }, pb: { xs: 12, sm: 4 }, overflowY: 'auto' }}>
@@ -641,6 +695,56 @@ export default function ProjectsDashboard() {
       {/* Projects Container */}
       {isLoading ? (
         <ProjectsDashboardSkeleton />
+      ) : projects.length === 0 && !filterQuery ? (
+        /* Onboarding: usuario sin proyectos */
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flexGrow: 1, gap: 3, p: 4 }}>
+          <Box sx={{ textAlign: 'center', mb: 2 }}>
+            <Typography variant="h4" fontWeight={800} gutterBottom>
+              ¡Bienvenido, {firstName}! 👋
+            </Typography>
+            <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 440 }}>
+              Notitas es tu espacio de trabajo colaborativo. Creá tu primer proyecto para empezar.
+            </Typography>
+          </Box>
+
+          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', justifyContent: 'center' }}>
+            <Paper
+              onClick={handleOpenCreateModal}
+              sx={{
+                p: 3,
+                width: 220,
+                cursor: 'pointer',
+                borderRadius: 3,
+                border: '2px solid',
+                borderColor: 'primary.main',
+                '&:hover': { transform: 'translateY(-2px)', boxShadow: 4 },
+                transition: 'all 0.2s',
+              }}
+            >
+              <AddIcon sx={{ fontSize: 36, color: 'primary.main', mb: 1 }} />
+              <Typography variant="subtitle1" fontWeight={700}>Crear proyecto</Typography>
+              <Typography variant="caption" color="text.secondary">Empezá desde cero</Typography>
+            </Paper>
+
+            <Paper
+              onClick={createDemoProject}
+              sx={{
+                p: 3,
+                width: 220,
+                cursor: 'pointer',
+                borderRadius: 3,
+                border: '1px solid',
+                borderColor: 'divider',
+                '&:hover': { transform: 'translateY(-2px)', boxShadow: 4 },
+                transition: 'all 0.2s',
+              }}
+            >
+              <PlayArrowIcon sx={{ fontSize: 36, color: 'text.secondary', mb: 1 }} />
+              <Typography variant="subtitle1" fontWeight={700}>Explorar con demo</Typography>
+              <Typography variant="caption" color="text.secondary">Proyecto de ejemplo</Typography>
+            </Paper>
+          </Box>
+        </Box>
       ) : filteredProjects.length === 0 ? (
         <EmptyState
           icon={<FolderOpenIcon />}
@@ -906,6 +1010,8 @@ export default function ProjectsDashboard() {
         canRemoveCover={!isEditing || Boolean(selectedFile) || Boolean(selectedMediaUrl)}
         isPending={createProjectMutation.isPending || updateProjectMutation.isPending}
         onSubmit={handleSave}
+        selectedTemplate={selectedTemplate}
+        onTemplateChange={setSelectedTemplate}
       />
 
       {/* Project Share Dialog */}

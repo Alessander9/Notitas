@@ -11,11 +11,15 @@ import {
   Tooltip,
   CircularProgress,
   ListItemButton,
+  Chip,
+  Collapse,
 } from '@mui/material';
 import {
   Notifications as NotificationsIcon,
   DoneAll as DoneAllIcon,
   DeleteSweep as DeleteSweepIcon,
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -24,8 +28,26 @@ import api from '../services/api';
 import { toast } from '../store/toastStore';
 import { useUiStore } from '../store/uiStore';
 
+function groupNotifications(notifications) {
+  const groups = {};
+  for (const n of notifications) {
+    const key = n.noteId ? `note-${n.noteId}` : n.projectId ? `proj-${n.projectId}` : 'general';
+    const label = n.noteId
+      ? (n.noteTitle || n.noteName || 'Nota')
+      : n.projectId
+      ? (n.projectName || 'Proyecto')
+      : 'General';
+    if (!groups[key]) groups[key] = { key, label, items: [], unreadCount: 0 };
+    groups[key].items.push(n);
+    if (!n.read) groups[key].unreadCount++;
+  }
+  return Object.values(groups);
+}
+
 export default function NotificationBell() {
   const [anchorEl, setAnchorEl] = useState(null);
+  const [expandedGroups, setExpandedGroups] = useState({});
+  const toggleGroup = (key) => setExpandedGroups(prev => ({ ...prev, [key]: !prev[key] }));
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const setCurrentProject = useUiStore((state) => state.setCurrentProject);
@@ -226,67 +248,92 @@ export default function NotificationBell() {
             </Box>
           ) : (
             <List disablePadding>
-              <AnimatePresence initial={false}>
-                {notifications.map((notif) => (
-                  <motion.div
-                    key={notif.id}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0 }}
-                  >
+              {groupNotifications(notifications).map(group => {
+                const isExpanded = expandedGroups[group.key] !== false; // default expanded
+                return (
+                  <Box key={group.key}>
+                    {/* Group header */}
                     <ListItemButton
-                      onClick={() => handleNotificationClick(notif)}
-                      aria-label={`Abrir notificación: ${notif.title}`}
-                      sx={{
-                        borderBottom: '1px solid',
-                        borderColor: 'divider',
-                        py: 1.5,
-                        px: 2,
-                        bgcolor: notif.read ? 'transparent' : (theme) =>
-                          theme.palette.mode === 'dark' ? 'rgba(56, 108, 95, 0.08)' : 'rgba(56, 108, 95, 0.04)',
-                        transition: 'background-color 0.2s',
-                        '&:hover': {
-                          bgcolor: (theme) =>
-                            theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.02)',
-                        },
-                      }}
+                      dense
+                      onClick={() => toggleGroup(group.key)}
+                      sx={{ px: 2, py: 0.5, bgcolor: 'action.hover' }}
                     >
                       <ListItemText
-                        primary={
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.5 }}>
-                            <Typography variant="body2" fontWeight={notif.read ? 'normal' : 'bold'} color="text.primary" sx={{ pr: 1 }}>
-                              {notif.title}
-                            </Typography>
-                            {!notif.read && (
-                              <Box
-                                sx={{
-                                  width: 8,
-                                  height: 8,
-                                  borderRadius: '50%',
-                                  bgcolor: 'primary.main',
-                                  flexShrink: 0,
-                                  mt: 0.6,
-                                }}
-                              />
-                            )}
-                          </Box>
-                        }
-                        secondary={
-                          <>
-                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5, lineHeight: 1.3 }}>
-                              {notif.message}
-                            </Typography>
-                            <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.7rem' }}>
-                              {formatTimeAgo(notif.createdAt)}
-                            </Typography>
-                          </>
-                        }
-                        disableTypography
+                        primary={group.label}
+                        primaryTypographyProps={{ variant: 'caption', fontWeight: 700 }}
                       />
+                      {group.unreadCount > 0 && (
+                        <Chip label={group.unreadCount} size="small" color="error" sx={{ height: 16, fontSize: '0.6rem', mr: 0.5 }} />
+                      )}
+                      {isExpanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
                     </ListItemButton>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
+                    {/* Group items */}
+                    <Collapse in={isExpanded}>
+                      <AnimatePresence initial={false}>
+                        {group.items.map((notif) => (
+                          <motion.div
+                            key={notif.id}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0 }}
+                          >
+                            <ListItemButton
+                              onClick={() => handleNotificationClick(notif)}
+                              aria-label={`Abrir notificación: ${notif.title}`}
+                              sx={{
+                                borderBottom: '1px solid',
+                                borderColor: 'divider',
+                                py: 1.5,
+                                px: 2,
+                                bgcolor: notif.read ? 'transparent' : (theme) =>
+                                  theme.palette.mode === 'dark' ? 'rgba(56, 108, 95, 0.08)' : 'rgba(56, 108, 95, 0.04)',
+                                transition: 'background-color 0.2s',
+                                '&:hover': {
+                                  bgcolor: (theme) =>
+                                    theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.02)',
+                                },
+                              }}
+                            >
+                              <ListItemText
+                                primary={
+                                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.5 }}>
+                                    <Typography variant="body2" fontWeight={notif.read ? 'normal' : 'bold'} color="text.primary" sx={{ pr: 1 }}>
+                                      {notif.title}
+                                    </Typography>
+                                    {!notif.read && (
+                                      <Box
+                                        sx={{
+                                          width: 8,
+                                          height: 8,
+                                          borderRadius: '50%',
+                                          bgcolor: 'primary.main',
+                                          flexShrink: 0,
+                                          mt: 0.6,
+                                        }}
+                                      />
+                                    )}
+                                  </Box>
+                                }
+                                secondary={
+                                  <>
+                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5, lineHeight: 1.3 }}>
+                                      {notif.message}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.7rem' }}>
+                                      {formatTimeAgo(notif.createdAt)}
+                                    </Typography>
+                                  </>
+                                }
+                                disableTypography
+                              />
+                            </ListItemButton>
+                          </motion.div>
+                        ))}
+                      </AnimatePresence>
+                    </Collapse>
+                  </Box>
+                );
+              })}
             </List>
           )}
         </Box>

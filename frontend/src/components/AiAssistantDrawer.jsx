@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+﻿import React, { useState, useRef, useEffect } from 'react';
 import {
   Drawer,
   Box,
@@ -10,7 +10,9 @@ import {
   Paper,
   CircularProgress,
   useTheme,
+  useMediaQuery,
 } from '@mui/material';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Close as CloseIcon,
   AutoAwesome as SparklesIcon,
@@ -40,11 +42,11 @@ const SUGGESTED_PROMPTS = [
   { icon: <FolderIcon sx={{ fontSize: 15 }} />, text: 'Dame un resumen del proyecto actual', label: 'Resumir proyecto', needsProject: true },
 ];
 
-export default function AiAssistantDrawer() {
+// ── Shared panel content (used by both Drawer and inline panel) ──────────────
+function AiPanelContent({ onClose }) {
   const theme = useTheme();
   const {
     aiDrawerOpen,
-    setAiDrawerOpen,
     currentNoteId,
     currentProjectId,
   } = useUiStore();
@@ -84,6 +86,27 @@ export default function AiAssistantDrawer() {
   });
 
   const activeProject = projects.find((p) => p.id === currentProjectId);
+
+  // Fetch project notes for AI context
+  const { data: projectNotes = [] } = useQuery({
+    queryKey: ['notes', currentProjectId],
+    queryFn: async () => {
+      const res = await api.get(`/projects/${currentProjectId}/notes`);
+      return res.data?.content || res.data || [];
+    },
+    enabled: Boolean(currentProjectId) && typeof currentProjectId === 'number',
+    staleTime: 60_000,
+  });
+
+  const noteSummaries = React.useMemo(() => {
+    if (!projectNotes.length) return [];
+    return projectNotes.slice(0, 20).map(n => ({
+      title: n.title || 'Sin título',
+      tags: n.tags || [],
+      preview: (n.content || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200),
+      updatedAt: n.updatedAt,
+    }));
+  }, [projectNotes]);
 
   const scrollToBottom = () => {
     if (typeof messagesEndRef.current?.scrollIntoView === 'function') {
@@ -125,6 +148,8 @@ export default function AiAssistantDrawer() {
       ? {
           name: activeProject.name,
           description: activeProject.description,
+          noteCount: projectNotes.length,
+          notes: noteSummaries,
         }
       : null;
 
@@ -231,23 +256,7 @@ export default function AiAssistantDrawer() {
   };
 
   return (
-    <Drawer
-      anchor="right"
-      open={aiDrawerOpen}
-      onClose={() => setAiDrawerOpen(false)}
-      PaperProps={{
-        sx: {
-          width: { xs: '100%', sm: 400, md: 440 },
-          bgcolor: 'background.default',
-          backgroundImage: 'none',
-          display: 'flex',
-          flexDirection: 'column',
-          boxShadow: '-8px 0 32px rgba(0,0,0,0.2)',
-          borderLeft: '1px solid',
-          borderColor: 'divider',
-        },
-      }}
-    >
+    <>
       {/* ── Header ────────────────────────────────────────── */}
       <Box
         sx={{
@@ -305,7 +314,7 @@ export default function AiAssistantDrawer() {
             </IconButton>
           </Tooltip>
           <Tooltip title="Cerrar (Esc o Ctrl+J)">
-            <IconButton size="small" onClick={() => setAiDrawerOpen(false)} sx={{ p: 0.6 }}>
+            <IconButton size="small" onClick={onClose} sx={{ p: 0.6 }}>
               <CloseIcon fontSize="small" />
             </IconButton>
           </Tooltip>
@@ -343,15 +352,24 @@ export default function AiAssistantDrawer() {
               </>
             )}
           </Box>
-          <Chip
-            label={includeNoteContext ? 'Contexto activo' : 'Sin contexto'}
-            size="small"
-            clickable
-            onClick={() => setIncludeNoteContext(!includeNoteContext)}
-            color={includeNoteContext ? 'primary' : 'default'}
-            variant={includeNoteContext ? 'filled' : 'outlined'}
-            sx={{ height: 20, fontSize: '0.65rem', fontWeight: 600 }}
-          />
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <Chip
+              label={includeNoteContext ? 'Contexto activo' : 'Sin contexto'}
+              size="small"
+              clickable
+              onClick={() => setIncludeNoteContext(!includeNoteContext)}
+              color={includeNoteContext ? 'primary' : 'default'}
+              variant={includeNoteContext ? 'filled' : 'outlined'}
+              sx={{ height: 20, fontSize: '0.65rem', fontWeight: 600 }}
+            />
+            {noteSummaries.length > 0 && (
+              <Chip
+                size="small"
+                label={`${noteSummaries.length} notas del proyecto`}
+                sx={{ fontSize: '0.65rem', height: 18 }}
+              />
+            )}
+          </Box>
         </Box>
       )}
 
@@ -542,6 +560,73 @@ export default function AiAssistantDrawer() {
           </IconButton>
         </Box>
       </Box>
+    </>
+  );
+}
+
+// ── Mobile / Default Drawer ───────────────────────────────────────────────
+export default function AiAssistantDrawer({ forceRender = false }) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const { aiDrawerOpen, setAiDrawerOpen } = useUiStore();
+
+  if (!isMobile && !forceRender) return null;
+
+  return (
+    <Drawer
+      anchor="right"
+      open={aiDrawerOpen}
+      onClose={() => setAiDrawerOpen(false)}
+      PaperProps={{
+        sx: {
+          width: { xs: '100%', sm: 400 },
+          bgcolor: 'background.default',
+          backgroundImage: 'none',
+          display: 'flex',
+          flexDirection: 'column',
+          boxShadow: '-8px 0 32px rgba(0,0,0,0.2)',
+          borderLeft: '1px solid',
+          borderColor: 'divider',
+        },
+      }}
+    >
+      <AiPanelContent onClose={() => setAiDrawerOpen(false)} />
     </Drawer>
+  );
+}
+
+// ── Desktop: inline split-pane panel (named export) ──────────────────────────
+export function AiAssistantPanel() {
+  const { aiDrawerOpen, setAiDrawerOpen } = useUiStore();
+
+  return (
+    <AnimatePresence>
+      {aiDrawerOpen && (
+        <motion.div
+          key="ai-panel"
+          initial={{ width: 0, opacity: 0 }}
+          animate={{ width: 420, opacity: 1 }}
+          exit={{ width: 0, opacity: 0 }}
+          transition={{ duration: 0.22, ease: 'easeOut' }}
+          style={{ overflow: 'hidden', flexShrink: 0, height: '100%' }}
+        >
+          <Box
+            sx={{
+              width: 420,
+              minWidth: 420,
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              borderLeft: '1px solid',
+              borderColor: 'divider',
+              bgcolor: 'background.default',
+              overflow: 'hidden',
+            }}
+          >
+            <AiPanelContent onClose={() => setAiDrawerOpen(false)} />
+          </Box>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

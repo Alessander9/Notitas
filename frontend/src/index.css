@@ -158,3 +158,105 @@ body,
   align-items: flex-start;
 }
 
+/* ── Print styles (PDF export vía window.print) ─────────────────────── */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #1f2430 !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  /* Hide everything except the note content */
+  nav, header, .MuiDrawer-root, .MuiAppBar-root,
+  [data-print-hide], button, .MuiFab-root {
+    display: none !important;
+  }
+
+  /* Note content area */
+  .tiptap, [data-print-content] {
+    background: #ffffff !important;
+    color: #1f2430 !important;
+    padding: 0 !important;
+    max-width: 100% !important;
+    font-size: 11pt !important;
+    line-height: 1.6 !important;
+  }
+
+  .tiptap h1, .tiptap h2, .tiptap h3,
+  [data-print-content] h1, [data-print-content] h2, [data-print-content] h3 {
+    color: #141a26 !important;
+    page-break-after: avoid;
+  }
+
+  .tiptap p, [data-print-content] p { margin: 0 0 8pt; }
+
+  .tiptap code, [data-print-content] code {
+    background: #f0f2f5 !important;
+    color: #c0392b !important;
+    padding: 1pt 3pt;
+    border-radius: 2pt;
+    font-size: 9pt;
+  }
+
+  .tiptap pre, [data-print-content] pre {
+    background: #f8f9fa !important;
+    color: #1f2430 !important;
+    border: 1pt solid #e0e0e0;
+    padding: 8pt;
+    page-break-inside: avoid;
+  }
+
+  .tiptap a, [data-print-content] a { color: #386c5f !important; }
+
+  .tiptap blockquote, [data-print-content] blockquote {
+    border-left: 3pt solid #386c5f !important;
+    color: #5a6a7e !important;
+    padding-left: 8pt;
+  }
+
+  .tiptap table, [data-print-content] table {
+    border-collapse: collapse;
+    width: 100%;
+    page-break-inside: avoid;
+  }
+
+  .tiptap td, .tiptap th,
+  [data-print-content] td, [data-print-content] th {
+    border: 0.5pt solid #ccc !important;
+    padding: 4pt 6pt;
+    background: #ffffff !important;
+    color: #1f2430 !important;
+  }
+
+  /* Checkboxes */
+  .tiptap input[type="checkbox"] { accent-color: #386c5f; }
+
+  @page { margin: 15mm 20mm; }
+}
+
+/* Mobile virtual keyboard fix */
+@supports (height: 100dvh) {
+  .mobile-editor-area {
+    padding-bottom: var(--vv-offset, 0px);
+    transition: padding-bottom 0.1s ease;
+  }
+}
+
+/* Wiki-style note links */
+.note-link {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(56, 108, 95, 0.12);
+  color: #386c5f;
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  border: 1px solid rgba(56, 108, 95, 0.25);
+  transition: background 0.15s;
+}
+.note-link:hover {
+  background: rgba(56, 108, 95, 0.22);
+}
+

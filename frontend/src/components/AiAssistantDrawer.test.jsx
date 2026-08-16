@@ -38,7 +38,7 @@ describe('AiAssistantDrawer', () => {
   });
 
   it('renderiza el header de CleoBot y mensaje de bienvenida', () => {
-    renderWithClient(<AiAssistantDrawer />);
+    renderWithClient(<AiAssistantDrawer forceRender />);
 
     expect(screen.getByRole('heading', { name: /CleoBot/ })).toBeInTheDocument();
     expect(screen.getByText(/Multi-IA/i)).toBeInTheDocument();
@@ -47,7 +47,7 @@ describe('AiAssistantDrawer', () => {
   });
 
   it('muestra los chips de prompts sugeridos', () => {
-    renderWithClient(<AiAssistantDrawer />);
+    renderWithClient(<AiAssistantDrawer forceRender />);
 
     expect(screen.getByText('Atajos y funciones')).toBeInTheDocument();
     expect(screen.getByText('Modo Zen y Slash')).toBeInTheDocument();
@@ -55,7 +55,7 @@ describe('AiAssistantDrawer', () => {
   });
 
   it('permite escribir un mensaje y enviarlo a la API de IA', async () => {
-    renderWithClient(<AiAssistantDrawer />);
+    renderWithClient(<AiAssistantDrawer forceRender />);
 
     const input = screen.getByPlaceholderText(/Pregunta algo a CleoBot/i);
     fireEvent.change(input, { target: { value: '¿Cómo funciona Notitas?' } });

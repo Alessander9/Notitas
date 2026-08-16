@@ -28,8 +28,10 @@ vi.mock('../services/api', () => {
       get: vi.fn((url) => {
         const path = String(url);
         if (path === '/projects') return Promise.resolve({ data: [] });
+        if (path.includes('/notes') && path.includes('/projects/')) return Promise.resolve({ data: [] });
         if (path.includes('/comments')) return Promise.resolve({ data: [] });
         if (path.includes('/attachments')) return Promise.resolve({ data: [] });
+        if (path.includes('/versions')) return Promise.resolve({ data: [] });
         if (path === '/notes/5') return Promise.resolve({ data: note });
         if (path === '/notes/6') return Promise.resolve({ data: emptyNote });
         return Promise.resolve({ data: {} });

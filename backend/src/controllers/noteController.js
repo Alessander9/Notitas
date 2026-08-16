@@ -652,18 +652,19 @@ export const getVersions = async (req, res, next) => {
     if (!access) return res.status(404).json({ message: 'Nota no encontrada' });
 
     const result = await query(`
-      SELECT v.*, u.name as user_name, u.email as user_email
+      SELECT v.id, v.note_id, v.title, v.content, v.created_at, v.updated_by, u.name as user_name, u.email as user_email
       FROM note_versions v
       LEFT JOIN users u ON u.id = v.updated_by
       WHERE v.note_id = $1
       ORDER BY v.created_at DESC
+      LIMIT 50
     `, [id]);
 
     const versions = result.rows.map((v) => ({
       id: Number(v.id),
       noteId: Number(v.note_id),
       title: v.title,
-      content: v.content,
+      content: v.content || '',
       updatedBy: v.updated_by ? Number(v.updated_by) : null,
       userName: v.user_name || 'Usuario',
       createdAt: v.created_at,

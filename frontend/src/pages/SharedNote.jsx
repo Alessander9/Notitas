@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, Link as RouterLink } from 'react-router-dom';
 import {
-  Container,
   Box,
   Typography,
   Paper,
@@ -27,11 +26,35 @@ import { API_BASE_URL } from '../services/api';
 import { getAssetUrl } from '../utils/text';
 import logoImage from '../assets/logo notitas.png';
 
+function extractHeadings(html = '') {
+  const matches = [];
+  const regex = /<h([123])[^>]*>(.*?)<\/h[123]>/gi;
+  let match;
+  let i = 0;
+  while ((match = regex.exec(html)) !== null) {
+    const level = parseInt(match[1]);
+    const text = match[2].replace(/<[^>]*>/g, '').trim();
+    if (text) matches.push({ id: `h-${i++}`, level, text });
+  }
+  return matches;
+}
+
+function injectHeadingIds(html = '') {
+  let i = 0;
+  return html.replace(/<h([123])([^>]*)>/gi, (_, level, attrs) => {
+    return `<h${level}${attrs} id="h-${i++}">`;
+  });
+}
+
 export default function SharedNote() {
   const { token } = useParams();
   const [note, setNote] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  const headings = useMemo(() => (note?.content ? extractHeadings(note.content) : []), [note?.content]);
+  const processedContent = useMemo(() => (note?.content ? injectHeadingIds(note.content) : ''), [note?.content]);
+  const [activeHeading, setActiveHeading] = useState('');
 
   useEffect(() => {
     const fetchSharedNote = async () => {
@@ -106,6 +129,25 @@ export default function SharedNote() {
   }, [token]);
 
   const coverUrl = getAssetUrl(note?.coverImage);
+
+  useEffect(() => {
+    if (!headings.length) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) setActiveHeading(entry.target.id);
+        }
+      },
+      { rootMargin: '-20% 0px -60% 0px' }
+    );
+    const t = setTimeout(() => {
+      headings.forEach(h => {
+        const el = document.getElementById(h.id);
+        if (el) observer.observe(el);
+      });
+    }, 100);
+    return () => { clearTimeout(t); observer.disconnect(); };
+  }, [headings]);
 
   return (
     <ThemeProvider theme={publicTheme}>
@@ -200,7 +242,54 @@ export default function SharedNote() {
           </Toolbar>
         </AppBar>
 
-        <Container maxWidth="md" sx={{ flexGrow: 1, py: { xs: 3, sm: 5 }, px: { xs: 2, sm: 3 } }}>
+        <Box sx={{ display: 'flex', gap: 3, px: { xs: 2, sm: 4 }, py: { xs: 3, sm: 5 }, maxWidth: 1100, mx: 'auto', width: '100%' }}>
+          {/* TOC sidebar — only on desktop when headings exist */}
+          {headings.length >= 2 && (
+            <Box
+              component="nav"
+              sx={{
+                display: { xs: 'none', md: 'block' },
+                width: 200,
+                flexShrink: 0,
+                position: 'sticky',
+                top: 80,
+                alignSelf: 'flex-start',
+                maxHeight: 'calc(100vh - 100px)',
+                overflowY: 'auto',
+              }}
+            >
+              <Typography variant="caption" fontWeight={700} color="text.disabled" sx={{ textTransform: 'uppercase', letterSpacing: 0.8, fontSize: '0.6rem', display: 'block', mb: 1 }}>
+                Contenido
+              </Typography>
+              {headings.map(h => (
+                <Box
+                  key={h.id}
+                  component="a"
+                  href={`#${h.id}`}
+                  onClick={(e) => { e.preventDefault(); document.getElementById(h.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}
+                  sx={{
+                    display: 'block',
+                    py: 0.3,
+                    pl: (h.level === 1 ? 0.5 : h.level === 2 ? 1 : 1.75) + 0.5,
+                    fontSize: '0.75rem',
+                    color: activeHeading === h.id ? 'primary.main' : 'text.secondary',
+                    fontWeight: activeHeading === h.id ? 700 : 400,
+                    textDecoration: 'none',
+                    borderLeft: '2px solid',
+                    borderColor: activeHeading === h.id ? 'primary.main' : 'transparent',
+                    transition: 'all 0.15s',
+                    '&:hover': { color: 'primary.main' },
+                    lineHeight: 1.4,
+                  }}
+                >
+                  {h.text}
+                </Box>
+              ))}
+            </Box>
+          )}
+
+          {/* Main content */}
+          <Box sx={{ flexGrow: 1, minWidth: 0 }}>
           {loading ? (
             <Box>
               <SharedNoteSkeleton />
@@ -488,13 +577,14 @@ export default function SharedNote() {
                         clear: 'both',
                       },
                     }}
-                    dangerouslySetInnerHTML={{ __html: note.content }}
+                    dangerouslySetInnerHTML={{ __html: processedContent }}
                   />
                 )}
               </Paper>
             </motion.div>
           )}
-        </Container>
+          </Box>
+        </Box>
       </Box>
     </ThemeProvider>
   );
