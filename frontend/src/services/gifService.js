@@ -1,4 +1,6 @@
-// Servicio para buscar y obtener GIFs y Fotos con Openverse, Colecciones Verificadas y Enlace Directo
+// Servicio para buscar y obtener GIFs animados oficiales con GIPHY y Fotos con Openverse
+
+const DEFAULT_GIPHY_KEY = 'UuW7Yg2V0fPCFZAsBafI3fjroXK2ifOP';
 
 // Colección verificada de GIFs animados con URLs directas de alta disponibilidad
 export const CURATED_GIF_COLLECTIONS = {
@@ -60,12 +62,37 @@ export const GRADIENT_COLLECTIONS = [
 ];
 
 /**
- * Busca GIFs y animaciones con coincidencia inteligente y respaldo de Openverse
+ * Busca GIFs animados oficiales con GIPHY en tiempo real
  */
 export const searchGifs = async (query = '', limit = 24) => {
   const trimmed = query.trim();
+  const apiKey = import.meta.env?.VITE_GIPHY_API_KEY || DEFAULT_GIPHY_KEY;
 
-  // 1. Filtrado en colecciones curadas
+  // 1. Consulta en vivo a la API oficial de GIPHY
+  try {
+    const endpoint = trimmed
+      ? `https://api.giphy.com/v1/gifs/search?api_key=${apiKey}&q=${encodeURIComponent(trimmed)}&limit=${limit}&rating=g`
+      : `https://api.giphy.com/v1/gifs/trending?api_key=${apiKey}&limit=${limit}&rating=g`;
+
+    const res = await fetch(endpoint);
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data.data) && data.data.length > 0) {
+        return data.data.map((item) => ({
+          id: item.id,
+          title: item.title || 'GIF animado',
+          url: item.images?.original?.url || item.images?.downsized_medium?.url || item.images?.fixed_height?.url,
+          preview: item.images?.fixed_height?.url || item.images?.downsized_small?.url || item.images?.original?.url,
+          width: item.images?.original?.width,
+          height: item.images?.original?.height,
+        }));
+      }
+    }
+  } catch (err) {
+    console.warn('GIPHY API request failed, falling back to curated list:', err);
+  }
+
+  // 2. Filtrado en colecciones curadas
   if (trimmed) {
     const lower = trimmed.toLowerCase();
     const matches = [];
@@ -77,16 +104,6 @@ export const searchGifs = async (query = '', limit = 24) => {
       });
     });
     if (matches.length > 0) return matches;
-
-    // Si no hubo coincidencia en la lista corta, buscar en Openverse
-    try {
-      const liveResults = await searchPhotos(trimmed, limit);
-      if (liveResults && liveResults.length > 0) {
-        return liveResults;
-      }
-    } catch {
-      // Ignorar y retornar colección completa
-    }
   }
 
   return Object.values(CURATED_GIF_COLLECTIONS).flat();
