@@ -39,7 +39,7 @@ export const deleteFromCloudinary = async (publicIdOrUrl) => {
     let publicId = publicIdOrUrl;
     // Si se pasa una URL completa, extraer el publicId aproximado
     if (publicIdOrUrl.startsWith('http')) {
-      const match = publicIdOrUrl.match(/\/upload\/(?:v\d+\/)?([^\.]+)/);
+      const match = publicIdOrUrl.match(/\/upload\/(?:v\d+\/)?([^.]+)/);
       if (match && match[1]) {
         publicId = match[1];
       }

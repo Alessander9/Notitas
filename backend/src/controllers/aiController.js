@@ -1,7 +1,7 @@
 import { chatWithAssistant, transformTextWithAi } from '../services/aiService.js';
 import { buildProjectDossier, findProjectByMessage } from '../services/projectContextService.js';
 
-export const handleAiChat = async (req, res, next) => {
+export const handleAiChat = async (req, res) => {
   try {
     const { messages, noteContext, projectContext, projectId, userProjects } = req.body;
 
@@ -54,7 +54,7 @@ export const handleAiChat = async (req, res, next) => {
   }
 };
 
-export const handleAiTransform = async (req, res, next) => {
+export const handleAiTransform = async (req, res) => {
   try {
     const { action, text, instructions } = req.body;
 

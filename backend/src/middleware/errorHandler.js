@@ -1,4 +1,4 @@
-export const errorHandler = (err, req, res, next) => {
+export const errorHandler = (err, req, res, _next) => {
   console.error('Unhandled error in request:', err);
 
   // Errores específicos de Multer (límites de tamaño, etc.)

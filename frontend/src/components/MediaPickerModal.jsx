@@ -52,6 +52,13 @@ export default function MediaPickerModal({
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
+  // Limpieza de memoria para URLs de previsualización local
+  useEffect(() => {
+    return () => {
+      if (filePreview) URL.revokeObjectURL(filePreview);
+    };
+  }, [filePreview]);
+
   // Cargar medios al buscar o cambiar de pestaña o categoría
   useEffect(() => {
     if (!open) return;
