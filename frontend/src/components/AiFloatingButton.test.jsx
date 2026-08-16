@@ -17,9 +17,9 @@ describe('AiFloatingButton', () => {
     });
   });
 
-  it('renderiza el botón flotante con texto e icono de Notitas AI', () => {
+  it('renderiza el botón flotante con texto e icono de CleoBot', () => {
     render(<AiFloatingButton />);
-    expect(screen.getByText('Notitas AI')).toBeInTheDocument();
+    expect(screen.getByText('CleoBot')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /abrir asistente de ia notitas/i })).toBeInTheDocument();
   });
 

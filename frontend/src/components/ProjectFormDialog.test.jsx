@@ -1,7 +1,8 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import ProjectFormDialog, { getProjectIcon, COLOR_OPTIONS, ICON_OPTIONS } from './ProjectFormDialog';
+import ProjectFormDialog from './ProjectFormDialog';
+import { getProjectIcon, COLOR_OPTIONS, ICON_OPTIONS } from '../constants/projectOptions';
 
 const defaults = {
   open: true,

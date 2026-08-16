@@ -19,12 +19,13 @@ import {
   Search as SearchIcon,
   Close as CloseIcon,
   Animation as GifIcon,
+  PhotoCamera as PhotoIcon,
   Wallpaper as WallpaperIcon,
   CloudUpload as UploadIcon,
   Link as LinkIcon,
   AutoAwesome as SparklesIcon,
 } from '@mui/icons-material';
-import { searchGifs, CURATED_GIF_COLLECTIONS, GRADIENT_COLLECTIONS } from '../services/gifService';
+import { searchGifs, searchPhotos, CURATED_GIF_COLLECTIONS, GRADIENT_COLLECTIONS } from '../services/gifService';
 
 export default function MediaPickerModal({
   open,
@@ -39,7 +40,8 @@ export default function MediaPickerModal({
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Lofi');
   const [gifs, setGifs] = useState([]);
-  const [loadingGifs, setLoadingGifs] = useState(false);
+  const [photos, setPhotos] = useState([]);
+  const [loadingMedia, setLoadingMedia] = useState(false);
   const [customUrl, setCustomUrl] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
   const [filePreview, setFilePreview] = useState(null);
@@ -50,18 +52,30 @@ export default function MediaPickerModal({
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Cargar GIFs al buscar o cambiar categoría
+  // Cargar medios al buscar o cambiar de pestaña o categoría
   useEffect(() => {
     if (!open) return;
     let isCancelled = false;
 
     const fetchResults = async () => {
-      setLoadingGifs(true);
-      const queryToUse = debouncedQuery.trim() || selectedCategory;
-      const results = await searchGifs(queryToUse);
-      if (!isCancelled) {
-        setGifs(results);
-        setLoadingGifs(false);
+      setLoadingMedia(true);
+
+      if (tab === 'gifs') {
+        const queryToUse = debouncedQuery.trim() || selectedCategory;
+        const results = await searchGifs(queryToUse);
+        if (!isCancelled) {
+          setGifs(results);
+          setLoadingMedia(false);
+        }
+      } else if (tab === 'photos') {
+        const queryToUse = debouncedQuery.trim() || 'aesthetic wallpaper';
+        const results = await searchPhotos(queryToUse);
+        if (!isCancelled) {
+          setPhotos(results);
+          setLoadingMedia(false);
+        }
+      } else {
+        setLoadingMedia(false);
       }
     };
 
@@ -69,7 +83,7 @@ export default function MediaPickerModal({
     return () => {
       isCancelled = true;
     };
-  }, [debouncedQuery, selectedCategory, open]);
+  }, [debouncedQuery, selectedCategory, tab, open]);
 
   const handleSelectCategory = (cat) => {
     setSelectedCategory(cat);
@@ -140,7 +154,10 @@ export default function MediaPickerModal({
       <Box sx={{ px: 3, borderBottom: '1px solid', borderColor: 'divider' }}>
         <Tabs
           value={tab}
-          onChange={(_, v) => setTab(v)}
+          onChange={(_, v) => {
+            setTab(v);
+            setSearchQuery('');
+          }}
           variant="scrollable"
           scrollButtons="auto"
           sx={{
@@ -155,19 +172,20 @@ export default function MediaPickerModal({
           }}
         >
           <Tab value="gifs" icon={<GifIcon sx={{ fontSize: 18 }} />} label="GIFs Animados (GIPHY)" />
-          <Tab value="gradients" icon={<WallpaperIcon sx={{ fontSize: 18 }} />} label="Fondos & Gradientes HD" />
+          <Tab value="photos" icon={<PhotoIcon sx={{ fontSize: 18 }} />} label="Fotos & Fondos HD" />
+          <Tab value="gradients" icon={<WallpaperIcon sx={{ fontSize: 18 }} />} label="Gradientes Mesh" />
           <Tab value="upload" icon={<UploadIcon sx={{ fontSize: 18 }} />} label="Subir o Enlace" />
         </Tabs>
       </Box>
 
-      <DialogContent sx={{ p: 3, minHeight: 380, maxHeight: '60vh' }}>
+      <DialogContent sx={{ p: 3, minHeight: 400, maxHeight: '65vh' }}>
         {/* PESTAÑA 1: GIFS ANIMADOS */}
         {tab === 'gifs' && (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <TextField
               size="small"
               fullWidth
-              placeholder="Buscar GIFs animados en GIPHY (ej. lofi, anime, cyberpunk, chill)..."
+              placeholder="Buscar GIFs animados (ej. gatos, lofi, anime, cyberpunk, coding)..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               InputProps={{
@@ -195,7 +213,7 @@ export default function MediaPickerModal({
             {/* Categorías sugeridas */}
             <Box sx={{ display: 'flex', gap: 1, overflowX: 'auto', pb: 0.5, alignItems: 'center' }}>
               <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, flexShrink: 0 }}>
-                Populares:
+                Colecciones:
               </Typography>
               {Object.keys(CURATED_GIF_COLLECTIONS).map((cat) => (
                 <Chip
@@ -212,7 +230,7 @@ export default function MediaPickerModal({
             </Box>
 
             {/* Cuadrícula de GIFs */}
-            {loadingGifs ? (
+            {loadingMedia ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 8, gap: 1.5 }}>
                 <CircularProgress size={24} />
                 <Typography variant="body2" color="text.secondary">
@@ -222,7 +240,7 @@ export default function MediaPickerModal({
             ) : gifs.length === 0 ? (
               <Box sx={{ textAlign: 'center', py: 8 }}>
                 <Typography variant="body2" color="text.secondary">
-                  No se encontraron GIFs para tu búsqueda.
+                  No se encontraron GIFs para tu búsqueda. Prueba con otra categoría o término.
                 </Typography>
               </Box>
             ) : (
@@ -232,7 +250,7 @@ export default function MediaPickerModal({
                   gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
                   gap: 1.5,
                   overflowY: 'auto',
-                  maxHeight: 320,
+                  maxHeight: 330,
                   pr: 0.5,
                 }}
               >
@@ -276,7 +294,7 @@ export default function MediaPickerModal({
                       sx={{
                         position: 'absolute',
                         inset: 0,
-                        background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 60%)',
+                        background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 60%)',
                         opacity: 0,
                         transition: 'opacity 0.2s',
                         display: 'flex',
@@ -296,7 +314,113 @@ export default function MediaPickerModal({
           </Box>
         )}
 
-        {/* PESTAÑA 2: FONDOS & GRADIENTES HD */}
+        {/* PESTAÑA 2: FOTOS & FONDOS HD */}
+        {tab === 'photos' && (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <TextField
+              size="small"
+              fullWidth
+              placeholder="Buscar millones de fotos reales (ej. montañas, sunset, minimal, oficina, cafe)..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon color="action" />
+                  </InputAdornment>
+                ),
+                endAdornment: searchQuery && (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={() => setSearchQuery('')}>
+                      <CloseIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2.5,
+                  bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'),
+                },
+              }}
+            />
+
+            {loadingMedia ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 8, gap: 1.5 }}>
+                <CircularProgress size={24} />
+                <Typography variant="body2" color="text.secondary">
+                  Buscando fotos en alta resolución...
+                </Typography>
+              </Box>
+            ) : photos.length === 0 ? (
+              <Box sx={{ textAlign: 'center', py: 8 }}>
+                <Typography variant="body2" color="text.secondary">
+                  No se encontraron fotos. Intenta con otro término de búsqueda.
+                </Typography>
+              </Box>
+            ) : (
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))',
+                  gap: 1.5,
+                  overflowY: 'auto',
+                  maxHeight: 330,
+                  pr: 0.5,
+                }}
+              >
+                {photos.map((item) => (
+                  <Box
+                    key={item.id}
+                    onClick={() => {
+                      onSelectMedia(item.url);
+                      onClose();
+                    }}
+                    sx={{
+                      position: 'relative',
+                      borderRadius: 2.5,
+                      overflow: 'hidden',
+                      height: 120,
+                      cursor: 'pointer',
+                      border: '2px solid transparent',
+                      transition: 'all 0.2s ease-out',
+                      '&:hover': {
+                        transform: 'scale(1.03)',
+                        borderColor: 'primary.main',
+                        boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+                        zIndex: 2,
+                      },
+                    }}
+                  >
+                    <Box
+                      component="img"
+                      src={item.preview || item.url}
+                      alt={item.title}
+                      loading="lazy"
+                      sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        p: 1,
+                        background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)',
+                      }}
+                    >
+                      <Typography variant="caption" sx={{ color: '#fff', fontWeight: 600, fontSize: '0.72rem', noWrap: true }}>
+                        {item.title}
+                      </Typography>
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
+            )}
+          </Box>
+        )}
+
+        {/* PESTAÑA 3: GRADIENTES MESH */}
         {tab === 'gradients' && (
           <Box
             sx={{
@@ -354,7 +478,7 @@ export default function MediaPickerModal({
           </Box>
         )}
 
-        {/* PESTAÑA 3: SUBIR ARCHIVO O ENLACE */}
+        {/* PESTAÑA 4: SUBIR ARCHIVO O ENLACE */}
         {tab === 'upload' && (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, py: 1 }}>
             {/* Opción 1: Enlace URL */}
@@ -366,7 +490,7 @@ export default function MediaPickerModal({
                 <TextField
                   size="small"
                   fullWidth
-                  placeholder="https://ejemplo.com/imagen.gif"
+                  placeholder="https://ejemplo.com/imagen.gif o enlace de Giphy/Tenor"
                   value={customUrl}
                   onChange={(e) => setCustomUrl(e.target.value)}
                   InputProps={{

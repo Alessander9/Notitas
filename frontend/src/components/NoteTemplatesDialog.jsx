@@ -56,7 +56,7 @@ import api from '../services/api';
 import { toast } from '../store/toastStore';
 import { useConfirmStore } from '../store/confirmStore';
 
-export const NOTE_TEMPLATES = [
+const NOTE_TEMPLATES = [
   {
     id: 'groceries',
     icon: '🛒',
@@ -583,7 +583,7 @@ export const NOTE_TEMPLATES = [
   },
 ];
 
-export const TEMPLATE_CATEGORIES = [
+const TEMPLATE_CATEGORIES = [
   'Todas',
   '⭐ Mis Plantillas',
   'Vida Diaria',

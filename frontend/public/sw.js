@@ -4,8 +4,8 @@ const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/assets/logo notitas.png',
-  '/assets/notitas-texto.png',
+  '/logo-notitas.png',
+  '/notitas-texto.png',
 ];
 
 self.addEventListener('install', (event) => {

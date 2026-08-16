@@ -158,7 +158,14 @@ export const createTemplateFromNote = async (req, res, next) => {
     const { title, description, icon, category } = req.body;
 
     const noteRes = await query(
-      'SELECT * FROM notes WHERE id = $1 AND (user_id = $2 OR project_id IN (SELECT project_id FROM project_members WHERE user_id = $2)) AND deleted = false',
+      `SELECT n.* FROM notes n
+       JOIN projects p ON p.id = n.project_id
+       WHERE n.id = $1 AND n.deleted = false
+         AND (
+           p.user_id = $2
+           OR EXISTS (SELECT 1 FROM project_members pm WHERE pm.project_id = p.id AND pm.user_id = $2)
+           OR EXISTS (SELECT 1 FROM note_members nm WHERE nm.note_id = n.id AND nm.user_id = $2)
+         )`,
       [noteId, userId]
     );
 

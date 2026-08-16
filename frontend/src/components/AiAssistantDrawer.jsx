@@ -22,12 +22,14 @@ import {
   MenuBook as BookIcon,
   Checklist as TasksIcon,
   Bolt as FastIcon,
+  Folder as FolderIcon,
 } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import api from '../services/api';
 import { useUiStore } from '../store/uiStore';
 import { toast } from '../store/toastStore';
 import { getPlainText } from '../utils/text';
+import { renderMarkdown } from '../utils/markdown';
 
 const SUGGESTED_PROMPTS = [
   { icon: <IdeaIcon sx={{ fontSize: 15 }} />, text: '¿Qué funciones y atajos tiene Notitas?', label: 'Atajos y funciones' },
@@ -35,6 +37,7 @@ const SUGGESTED_PROMPTS = [
   { icon: <BookIcon sx={{ fontSize: 15 }} />, text: 'Resume los puntos clave de la nota actual', label: 'Resumir nota actual', needsNote: true },
   { icon: <TasksIcon sx={{ fontSize: 15 }} />, text: 'Extrae una lista de tareas de la nota actual', label: 'Extraer tareas', needsNote: true },
   { icon: <IdeaIcon sx={{ fontSize: 15 }} />, text: 'Dame ideas para estructurar un nuevo proyecto', label: 'Ideas de proyecto' },
+  { icon: <FolderIcon sx={{ fontSize: 15 }} />, text: 'Dame un resumen del proyecto actual', label: 'Resumir proyecto', needsProject: true },
 ];
 
 export default function AiAssistantDrawer() {
@@ -53,8 +56,8 @@ export default function AiAssistantDrawer() {
     {
       id: 'welcome',
       role: 'assistant',
-      content: '¡Hola! Soy **Notitas AI**, tu asistente inteligente. Puedo ayudarte a redactar, resumir tus notas, responder dudas sobre la plataforma o generar ideas para tus proyectos. ¿En qué te ayudo hoy?',
-      provider: 'Notitas AI',
+      content: '¡Hola! Soy **CleoBot**, tu asistente virtual. Puedo ayudarte a redactar, resumir tus notas, revisar tus proyectos, responder dudas sobre la plataforma o generar ideas. ¿En qué te ayudo hoy?',
+      provider: 'CleoBot',
     },
   ]);
 
@@ -109,30 +112,36 @@ export default function AiAssistantDrawer() {
     setInputMessage('');
     setLoading(true);
 
+    // Build context if note is active and option is checked
+    const noteContext = includeNoteContext && note
+      ? {
+          title: note.title,
+          tags: note.tags,
+          content: getPlainText(note.content, ''),
+        }
+      : null;
+
+    const projectContext = activeProject
+      ? {
+          name: activeProject.name,
+          description: activeProject.description,
+        }
+      : null;
+
+    const apiMessages = newMessages.filter((m) => m.id !== 'welcome').map((m) => ({
+      role: m.role,
+      content: m.content,
+    }));
+
     try {
-      // Build context if note is active and option is checked
-      const noteContext = includeNoteContext && note
-        ? {
-            title: note.title,
-            tags: note.tags,
-            content: getPlainText(note.content, ''),
-          }
-        : null;
-
-      const projectContext = activeProject
-        ? {
-            name: activeProject.name,
-            description: activeProject.description,
-          }
-        : null;
-
       const res = await api.post('/ai/chat', {
-        messages: newMessages.filter((m) => m.id !== 'welcome').map((m) => ({
-          role: m.role,
-          content: m.content,
-        })),
+        messages: apiMessages,
         noteContext,
         projectContext,
+        // Para que la IA pueda revisar y resumir proyectos: el proyecto activo
+        // y el catálogo de proyectos del usuario (para detectar menciones por nombre).
+        projectId: activeProject?.id || null,
+        userProjects: projects.map((p) => ({ id: p.id, name: p.name, description: p.description })),
       });
 
       const aiMsg = {
@@ -145,14 +154,26 @@ export default function AiAssistantDrawer() {
 
       setMessages((prev) => [...prev, aiMsg]);
     } catch (err) {
-      console.error('Error in AI Assistant chat:', err);
-      const errMsg = {
-        id: String(Date.now() + 1),
-        role: 'assistant',
-        content: '⚠️ Lo siento, ocurrió un problema al conectar con los servicios de IA. Por favor intenta de nuevo en unos momentos.',
-        isError: true,
-      };
-      setMessages((prev) => [...prev, errMsg]);
+      console.warn('Backend AI endpoint no respondió o falló, activando failover directo:', err);
+      try {
+        const directRes = await directAiChat(apiMessages, noteContext, projectContext);
+        const aiMsg = {
+          id: String(Date.now() + 1),
+          role: 'assistant',
+          content: directRes.message,
+          provider: directRes.provider || 'Groq Direct',
+        };
+        setMessages((prev) => [...prev, aiMsg]);
+      } catch (directErr) {
+        console.error('Error total en AI Assistant chat:', directErr);
+        const errMsg = {
+          id: String(Date.now() + 1),
+          role: 'assistant',
+          content: '⚠️ Lo siento, ocurrió un problema al conectar con los servicios de IA. Por favor intenta de nuevo en unos momentos.',
+          isError: true,
+        };
+        setMessages((prev) => [...prev, errMsg]);
+      }
     } finally {
       setLoading(false);
     }
@@ -175,12 +196,20 @@ export default function AiAssistantDrawer() {
       toast.info('Abre una nota para poder insertar el contenido generado');
       return;
     }
-    // Convert markdown line breaks to HTML paragraphs
-    const formatted = content
-      .replace(/\n\n/g, '</p><p>')
-      .replace(/\n/g, '<br/>')
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.*?)\*/g, '<em>$1</em>');
+    // Convert markdown to HTML rich text for the note editor
+    let formatted = content
+      .replace(/^### (.*)$/gm, '<h3>$1</h3>')
+      .replace(/^## (.*)$/gm, '<h2>$1</h2>')
+      .replace(/^# (.*)$/gm, '<h1>$1</h1>')
+      .replace(/^```[\w]*\n?([\s\S]*?)```/gm, '<pre><code>$1</code></pre>')
+      .replace(/^> (.*)$/gm, '<blockquote>$1</blockquote>')
+      .replace(/^[-*•]\s+(.*)$/gm, '<li>$1</li>')
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+      .replace(/`([^`]+)`/g, '<code>$1</code>');
+    // Agrupar viñetas consecutivas en una lista
+    formatted = formatted.replace(/((?:<li>.*<\/li>\n?)+)/g, (m) => `<ul>${m}</ul>`);
+    formatted = formatted.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br/>');
 
     window.dispatchEvent(
       new CustomEvent('notitas-ai-insert', {
@@ -196,7 +225,7 @@ export default function AiAssistantDrawer() {
         id: 'welcome',
         role: 'assistant',
         content: 'Conversación reiniciada. ¿En qué más puedo ayudarte hoy?',
-        provider: 'Notitas AI',
+        provider: 'CleoBot',
       },
     ]);
   };
@@ -250,7 +279,7 @@ export default function AiAssistantDrawer() {
           </Box>
           <Box>
             <Typography variant="subtitle1" fontWeight={800} sx={{ lineHeight: 1.2, display: 'flex', alignItems: 'center', gap: 0.8 }}>
-              Notitas AI
+              CleoBot
               <Chip
                 label="Multi-IA"
                 size="small"
@@ -302,9 +331,17 @@ export default function AiAssistantDrawer() {
             <Typography variant="caption" sx={{ fontSize: '1rem', lineHeight: 1 }}>
               {note.icon || '📝'}
             </Typography>
-            <Typography variant="caption" fontWeight={600} noWrap sx={{ maxWidth: 220 }}>
+            <Typography variant="caption" fontWeight={600} noWrap sx={{ maxWidth: 160 }}>
               {note.title || 'Sin título'}
             </Typography>
+            {activeProject && (
+              <>
+                <Typography variant="caption" sx={{ opacity: 0.4 }}>·</Typography>
+                <Typography variant="caption" fontWeight={600} noWrap sx={{ maxWidth: 110, opacity: 0.75 }}>
+                  {activeProject.icon || '📁'} {activeProject.name}
+                </Typography>
+              </>
+            )}
           </Box>
           <Chip
             label={includeNoteContext ? 'Contexto activo' : 'Sin contexto'}
@@ -351,7 +388,6 @@ export default function AiAssistantDrawer() {
                   fontSize: '0.86rem',
                   lineHeight: 1.6,
                   wordBreak: 'break-word',
-                  whiteSpace: 'pre-wrap',
                   '& h2, & h3, & h4': {
                     fontSize: '0.95rem',
                     fontWeight: 700,
@@ -360,6 +396,8 @@ export default function AiAssistantDrawer() {
                     color: isUser ? '#fff' : 'text.primary',
                   },
                   '& ul, & ol': { pl: 2.2, my: 0.5 },
+                  '& li': { my: 0.3 },
+                  '& p': { my: 0.5, '&:first-of-type': { mt: 0 }, '&:last-of-type': { mb: 0 } },
                   '& code': {
                     bgcolor: isUser ? 'rgba(0,0,0,0.2)' : 'action.hover',
                     px: 0.6,
@@ -368,9 +406,32 @@ export default function AiAssistantDrawer() {
                     fontSize: '0.8rem',
                     fontFamily: 'monospace',
                   },
+                  '& pre': {
+                    bgcolor: isUser ? 'rgba(0,0,0,0.25)' : 'rgba(0,0,0,0.06)',
+                    p: 1.2,
+                    borderRadius: 2,
+                    overflowX: 'auto',
+                    fontSize: '0.78rem',
+                    fontFamily: 'monospace',
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word',
+                    my: 1,
+                  },
+                  '& blockquote': {
+                    borderLeft: '3px solid',
+                    borderColor: 'divider',
+                    pl: 1.2,
+                    my: 0.8,
+                    color: 'text.secondary',
+                    fontStyle: 'italic',
+                  },
+                  '& a': { color: isUser ? '#fff' : 'primary.main', fontWeight: 600 },
+                  '& table': { my: 1, width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' },
+                  '& th, & td': { borderBottom: '1px solid', borderColor: 'divider', py: 0.6, pr: 1.2, textAlign: 'left' },
+                  '& hr': { my: 1, borderColor: 'divider', opacity: 0.5 },
                 }}
               >
-                {msg.content}
+                {renderMarkdown(msg.content)}
               </Paper>
 
               {/* Action Buttons below AI messages */}
@@ -405,7 +466,7 @@ export default function AiAssistantDrawer() {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, p: 1.5, bgcolor: 'action.hover', borderRadius: 3, maxWidth: 260 }}>
             <CircularProgress size={16} thickness={5} />
             <Typography variant="caption" color="text.secondary" fontWeight={600}>
-              Notitas AI está pensando...
+              CleoBot está pensando...
             </Typography>
           </Box>
         )}
@@ -417,6 +478,7 @@ export default function AiAssistantDrawer() {
       <Box sx={{ px: 2, py: 1, borderTop: '1px solid', borderColor: 'divider', overflowX: 'auto', display: 'flex', gap: 0.8 }}>
         {SUGGESTED_PROMPTS.map((prompt, idx) => {
           if (prompt.needsNote && !note) return null;
+          if (prompt.needsProject && !activeProject) return null;
           return (
             <Chip
               key={idx}
@@ -449,7 +511,7 @@ export default function AiAssistantDrawer() {
             maxRows={4}
             size="small"
             fullWidth
-            placeholder="Pregunta algo a Notitas AI (Enter para enviar)..."
+            placeholder="Pregunta algo a CleoBot (Enter para enviar)..."
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -464,7 +526,7 @@ export default function AiAssistantDrawer() {
           />
           <IconButton
             color="primary"
-            aria-label="Enviar mensaje a Notitas AI"
+            aria-label="Enviar mensaje a CleoBot"
             onClick={() => handleSend()}
             disabled={!inputMessage.trim() || loading}
             sx={{

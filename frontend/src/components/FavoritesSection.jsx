@@ -16,7 +16,7 @@ import api from '../services/api';
 import { useUiStore } from '../store/uiStore';
 import { toast } from '../store/toastStore';
 import CoverImage from './CoverImage';
-import { getProjectIcon } from './ProjectFormDialog';
+import { getProjectIcon } from '../constants/projectOptions';
 import CollaboratorsChip from './CollaboratorsChip';
 import { usePaginatedNotes } from '../hooks/usePaginatedNotes';
 import { getPlainText, formatShortDate, getAssetUrl } from '../utils/text';

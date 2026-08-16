@@ -57,3 +57,34 @@ export const authenticateToken = async (req, res, next) => {
     return res.status(401).json({ message: 'Token inválido' });
   }
 };
+
+export const optionalAuthenticateToken = async (req, res, next) => {
+  try {
+    let token = null;
+    if (req.cookies && (req.cookies.jwt || req.cookies.token)) {
+      token = req.cookies.jwt || req.cookies.token;
+    }
+    if (!token && req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+      token = req.headers.authorization.split(' ')[1];
+    }
+
+    if (token) {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      const userRes = await query('SELECT id, email, name, avatar, token_version FROM users WHERE id = $1', [decoded.id || decoded.sub]);
+      if (userRes.rows.length > 0) {
+        const user = userRes.rows[0];
+        req.user = {
+          id: Number(user.id),
+          email: user.email,
+          name: user.name,
+          avatar: user.avatar,
+          tokenVersion: user.token_version,
+        };
+      }
+    }
+  } catch {
+    // Si no hay token o falló la verificación, continuar como invitado
+  }
+  next();
+};
+

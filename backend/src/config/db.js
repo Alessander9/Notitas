@@ -80,6 +80,9 @@ export const initDbSchema = async () => {
       BEGIN 
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'note_members' AND column_name = 'role') THEN 
           ALTER TABLE note_members ADD COLUMN role VARCHAR(20) NOT NULL DEFAULT 'EDITOR'; 
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'note_members' AND column_name = 'created_at') THEN 
+          ALTER TABLE note_members ADD COLUMN created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP; 
         END IF; 
       END $$;
     `);
@@ -107,6 +110,24 @@ export const initDbSchema = async () => {
       BEGIN 
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'notifications' AND column_name = 'event_type') THEN 
           ALTER TABLE notifications ADD COLUMN event_type VARCHAR(80); 
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'notifications' AND column_name = 'project_id') THEN 
+          ALTER TABLE notifications ADD COLUMN project_id BIGINT; 
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'notifications' AND column_name = 'note_id') THEN 
+          ALTER TABLE notifications ADD COLUMN note_id BIGINT; 
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'notifications' AND column_name = 'actor_id') THEN 
+          ALTER TABLE notifications ADD COLUMN actor_id BIGINT; 
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'notifications' AND column_name = 'target_type') THEN 
+          ALTER TABLE notifications ADD COLUMN target_type VARCHAR(50); 
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'notifications' AND column_name = 'target_id') THEN 
+          ALTER TABLE notifications ADD COLUMN target_id BIGINT; 
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'notifications' AND column_name = 'type') THEN 
+          ALTER TABLE notifications ADD COLUMN type VARCHAR(50); 
         END IF; 
       END $$;
     `);

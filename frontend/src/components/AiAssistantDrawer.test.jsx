@@ -10,7 +10,7 @@ vi.mock('../services/api', () => ({
     get: vi.fn().mockResolvedValue({ data: [] }),
     post: vi.fn().mockResolvedValue({
       data: {
-        message: 'Respuesta generada por Notitas AI',
+        message: 'Respuesta generada por CleoBot',
         provider: 'Groq',
         model: 'llama-3.3-70b-versatile',
       },
@@ -37,13 +37,13 @@ describe('AiAssistantDrawer', () => {
     });
   });
 
-  it('renderiza el header de Notitas AI y mensaje de bienvenida', () => {
+  it('renderiza el header de CleoBot y mensaje de bienvenida', () => {
     renderWithClient(<AiAssistantDrawer />);
 
-    expect(screen.getByText('Notitas AI')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /CleoBot/ })).toBeInTheDocument();
     expect(screen.getByText(/Multi-IA/i)).toBeInTheDocument();
     expect(screen.getByText(/Groq • OpenRouter • Google Gemini/i)).toBeInTheDocument();
-    expect(screen.getByText(/tu asistente inteligente/i)).toBeInTheDocument();
+    expect(screen.getByText(/tu asistente virtual/i)).toBeInTheDocument();
   });
 
   it('muestra los chips de prompts sugeridos', () => {
@@ -57,15 +57,15 @@ describe('AiAssistantDrawer', () => {
   it('permite escribir un mensaje y enviarlo a la API de IA', async () => {
     renderWithClient(<AiAssistantDrawer />);
 
-    const input = screen.getByPlaceholderText(/Pregunta algo a Notitas AI/i);
+    const input = screen.getByPlaceholderText(/Pregunta algo a CleoBot/i);
     fireEvent.change(input, { target: { value: '¿Cómo funciona Notitas?' } });
     expect(input.value).toBe('¿Cómo funciona Notitas?');
 
-    const sendBtn = screen.getByLabelText(/Enviar mensaje a Notitas AI/i);
+    const sendBtn = screen.getByLabelText(/Enviar mensaje a CleoBot/i);
     fireEvent.click(sendBtn);
 
     await waitFor(() => {
-      expect(screen.getByText('Respuesta generada por Notitas AI')).toBeInTheDocument();
+      expect(screen.getByText('Respuesta generada por CleoBot')).toBeInTheDocument();
     });
   });
 });

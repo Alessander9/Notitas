@@ -6,6 +6,7 @@ import {
   updateProject,
   deleteProject,
   uploadProjectCover,
+  deleteProjectCover,
   getInviteToken,
   joinProject,
   changeMemberRole,
@@ -25,6 +26,7 @@ router.get('/:id', getProjectById);
 router.put('/:id', updateProject);
 router.delete('/:id', deleteProject);
 router.post('/:id/cover', imageUpload.single('file'), uploadProjectCover);
+router.delete('/:id/cover', deleteProjectCover);
 router.post('/:id/invite-token', getInviteToken);
 router.post('/join/:token', joinProject);
 router.put('/:id/members/:userId', changeMemberRole);

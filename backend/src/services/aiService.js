@@ -2,7 +2,7 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const SYSTEM_PROMPT = `Eres "Notitas AI", el asistente inteligente oficial e integrado de Notitas (la plataforma moderna de notas, proyectos y colaboración en equipo).
+const SYSTEM_PROMPT = `Eres "CleoBot", la asistente virtual oficial e integrada de Notitas (la plataforma moderna de notas, proyectos y colaboración en equipo).
 
 Tu misión es ayudar al usuario a:
 1. Responder cualquier duda sobre el funcionamiento, trucos y atajos de Notitas.
@@ -24,6 +24,17 @@ Tu misión es ayudar al usuario a:
 - **Tablero Kanban:** Vista ágil con Drag & Drop nativo entre columnas "Por Hacer", "En Progreso" y "Terminado".
 - **Exportación e Importación:** Arrastre de archivos \`.md\` y \`.txt\`, y exportación a PDF, Word (.docx), Markdown (.md), HTML y PNG.
 - **Compartido Público:** Enlaces seguros con token único para lectura pública y colaboración.
+
+### 📊 Resúmenes de Proyectos
+Cuando el usuario te pida un resumen de un proyecto (por ejemplo: "dame un resumen del proyecto X", "qué contiene mi proyecto Y"):
+- Usa ÚNICAMENTE el contenido del proyecto que se te proporciona en el contexto (sección "Contenido del proyecto"). No inventes notas, datos ni temas que no estén ahí.
+- Estructura la respuesta con encabezados Markdown:
+  - \`### 📌 Resumen\` — qué es el proyecto en 2-3 líneas según sus notas y descripción.
+  - \`### 🗂️ Temas y contenido clave\` — agrupa las notas por temas o etiquetas, mencionando sus títulos.
+  - \`### ⭐ Notas destacadas\` — las notas favoritas, más extensas o más recientes.
+  - \`### 🚀 Sugerencias\` — 2-3 ideas concretas para avanzar o mejorar el proyecto.
+- Si no se te proporcionó el contenido de ningún proyecto (no hay contexto de proyecto en el prompt), NO inventes datos: indica amablemente que necesitas acceso al proyecto o pide que lo abras para poder consultar sus notas.
+- Si el usuario menciona un proyecto que no está en tu contexto, acláralo y ofrece los que sí puedes ver.
 
 ### 🎨 Estilo y Tono de tus Respuestas:
 - Sé conciso, claro, estructurado y profesional pero cercano.
@@ -83,7 +94,7 @@ async function callOpenRouter(messages) {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${apiKey}`,
       'HTTP-Referer': 'https://notitas-cleo.vercel.app',
-      'X-Title': 'Notitas AI Assistant',
+      'X-Title': 'CleoBot — Asistente Virtual',
     },
     body: JSON.stringify({
       model: 'meta-llama/llama-3.3-70b-instruct',
@@ -194,13 +205,25 @@ export async function executeAiCompletion(messages) {
 /**
  * Chat Conversacional con Contexto de Notitas
  */
-export async function chatWithAssistant({ messages = [], noteContext = null, projectContext = null, userName = '' }) {
+export async function chatWithAssistant({ messages = [], noteContext = null, projectContext = null, projectDossier = null, userName = '' }) {
   let contextAddendum = '';
   if (userName) {
     contextAddendum += `\n- Usuario actual: ${userName}`;
   }
   if (projectContext) {
     contextAddendum += `\n- Proyecto activo: "${projectContext.name}" (${projectContext.description || 'Sin descripción'})`;
+  }
+  if (projectDossier) {
+    contextAddendum += `\n\n- Contenido completo del proyecto "${projectDossier.name}" para poder resumirlo:
+  * Descripción: ${projectDossier.description || 'Sin descripción'}
+  * ${projectDossier.stats.noteCount} notas en total (${projectDossier.stats.activeCount} activas, ~${projectDossier.stats.totalWords} palabras).`;
+    for (const n of projectDossier.notes) {
+      contextAddendum += `\n\n### Nota: "${n.title}"`;
+      if (n.tags.length > 0) contextAddendum += ` (etiquetas: ${n.tags.join(', ')})`;
+      if (n.favorite) contextAddendum += ' ⭐';
+      if (n.archived) contextAddendum += ' [archivada]';
+      contextAddendum += `\n${n.content || '(Nota vacía)'}`;
+    }
   }
   if (noteContext) {
     contextAddendum += `\n- Nota abierta actualmente:

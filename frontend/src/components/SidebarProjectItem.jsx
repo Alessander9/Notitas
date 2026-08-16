@@ -21,7 +21,7 @@ import {
 } from '@mui/icons-material';
 import ManageMembersDialog from './ManageMembersDialog';
 import CoverImage from './CoverImage';
-import { getProjectIcon } from './ProjectFormDialog';
+import { getProjectIcon } from '../constants/projectOptions';
 import InfiniteScroll from './InfiniteScroll';
 import { useProjectNotes } from '../hooks/useProjectNotes';
 import { getPlainText, getAssetUrl } from '../utils/text';

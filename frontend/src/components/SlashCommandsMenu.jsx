@@ -24,7 +24,7 @@ import {
   AutoAwesome as TemplateIcon,
 } from '@mui/icons-material';
 
-export const SLASH_COMMANDS = [
+const SLASH_COMMANDS = [
   {
     id: 'h1',
     label: 'Encabezado 1',
@@ -116,7 +116,7 @@ export const SLASH_COMMANDS = [
   },
   {
     id: 'ai',
-    label: 'Notitas AI',
+    label: 'CleoBot',
     description: 'Consultar o generar texto con Inteligencia Artificial',
     icon: <TemplateIcon sx={{ fontSize: 20, color: '#386c5f' }} />,
     aliases: ['ai', 'ia', 'inteligencia', 'generar', 'asistente', 'gpt', 'bot'],

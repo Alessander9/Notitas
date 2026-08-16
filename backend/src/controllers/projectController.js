@@ -313,6 +313,35 @@ export const uploadProjectCover = async (req, res, next) => {
   }
 };
 
+export const deleteProjectCover = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    // Verificar permisos (solo dueño o colaborador EDITOR)
+    const checkRes = await query(`
+      SELECT p.*, pm.role FROM projects p
+      LEFT JOIN project_members pm ON pm.project_id = p.id AND pm.user_id = $2
+      WHERE p.id = $1 AND (p.user_id = $2 OR (pm.user_id = $2 AND pm.role != 'VIEWER'))
+    `, [id, userId]);
+
+    if (checkRes.rows.length === 0) {
+      return res.status(403).json({ message: 'Sin permisos para modificar el proyecto' });
+    }
+
+    const oldCover = checkRes.rows[0].cover_image;
+    if (oldCover && oldCover.includes('cloudinary.com')) {
+      deleteFromCloudinary(oldCover);
+    }
+
+    const result = await query('UPDATE projects SET cover_image = NULL, updated_at = NOW() WHERE id = $1 RETURNING *', [id]);
+    const formatted = await formatProjectResponse(result.rows[0], userId);
+    return res.status(200).json(formatted);
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getInviteToken = async (req, res, next) => {
   try {
     const { id } = req.params;

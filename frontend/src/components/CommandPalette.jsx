@@ -28,7 +28,7 @@ import api from '../services/api';
 import { useUiStore } from '../store/uiStore';
 import { useAuthStore } from '../store/authStore';
 import { toast } from '../store/toastStore';
-import { getProjectIcon } from './ProjectFormDialog';
+import { getProjectIcon } from '../constants/projectOptions';
 import HighlightText from './HighlightText';
 
 function Hint({ kbd, label }) {

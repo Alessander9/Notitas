@@ -19,7 +19,7 @@ export default function AiFloatingButton() {
       }}
     >
       <Tooltip
-        title="Notitas AI — Asistente Inteligente (Ctrl+J)"
+        title="CleoBot — Asistente Virtual (Ctrl+J)"
         placement="left"
         arrow
       >
@@ -52,7 +52,7 @@ export default function AiFloatingButton() {
         >
           <BotIcon sx={{ fontSize: { xs: 22, sm: 24 } }} />
           <Box component="span" sx={{ fontWeight: 800, letterSpacing: '0.02em' }}>
-            Notitas AI
+            CleoBot
           </Box>
           <SparklesIcon sx={{ fontSize: 16, color: '#fef08a' }} />
         </Fab>

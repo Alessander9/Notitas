@@ -23,7 +23,7 @@ import MemberProfileDialog from './MemberProfileDialog';
 import EmptyState from './EmptyState';
 import CardsGridSkeleton from './skeletons/CardsGridSkeleton';
 import InfiniteScroll from './InfiniteScroll';
-import { getProjectIcon } from './ProjectFormDialog';
+import { getProjectIcon } from '../constants/projectOptions';
 import { usePaginatedNotes } from '../hooks/usePaginatedNotes';
 import { getPlainText, formatShortDate, getAssetUrl } from '../utils/text';
 

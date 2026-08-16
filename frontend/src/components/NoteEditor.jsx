@@ -248,18 +248,6 @@ export default function NoteEditor() {
     };
   }, []);
 
-  // Escuchar inserciones automáticas generadas por Notitas AI
-  useEffect(() => {
-    const handleAiInsert = (e) => {
-      const content = e.detail?.content;
-      if (editor && content) {
-        editor.chain().focus().insertContent(content).run();
-      }
-    };
-    window.addEventListener('notitas-ai-insert', handleAiInsert);
-    return () => window.removeEventListener('notitas-ai-insert', handleAiInsert);
-  }, [editor]);
-
   const [title, setTitle] = useState('');
   const [tagInput, setTagInput] = useState('');
   const [openShareDialog, setOpenShareDialog] = useState(false);
@@ -268,6 +256,8 @@ export default function NoteEditor() {
   const [copySuccess, setCopySuccess] = useState(false);
    const [copyJoinSuccess, setCopyJoinSuccess] = useState(false);
    const [saveStatus, setSaveStatus] = useState('saved'); // 'saved' | 'saving' | 'unsaved'
+   const saveStatusRef = useRef(saveStatus);
+   saveStatusRef.current = saveStatus;
    const [historyOpen, setHistoryOpen] = useState(false);
    const [exportMenuAnchor, setExportMenuAnchor] = useState(null);
    const [exporting, setExporting] = useState(null); // formato en curso: 'pdf' | 'png' | 'docx' | 'md'
@@ -309,8 +299,6 @@ export default function NoteEditor() {
   const [pinModalMode, setPinModalMode] = useState('unlock'); // 'unlock' | 'set' | 'remove'
   const [pinInputValue, setPinInputValue] = useState('');
   const [pinPending, setPinPending] = useState(false);
-
-  const isNoteLocked = Boolean(note?.hasPin && !unlockedNotes.has(currentNoteId));
 
   const handleUnlockNote = async (e) => {
     e?.preventDefault();
@@ -463,6 +451,8 @@ export default function NoteEditor() {
     },
     enabled: Boolean(currentNoteId),
   });
+
+  const isNoteLocked = Boolean(note?.hasPin && !unlockedNotes.has(currentNoteId));
 
   // Fetch Projects List (to resolve roles and move notes to)
   const { data: projects = [] } = useQuery({
@@ -636,6 +626,18 @@ export default function NoteEditor() {
     },
   });
 
+  // Escuchar inserciones automáticas generadas por CleoBot
+  useEffect(() => {
+    const handleAiInsert = (e) => {
+      const content = e.detail?.content;
+      if (editor && content) {
+        editor.chain().focus().insertContent(content).run();
+      }
+    };
+    window.addEventListener('notitas-ai-insert', handleAiInsert);
+    return () => window.removeEventListener('notitas-ai-insert', handleAiInsert);
+  }, [editor]);
+
   // Update title and editor content when note changes. El segundo argumento
   // (emitUpdate = false) evita que al cargar/restaurar una nota se dispare el
   // auto-guardado, lo que crearía versiones duplicadas en el historial.
@@ -645,7 +647,7 @@ export default function NoteEditor() {
   useEffect(() => {
     if (note) {
       const hasLocalChanges = Boolean(
-        pendingSaveRef.current || saveStatus === 'unsaved' || saveStatus === 'saving'
+        pendingSaveRef.current || saveStatusRef.current === 'unsaved' || saveStatusRef.current === 'saving'
       );
       const incomingTitle = note.title || '';
       if (!hasLocalChanges && incomingTitle !== titleRef.current && incomingTitle !== lastSavedTitleRef.current) {
@@ -676,10 +678,12 @@ export default function NoteEditor() {
     }
   }, [note, editor]);
 
-  // Set editor read-only state dynamically
+  // Set editor read-only state dynamically. `false` evita que setEditable
+  // emita un evento 'update' al montar (emitUpdate por defecto en TipTap), lo
+  // que dispararía onUpdate con contenido vacío y guardaría/borraría la nota.
   useEffect(() => {
     if (editor) {
-      editor.setEditable(!isReadOnly);
+      editor.setEditable(!isReadOnly, false);
     }
   }, [editor, isReadOnly]);
 
@@ -705,6 +709,8 @@ export default function NoteEditor() {
       saveTimeoutRef.current = null;
     }
   };
+  const clearPendingSaveRef = useRef(clearPendingSave);
+  clearPendingSaveRef.current = clearPendingSave;
 
   const scheduleSave = (titleValue, contentValue) => {
     if (!currentNoteIdRef.current || isReadOnlyRef.current) return;
@@ -745,6 +751,8 @@ export default function NoteEditor() {
     }
     return saveQueueRef.current;
   };
+  const flushPendingSaveRef = useRef(flushPendingSave);
+  flushPendingSaveRef.current = flushPendingSave;
 
   const handleTitleChange = (e) => {
     if (isReadOnly) return;
@@ -755,14 +763,23 @@ export default function NoteEditor() {
   };
 
   // No perder los últimos caracteres al cambiar de nota o desmontar el editor.
-  React.useEffect(() => () => flushPendingSave(), []);
+  React.useEffect(() => () => flushPendingSaveRef.current(), []);
 
-  // Al cambiar de nota se cancelan los guardados pendientes de la nota anterior
+  // Al cambiar de nota se cancelan los guardados pendientes de la nota anterior.
+  // Los refs de "último guardado" se invalidan con null (no con '') para que la
+  // nota entrante SIEMPRE se sincronice, incluso si llega vacía: con '' el guard
+  // `incoming !== lastSaved` ('' !== '') bloqueaba limpiar el editor y se seguía
+  // viendo el contenido de la nota anterior.
+  // El saveStatus se restaura a 'saved': si había un guardado en vuelo de la nota
+  // anterior, flushPendingSave lo deja en 'saving' y el onSuccess lo descarta
+  // (por el guard de noteId), quedando el estado 'saving' para siempre y
+  // bloqueando la sincronización de la nueva nota.
   React.useEffect(() => {
-    flushPendingSave();
-    clearPendingSave();
-    lastSavedContentRef.current = '';
-    lastSavedTitleRef.current = '';
+    flushPendingSaveRef.current();
+    clearPendingSaveRef.current();
+    lastSavedContentRef.current = null;
+    lastSavedTitleRef.current = null;
+    setSaveStatus('saved');
   }, [currentNoteId]);
 
   // Advertencia antes de salir si hay cambios sin guardar o guardados en curso
