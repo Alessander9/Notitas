@@ -283,6 +283,11 @@ export default function MediaPickerModal({
                       src={gif.preview || gif.url}
                       alt={gif.title}
                       loading="lazy"
+                      onError={(e) => {
+                        if (e.target?.parentElement) {
+                          e.target.parentElement.style.display = 'none';
+                        }
+                      }}
                       sx={{
                         width: '100%',
                         height: '100%',
