@@ -39,8 +39,9 @@ export const pool = new Pool({
   database: cleanedConnectionString ? undefined : (process.env.DB_NAME || 'postgres'),
   ssl: requiresSsl ? { rejectUnauthorized: false } : false,
   max: 10,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 10000,
+  idleTimeoutMillis: 10000,
+  connectionTimeoutMillis: 5000,
+  allowExitOnIdle: true,
 });
 
 pool.on('error', (err) => {

@@ -232,14 +232,17 @@ export default function NoteList() {
     },
   });
 
-  // Delete note: soft delete (trash) in normal views, permanent delete in trash
+  // Delete note: soft delete (trash) in normal views, permanent delete in trash con Optimistic Update
   const deleteNoteMutation = useMutation({
     mutationFn: async (id) => {
       await api.delete(`/notes/${id}`);
     },
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ['notes'] });
+      if (currentNoteId === id) setCurrentNote(null);
+    },
     onSuccess: (_data, id) => {
       queryClient.invalidateQueries({ queryKey: ['notes'] });
-      if (currentNoteId === id) setCurrentNote(null);
       // Deshacer solo en borrados suaves (fuera de la papelera)
       if (!isTrash) {
         toast.success('Nota movida a la papelera', {
@@ -251,15 +254,27 @@ export default function NoteList() {
         });
       }
     },
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: ['notes'] });
+      toast.error('No se pudo eliminar la nota');
+    },
   });
 
-  // Restore note from trash
+  // Restore note from trash con Optimistic Update
   const restoreNoteMutation = useMutation({
     mutationFn: async (id) => {
       await api.put(`/notes/${id}`, { deleted: false });
     },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['notes'] });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notes'] });
+      toast.success('Nota restaurada');
+    },
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: ['notes'] });
+      toast.error('No se pudo restaurar la nota');
     },
   });
 
@@ -1042,6 +1057,7 @@ export default function NoteList() {
                 return (
                   <Box
                     key={note.id}
+                    className="virtual-list-item"
                     onClick={() => setCurrentNote(note.id)}
                     draggable
                     onDragStart={(e) => { e.dataTransfer.setData('note-reorder', String(note.id)); setDragNoteId(note.id); }}
@@ -1158,6 +1174,7 @@ export default function NoteList() {
                   >
                     <Card
                       variant="outlined"
+                      className="virtual-card-item"
                       onClick={() => setCurrentNote(note.id)}
                       draggable
                       onDragStart={(e) => { e.dataTransfer.setData('note-reorder', String(note.id)); setDragNoteId(note.id); }}

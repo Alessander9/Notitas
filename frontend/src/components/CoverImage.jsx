@@ -43,6 +43,7 @@ export default function CoverImage({ src, alt = '', sx, fallback = null, objectF
             src={currentSrc}
             alt={alt}
             loading="lazy"
+            decoding="async"
             onLoad={() => setLoaded(true)}
             onError={() => setFailed(true)}
             draggable={false}

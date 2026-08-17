@@ -260,3 +260,15 @@ body,
   background: rgba(56, 108, 95, 0.22);
 }
 
+/* ── Virtualización CSS Nativa de Alto Rendimiento ──────────────────── */
+.virtual-card-item {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 180px;
+}
+
+.virtual-list-item {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 60px;
+}
+
+
