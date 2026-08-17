@@ -220,7 +220,23 @@ export const initDbSchema = async () => {
       CREATE INDEX IF NOT EXISTS idx_project_members_user ON project_members(user_id);
       CREATE INDEX IF NOT EXISTS idx_note_versions_note_id ON note_versions(note_id);
       CREATE INDEX IF NOT EXISTS idx_custom_templates_user ON custom_templates(user_id);
+
+      -- Índices de alto rendimiento para búsqueda y listado de notas
+      CREATE INDEX IF NOT EXISTS idx_notes_project_deleted ON notes(project_id, deleted);
+      CREATE INDEX IF NOT EXISTS idx_notes_updated_at_desc ON notes(updated_at DESC NULLS LAST);
+      CREATE INDEX IF NOT EXISTS idx_note_tags_note_tag ON note_tags(note_id, tag);
     `);
+
+    // Intentar habilitar extensión pg_trgm e índices GIN si los permisos de la base de datos lo permiten
+    try {
+      await query(`CREATE EXTENSION IF NOT EXISTS pg_trgm;`);
+      await query(`
+        CREATE INDEX IF NOT EXISTS idx_notes_title_trgm ON notes USING gin (title gin_trgm_ops);
+        CREATE INDEX IF NOT EXISTS idx_notes_content_trgm ON notes USING gin (content gin_trgm_ops);
+      `);
+    } catch (_trgmErr) {
+      // Ignorar si el usuario de la BD no tiene permisos de superusuario para CREATE EXTENSION
+    }
 
     console.log('PostgreSQL schema auto-verified and up-to-date.');
   } catch (err) {

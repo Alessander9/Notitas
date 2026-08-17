@@ -75,8 +75,6 @@ import { useEditor, EditorContent, ReactNodeViewRenderer } from '@tiptap/react';
 import FloatingSelectionToolbar from './FloatingSelectionToolbar';
 import WikiLinkMenu from './WikiLinkMenu';
 import BacklinksPanel from './BacklinksPanel';
-import CanvasModal from './CanvasModal';
-import CalculatorModal from './CalculatorModal';
 import { mergeAttributes } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -100,9 +98,9 @@ import CoverImage from './CoverImage';
 import AuthorAvatars from './AuthorAvatars';
 import ActiveEditorsIndicator from './ActiveEditorsIndicator';
 import MemberProfileDialog from './MemberProfileDialog';
-import NoteHistoryDialog from './NoteHistoryDialog';
 import FloatingImageNodeView from './FloatingImageNodeView';
 import { getAssetUrl } from '../utils/text';
+import { compressImage } from '../utils/imageCompression';
 import {
   exportNoteAsDocx,
   exportNoteAsMarkdown,
@@ -110,17 +108,22 @@ import {
   exportNoteAsPng,
 } from '../utils/exportNote';
 import CommentsSection from './CommentsSection';
-import NoteCollaboratorsDialog from './NoteCollaboratorsDialog';
-import MediaPickerModal from './MediaPickerModal';
 import EmojiPickerPopover from './EmojiPickerPopover';
-import NoteTemplatesDialog from './NoteTemplatesDialog';
 import SlashCommandsMenu from './SlashCommandsMenu';
 import {
+  CenterFocusStrong as ZenIcon,
   Animation as GifIcon,
-  Fullscreen as ZenIcon,
   EmojiEmotions as EmojiIcon,
   AutoAwesome as TemplateIcon,
 } from '@mui/icons-material';
+
+// Modales secundarios cargados bajo demanda para aligerar el árbol principal de renderizado
+const CanvasModal = React.lazy(() => import('./CanvasModal'));
+const CalculatorModal = React.lazy(() => import('./CalculatorModal'));
+const NoteHistoryDialog = React.lazy(() => import('./NoteHistoryDialog'));
+const NoteCollaboratorsDialog = React.lazy(() => import('./NoteCollaboratorsDialog'));
+const MediaPickerModal = React.lazy(() => import('./MediaPickerModal'));
+const NoteTemplatesDialog = React.lazy(() => import('./NoteTemplatesDialog'));
 
 // Imágenes con posición libre (arrastrar a cualquier punto del lienzo) y
 // redimensionables desde la esquina (mantienen proporciones). La posición y
@@ -524,9 +527,10 @@ export default function NoteEditor() {
   const uploadInlineImage = async (file, alignment = 'center') => {
     if (!currentNoteId || isReadOnly) return;
     await flushPendingSave();
-    const formData = new FormData();
-    formData.append('file', file);
     try {
+      const optimizedFile = await compressImage(file);
+      const formData = new FormData();
+      formData.append('file', optimizedFile);
       const res = await api.post(`/notes/${currentNoteId}/images`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
@@ -985,8 +989,9 @@ export default function NoteEditor() {
   // Upload Cover Image
   const uploadCoverMutation = useMutation({
     mutationFn: async (file) => {
+      const optimizedFile = await compressImage(file, { maxWidth: 1920, maxHeight: 1080, quality: 0.85 });
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('file', optimizedFile);
       const res = await api.post(`/notes/${currentNoteId}/cover`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
@@ -2698,12 +2703,16 @@ export default function NoteEditor() {
       />
 
       {/* Note Collaborators Dialog (solo el creador de la nota puede expulsar) */}
-      <NoteCollaboratorsDialog
-        noteId={currentNoteId}
-        open={collaboratorsOpen}
-        onClose={() => setCollaboratorsOpen(false)}
-        canRemove={isCreator}
-      />
+      {collaboratorsOpen && (
+        <React.Suspense fallback={null}>
+          <NoteCollaboratorsDialog
+            noteId={currentNoteId}
+            open={collaboratorsOpen}
+            onClose={() => setCollaboratorsOpen(false)}
+            canRemove={isCreator}
+          />
+        </React.Suspense>
+      )}
 
       {/* Share Note Dialog */}
       <Dialog open={openShareDialog} onClose={() => setOpenShareDialog(false)} maxWidth="sm" fullWidth>
@@ -2864,25 +2873,33 @@ export default function NoteEditor() {
       </Dialog>
 
       {/* Version History Dialog */}
-      <NoteHistoryDialog
-        open={historyOpen}
-        onClose={() => setHistoryOpen(false)}
-        noteId={note?.id}
-        currentContent={editor ? editor.getHTML() : (note?.content || '')}
-        members={members}
-        canRestore={!isReadOnly}
-        onRestoreStart={() => clearPendingSave?.()}
-      />
+      {historyOpen && (
+        <React.Suspense fallback={null}>
+          <NoteHistoryDialog
+            open={historyOpen}
+            onClose={() => setHistoryOpen(false)}
+            noteId={note?.id}
+            currentContent={editor ? editor.getHTML() : (note?.content || '')}
+            members={members}
+            canRestore={!isReadOnly}
+            onRestoreStart={() => clearPendingSave?.()}
+          />
+        </React.Suspense>
+      )}
 
       {/* Universal Media & GIF Picker Modal */}
-      <MediaPickerModal
-        open={mediaPickerOpen}
-        onClose={() => setMediaPickerOpen(false)}
-        onSelectMedia={handleSelectMedia}
-        onUploadFile={handleUploadFromPicker}
-        initialTab={mediaPickerTab}
-        title={mediaPickerTarget === 'cover' ? 'Elegir Portada o GIF Animado' : 'Insertar GIF Animado en la Nota'}
-      />
+      {mediaPickerOpen && (
+        <React.Suspense fallback={null}>
+          <MediaPickerModal
+            open={mediaPickerOpen}
+            onClose={() => setMediaPickerOpen(false)}
+            onSelectMedia={handleSelectMedia}
+            onUploadFile={handleUploadFromPicker}
+            initialTab={mediaPickerTab}
+            title={mediaPickerTarget === 'cover' ? 'Elegir Portada o GIF Animado' : 'Insertar GIF Animado en la Nota'}
+          />
+        </React.Suspense>
+      )}
 
       {/* Emoji Picker Popover */}
       <EmojiPickerPopover
@@ -2894,11 +2911,15 @@ export default function NoteEditor() {
       />
 
       {/* Note Templates Catalog Dialog */}
-      <NoteTemplatesDialog
-        open={templatesOpen}
-        onClose={() => setTemplatesOpen(false)}
-        onSelectTemplate={handleSelectTemplate}
-      />
+      {templatesOpen && (
+        <React.Suspense fallback={null}>
+          <NoteTemplatesDialog
+            open={templatesOpen}
+            onClose={() => setTemplatesOpen(false)}
+            onSelectTemplate={handleSelectTemplate}
+          />
+        </React.Suspense>
+      )}
 
       {/* Floating Slash Commands Menu */}
       <SlashCommandsMenu
@@ -3030,30 +3051,34 @@ export default function NoteEditor() {
 
       {/* Pizarra de Dibujo / Canvas Modal */}
       {canvasModalOpen && (
-        <CanvasModal
-          open={canvasModalOpen}
-          onClose={() => setCanvasModalOpen(false)}
-          onInsertImage={(dataUrl) => {
-            if (editor) {
-              editor.chain().focus().setImage({ src: dataUrl, alt: 'Boceto' }).run();
-              toast.success('Boceto incrustado');
-            }
-          }}
-        />
+        <React.Suspense fallback={null}>
+          <CanvasModal
+            open={canvasModalOpen}
+            onClose={() => setCanvasModalOpen(false)}
+            onInsertImage={(dataUrl) => {
+              if (editor) {
+                editor.chain().focus().setImage({ src: dataUrl, alt: 'Boceto' }).run();
+                toast.success('Boceto incrustado');
+              }
+            }}
+          />
+        </React.Suspense>
       )}
 
       {/* Calculadora Integrada Modal */}
       {calculatorModalOpen && (
-        <CalculatorModal
-          open={calculatorModalOpen}
-          onClose={() => setCalculatorModalOpen(false)}
-          onInsertText={(text) => {
-            if (editor) {
-              editor.chain().focus().insertContent(text).run();
-              toast.success('Cifra insertada');
-            }
-          }}
-        />
+        <React.Suspense fallback={null}>
+          <CalculatorModal
+            open={calculatorModalOpen}
+            onClose={() => setCalculatorModalOpen(false)}
+            onInsertText={(text) => {
+              if (editor) {
+                editor.chain().focus().insertContent(text).run();
+                toast.success('Cifra insertada');
+              }
+            }}
+          />
+        </React.Suspense>
       )}
     </Box>
   );
