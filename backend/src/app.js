@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import compression from 'compression';
 import dotenv from 'dotenv';
 
 import authRoutes from './routes/authRoutes.js';
@@ -49,6 +50,10 @@ app.use(
 );
 
 app.use(cookieParser());
+app.use(compression({
+  threshold: 1024, // Comprimir solo respuestas mayores a 1KB
+  level: 6,
+}));
 app.use(express.json({ limit: '15mb' }));
 app.use(express.urlencoded({ extended: true, limit: '15mb' }));
 

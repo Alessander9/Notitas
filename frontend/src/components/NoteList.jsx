@@ -202,13 +202,32 @@ export default function NoteList() {
     },
   });
 
-  // Toggle Favorite Mutation
+  // Toggle Favorite Mutation con Optimistic Update para respuesta instantánea de 0ms
   const toggleFavoriteMutation = useMutation({
     mutationFn: async ({ id, favorite }) => {
       const res = await api.put(`/notes/${id}`, { favorite: !favorite });
       return res.data;
     },
-    onSuccess: () => {
+    onMutate: async ({ id, favorite }) => {
+      // Cancelar consultas salientes de notas para que no sobrescriban la mutación optimista
+      await queryClient.cancelQueries({ queryKey: ['notes'] });
+      await queryClient.cancelQueries({ queryKey: ['note', id] });
+
+      // Snapshot del valor previo de la nota
+      const previousNote = queryClient.getQueryData(['note', id]);
+      if (previousNote) {
+        queryClient.setQueryData(['note', id], { ...previousNote, favorite: !favorite });
+      }
+
+      return { previousNote, id };
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previousNote) {
+        queryClient.setQueryData(['note', context.id], context.previousNote);
+      }
+      toast.error('No se pudo actualizar el estado de favorito');
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['notes'] });
     },
   });

@@ -633,37 +633,40 @@ export default function NoteEditor() {
         contentRef.current = ed.getHTML();
         scheduleSaveRef.current(titleRef.current, ed.getHTML());
 
-        // Detección de slash commands (/)
-        try {
-          const { selection } = ed.state;
-          const { $from } = selection;
-          const textBefore = $from.parent.textBetween(0, $from.parentOffset, null, '\uFFFC');
-          const slashMatch = textBefore.match(/(?:^|\s)\/([a-zA-Z0-9]*)$/);
-          if (slashMatch) {
-            setSlashQuery(slashMatch[0].trim());
-            setSlashOpen(true);
-            const coords = ed.view.coordsAtPos($from.pos);
-            setSlashPosition({ x: coords.left, y: coords.bottom });
-          } else {
-            setSlashOpen(false);
-          }
-
-          // Detección de enlaces wiki [[
-          const wikiMatch = textBefore.match(/\[\[([^\]]*)$/);
-          if (wikiMatch) {
-            setWikiQuery(wikiMatch[1] || '');
-            setWikiOpen(true);
-            try {
+        // Detección diferida de slash commands y wikilinks para no bloquear el tipeo a 60fps
+        window.requestAnimationFrame(() => {
+          try {
+            if (!ed || ed.isDestroyed) return;
+            const { selection } = ed.state;
+            const { $from } = selection;
+            const textBefore = $from.parent.textBetween(0, $from.parentOffset, null, '\uFFFC');
+            const slashMatch = textBefore.match(/(?:^|\s)\/([a-zA-Z0-9]*)$/);
+            if (slashMatch) {
+              setSlashQuery(slashMatch[0].trim());
+              setSlashOpen(true);
               const coords = ed.view.coordsAtPos($from.pos);
-              setWikiMenuPos({ top: coords.bottom + 8, left: coords.left });
-            } catch {}
-          } else if (wikiOpen) {
+              setSlashPosition({ x: coords.left, y: coords.bottom });
+            } else {
+              setSlashOpen(false);
+            }
+
+            // Detección de enlaces wiki [[
+            const wikiMatch = textBefore.match(/\[\[([^\]]*)$/);
+            if (wikiMatch) {
+              setWikiQuery(wikiMatch[1] || '');
+              setWikiOpen(true);
+              try {
+                const coords = ed.view.coordsAtPos($from.pos);
+                setWikiMenuPos({ top: coords.bottom + 8, left: coords.left });
+              } catch {}
+            } else if (wikiOpen) {
+              setWikiOpen(false);
+            }
+          } catch {
+            setSlashOpen(false);
             setWikiOpen(false);
           }
-        } catch {
-          setSlashOpen(false);
-          setWikiOpen(false);
-        }
+        });
       }
     },
     // Mantiene el lienzo a la altura de las imágenes flotantes
