@@ -1,9 +1,10 @@
 import React, { useEffect, useRef } from 'react';
 import { Paper, List, ListItemButton, ListItemText, Typography, Box } from '@mui/material';
 
-export default function WikiLinkMenu({ open, query, notes, position, onSelect, onClose }) {
+export default function WikiLinkMenu({ open, query, notes = [], position, onSelect, onClose }) {
   const ref = useRef(null);
-  const filtered = (notes || [])
+  const safeNotes = Array.isArray(notes) ? notes : [];
+  const filtered = safeNotes
     .filter(n => !query || (n.title || '').toLowerCase().includes(query.toLowerCase()))
     .slice(0, 8);
 

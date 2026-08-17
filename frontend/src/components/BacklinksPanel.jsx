@@ -1,8 +1,9 @@
 import React from 'react';
 import { Box, Typography, Chip, Tooltip } from '@mui/material';
 
-export default function BacklinksPanel({ currentNoteId, notes, onNoteClick }) {
-  const backlinks = (notes || []).filter(n => {
+export default function BacklinksPanel({ currentNoteId, notes = [], onNoteClick }) {
+  const safeNotes = Array.isArray(notes) ? notes : [];
+  const backlinks = safeNotes.filter((n) => {
     if (!n || n.id === currentNoteId) return false;
     return n.content && n.content.includes(`data-note-id="${currentNoteId}"`);
   });

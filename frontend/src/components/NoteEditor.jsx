@@ -90,6 +90,7 @@ import { toast } from '../store/toastStore';
 import { saveReminder, removeReminder, getReminderForNote } from '../hooks/useNoteReminders';
 import { confirm } from '../store/confirmStore';
 import { useAuthStore } from '../store/authStore';
+import { useProjectNotes } from '../hooks/useProjectNotes';
 import NoteEditorSkeleton from './skeletons/NoteEditorSkeleton';
 import CoverImage from './CoverImage';
 import AuthorAvatars from './AuthorAvatars';
@@ -474,19 +475,13 @@ export default function NoteEditor() {
     },
   });
 
-  // Fetch all notes in the current project to build tag autocomplete options
-  const { data: notes } = useQuery({
-    queryKey: ['notes', 'project', currentProjectId],
-    queryFn: async () => {
-      if (!currentProjectId || typeof currentProjectId !== 'number') return [];
-      const res = await api.get(`/projects/${currentProjectId}/notes`);
-      return res.data?.notes ?? res.data ?? [];
-    },
-    enabled: Boolean(currentProjectId) && typeof currentProjectId === 'number',
-    staleTime: 60_000,
-  });
+  // Fetch all notes in the current project to build tag autocomplete options & backlinks
+  const { notes = [] } = useProjectNotes(
+    typeof currentProjectId === 'number' ? currentProjectId : null,
+    Boolean(currentProjectId && typeof currentProjectId === 'number')
+  );
   const projectTags = React.useMemo(
-    () => [...new Set((notes || []).flatMap((n) => n.tags || []))].sort(),
+    () => [...new Set((Array.isArray(notes) ? notes : []).flatMap((n) => n.tags || []))].sort(),
     [notes],
   );
 
