@@ -30,6 +30,8 @@ import {
   ViewDay as ViewDayIcon,
   Inventory2 as ArchiveIcon,
   Bolt as QuickNoteIcon,
+  Hub as GraphIcon,
+  CloudSync as BackupIcon,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
@@ -39,6 +41,8 @@ import { confirm } from '../store/confirmStore';
 import SidebarSkeleton from './skeletons/SidebarSkeleton';
 import ProjectFormDialog from './ProjectFormDialog';
 import QuickNoteModal from './QuickNoteModal';
+import GraphView from './GraphView';
+import WorkspaceBackupModal from './WorkspaceBackupModal';
 import { COLOR_OPTIONS, PROJECT_TEMPLATES } from '../constants/projectOptions';
 import SidebarProjectItem from './SidebarProjectItem';
 import { getAssetUrl } from '../utils/text';
@@ -93,6 +97,8 @@ export default function Sidebar({ embedded = false }) {
 
   const [openModal, setOpenModal] = useState(false);
   const [quickNoteOpen, setQuickNoteOpen] = useState(false);
+  const [graphOpen, setGraphOpen] = useState(false);
+  const [backupOpen, setBackupOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState(null);
   const [name, setName] = useState('');
@@ -761,6 +767,66 @@ const navItemVariants = {
             </Tooltip>
           </motion.div>
         </ListItem>
+
+        {/* Navigation Option: Grafo de Conocimiento */}
+        <ListItem disablePadding>
+          <motion.div custom={4} variants={navItemVariants} initial="hidden" animate="visible" style={{ width: '100%' }}>
+            <Tooltip title={effectiveCollapsed ? "Grafo 2D" : ""} placement="right">
+              <ListItemButton
+                onClick={() => {
+                  if (embedded) setSidebarMobileOpen(false);
+                  setGraphOpen(true);
+                }}
+                sx={{
+                  borderRadius: 2.5,
+                  justifyContent: effectiveCollapsed ? 'center' : 'flex-start',
+                  px: effectiveCollapsed ? 0 : 2,
+                  minHeight: 44,
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    bgcolor: 'action.hover',
+                    transform: 'translateX(4px)',
+                  },
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: 40, justifyContent: 'center' }}>
+                  <GraphIcon sx={{ color: '#0ea5e9', fontSize: 22 }} />
+                </ListItemIcon>
+                {!effectiveCollapsed && <ListItemText primary="Grafo 2D" primaryTypographyProps={{ fontWeight: 500, fontSize: '0.88rem' }} />}
+              </ListItemButton>
+            </Tooltip>
+          </motion.div>
+        </ListItem>
+
+        {/* Navigation Option: Respaldo / Importar */}
+        <ListItem disablePadding>
+          <motion.div custom={5} variants={navItemVariants} initial="hidden" animate="visible" style={{ width: '100%' }}>
+            <Tooltip title={effectiveCollapsed ? "Respaldo / Importar" : ""} placement="right">
+              <ListItemButton
+                onClick={() => {
+                  if (embedded) setSidebarMobileOpen(false);
+                  setBackupOpen(true);
+                }}
+                sx={{
+                  borderRadius: 2.5,
+                  justifyContent: effectiveCollapsed ? 'center' : 'flex-start',
+                  px: effectiveCollapsed ? 0 : 2,
+                  minHeight: 44,
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    bgcolor: 'action.hover',
+                    transform: 'translateX(4px)',
+                  },
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: 40, justifyContent: 'center' }}>
+                  <BackupIcon sx={{ color: '#845EC2', fontSize: 22 }} />
+                </ListItemIcon>
+                {!effectiveCollapsed && <ListItemText primary="Respaldo / ZIP" primaryTypographyProps={{ fontWeight: 500, fontSize: '0.88rem' }} />}
+              </ListItemButton>
+            </Tooltip>
+          </motion.div>
+        </ListItem>
       </List>
 
       <Divider sx={{ my: 1 }} />
@@ -954,6 +1020,25 @@ const navItemVariants = {
           open={quickNoteOpen}
           onClose={() => setQuickNoteOpen(false)}
           defaultProjectId={typeof currentProjectId === 'number' ? currentProjectId : null}
+        />
+      )}
+
+      {/* Modal de Grafo de Conocimiento */}
+      {graphOpen && (
+        <GraphView
+          open={graphOpen}
+          onClose={() => setGraphOpen(false)}
+          notes={[]}
+          currentProjectId={typeof currentProjectId === 'number' ? currentProjectId : null}
+        />
+      )}
+
+      {/* Modal de Respaldo y Exportación / Importación */}
+      {backupOpen && (
+        <WorkspaceBackupModal
+          open={backupOpen}
+          onClose={() => setBackupOpen(false)}
+          projects={projects}
         />
       )}
     </Box>

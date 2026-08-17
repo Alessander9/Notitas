@@ -24,6 +24,9 @@ import {
   AutoAwesome as TemplateIcon,
   Gesture as DrawIcon,
   Calculate as CalcIcon,
+  AccountTree as MermaidIcon,
+  Mic as MicIcon,
+  Slideshow as SlidesIcon,
 } from '@mui/icons-material';
 
 const SLASH_COMMANDS = [
@@ -148,6 +151,30 @@ const SLASH_COMMANDS = [
     aliases: ['calc', 'calculadora', 'cuenta', 'math', 'calcular', 'numero'],
     customAction: 'openCalculator',
   },
+  {
+    id: 'mermaid',
+    label: 'Diagrama Mermaid.js',
+    description: 'Diagramas de flujo, secuencia o arquitectura',
+    icon: <MermaidIcon sx={{ fontSize: 20, color: '#845EC2' }} />,
+    aliases: ['mermaid', 'diagrama', 'flujo', 'secuencia', 'arquitectura', 'uml'],
+    customAction: 'openMermaid',
+  },
+  {
+    id: 'audio',
+    label: 'Nota de Voz / Audio',
+    description: 'Grabar audio con el micrófono e incrustar reproductor',
+    icon: <MicIcon sx={{ fontSize: 20, color: '#e11d48' }} />,
+    aliases: ['audio', 'voz', 'grabar', 'microfono', 'dictado', 'nota de voz'],
+    customAction: 'openAudio',
+  },
+  {
+    id: 'presentation',
+    label: 'Modo Presentación / Diapositivas',
+    description: 'Proyectar nota a pantalla completa como presentación',
+    icon: <SlidesIcon sx={{ fontSize: 20, color: '#38bdf8' }} />,
+    aliases: ['slides', 'presentacion', 'diapositiva', 'proyectar', 'pitch'],
+    customAction: 'openPresentation',
+  },
 ];
 
 export default function SlashCommandsMenu({
@@ -161,6 +188,9 @@ export default function SlashCommandsMenu({
   onOpenAi,
   onOpenCanvas,
   onOpenCalculator,
+  onOpenMermaid,
+  onOpenAudio,
+  onOpenPresentation,
 }) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const menuRef = useRef(null);
@@ -196,6 +226,12 @@ export default function SlashCommandsMenu({
       onOpenCanvas?.();
     } else if (cmd.customAction === 'openCalculator') {
       onOpenCalculator?.();
+    } else if (cmd.customAction === 'openMermaid') {
+      onOpenMermaid?.();
+    } else if (cmd.customAction === 'openAudio') {
+      onOpenAudio?.();
+    } else if (cmd.customAction === 'openPresentation') {
+      onOpenPresentation?.();
     } else if (cmd.customAction === 'openAi') {
       if (onOpenAi) onOpenAi();
       else useUiStore.getState().setAiDrawerOpen(true);
@@ -203,7 +239,7 @@ export default function SlashCommandsMenu({
       cmd.action(editor);
     }
     onClose();
-  }, [editor, query, onOpenMediaPicker, onOpenTemplates, onOpenAi, onOpenCanvas, onOpenCalculator, onClose]);
+  }, [editor, query, onOpenMediaPicker, onOpenTemplates, onOpenAi, onOpenCanvas, onOpenCalculator, onOpenMermaid, onOpenAudio, onOpenPresentation, onClose]);
 
   useEffect(() => {
     if (!open) return;

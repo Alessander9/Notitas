@@ -23,7 +23,10 @@ if (!window.ResizeObserver) {
   };
 }
 
-// scrollTo no existe en jsdom
+// scrollTo y scrollIntoView no existen en jsdom
 if (!window.scrollTo) {
   window.scrollTo = () => {};
+}
+if (!window.HTMLElement.prototype.scrollIntoView) {
+  window.HTMLElement.prototype.scrollIntoView = () => {};
 }

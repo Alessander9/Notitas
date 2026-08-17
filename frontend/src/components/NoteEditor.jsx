@@ -70,6 +70,9 @@ import {
   AlarmAdd as AlarmAddIcon,
   Gesture as DrawIcon,
   Calculate as CalcIcon,
+  Slideshow as PresentationIcon,
+  AccountTree as MermaidIcon,
+  Mic as VoiceIcon,
 } from '@mui/icons-material';
 import { useEditor, EditorContent, ReactNodeViewRenderer } from '@tiptap/react';
 import FloatingSelectionToolbar from './FloatingSelectionToolbar';
@@ -124,6 +127,9 @@ const NoteHistoryDialog = React.lazy(() => import('./NoteHistoryDialog'));
 const NoteCollaboratorsDialog = React.lazy(() => import('./NoteCollaboratorsDialog'));
 const MediaPickerModal = React.lazy(() => import('./MediaPickerModal'));
 const NoteTemplatesDialog = React.lazy(() => import('./NoteTemplatesDialog'));
+const PresentationModal = React.lazy(() => import('./PresentationModal'));
+const MermaidModal = React.lazy(() => import('./MermaidModal'));
+const AudioRecorderModal = React.lazy(() => import('./AudioRecorderModal'));
 
 // Imágenes con posición libre (arrastrar a cualquier punto del lienzo) y
 // redimensionables desde la esquina (mantienen proporciones). La posición y
@@ -282,6 +288,9 @@ export default function NoteEditor() {
   const [wikiMenuPos, setWikiMenuPos] = useState({ top: 0, left: 0 });
   const [canvasModalOpen, setCanvasModalOpen] = useState(false);
   const [calculatorModalOpen, setCalculatorModalOpen] = useState(false);
+  const [presentationModalOpen, setPresentationModalOpen] = useState(false);
+  const [mermaidModalOpen, setMermaidModalOpen] = useState(false);
+  const [audioModalOpen, setAudioModalOpen] = useState(false);
 
   // Menu state for moving note to project
   const [projectMenuAnchor, setProjectMenuAnchor] = useState(null);
@@ -1521,6 +1530,38 @@ export default function NoteEditor() {
                 sx={{ p: 0.6, color: 'success.main' }}
               >
                 <CalcIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip title="Diagrama Mermaid.js (/mermaid)">
+              <IconButton
+                size="small"
+                onClick={() => setMermaidModalOpen(true)}
+                disabled={isReadOnly}
+                sx={{ p: 0.6, color: '#845EC2' }}
+              >
+                <MermaidIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip title="Nota de voz / Audio (/audio)">
+              <IconButton
+                size="small"
+                onClick={() => setAudioModalOpen(true)}
+                disabled={isReadOnly}
+                sx={{ p: 0.6, color: '#e11d48' }}
+              >
+                <VoiceIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip title="Modo Presentación / Diapositivas (/slides)">
+              <IconButton
+                size="small"
+                onClick={() => setPresentationModalOpen(true)}
+                sx={{ p: 0.6, color: '#0284c7' }}
+              >
+                <PresentationIcon fontSize="small" />
               </IconButton>
             </Tooltip>
 
@@ -2940,6 +2981,9 @@ export default function NoteEditor() {
         onOpenAi={toggleAiDrawer}
         onOpenCanvas={() => setCanvasModalOpen(true)}
         onOpenCalculator={() => setCalculatorModalOpen(true)}
+        onOpenMermaid={() => setMermaidModalOpen(true)}
+        onOpenAudio={() => setAudioModalOpen(true)}
+        onOpenPresentation={() => setPresentationModalOpen(true)}
       />
 
       {/* Floating Wiki Link Menu [[ */}
@@ -3078,6 +3122,50 @@ export default function NoteEditor() {
               if (editor) {
                 editor.chain().focus().insertContent(text).run();
                 toast.success('Cifra insertada');
+              }
+            }}
+          />
+        </React.Suspense>
+      )}
+
+      {/* Modo Presentación Modal */}
+      {presentationModalOpen && (
+        <React.Suspense fallback={null}>
+          <PresentationModal
+            open={presentationModalOpen}
+            onClose={() => setPresentationModalOpen(false)}
+            noteTitle={title || 'Presentación'}
+            noteContent={editor ? editor.getHTML() : (note?.content || '')}
+          />
+        </React.Suspense>
+      )}
+
+      {/* Mermaid Diagram Editor Modal */}
+      {mermaidModalOpen && (
+        <React.Suspense fallback={null}>
+          <MermaidModal
+            open={mermaidModalOpen}
+            onClose={() => setMermaidModalOpen(false)}
+            onInsertDiagram={(imageUrl) => {
+              if (editor) {
+                editor.chain().focus().setImage({ src: imageUrl, alt: 'Diagrama Mermaid' }).run();
+                toast.success('Diagrama Mermaid incrustado');
+              }
+            }}
+          />
+        </React.Suspense>
+      )}
+
+      {/* Audio Recorder Modal */}
+      {audioModalOpen && (
+        <React.Suspense fallback={null}>
+          <AudioRecorderModal
+            open={audioModalOpen}
+            onClose={() => setAudioModalOpen(false)}
+            onInsertAudio={(audioHtml) => {
+              if (editor) {
+                editor.chain().focus().insertContent(audioHtml).run();
+                toast.success('Nota de voz incrustada');
               }
             }}
           />

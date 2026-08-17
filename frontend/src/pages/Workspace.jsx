@@ -15,6 +15,9 @@ import FavoritesView from '../components/FavoritesView';
 import ArchivedView from '../components/ArchivedView';
 import MobileFab from '../components/MobileFab';
 import { AiAssistantPanel } from '../components/AiAssistantDrawer';
+import RecentNotesTabs from '../components/RecentNotesTabs';
+import GraphView from '../components/GraphView';
+import { useProjectNotes } from '../hooks/useProjectNotes';
 
 // NoteList + NoteEditor se cargan bajo demanda: TipTap y el editor son el
 // chunk más pesado de la app y no hacen falta al abrir el dashboard.
@@ -37,6 +40,14 @@ export default function Workspace() {
   const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const [graphOpen, setGraphOpen] = useState(false);
+  const [splitActive, setSplitActive] = useState(false);
+
+  // Fetch project notes for tabs and graph
+  const { notes: projectNotes = [] } = useProjectNotes(
+    typeof currentProjectId === 'number' ? currentProjectId : null,
+    Boolean(currentProjectId && typeof currentProjectId === 'number')
+  );
 
   // Slide direction for note transitions
   const prevNoteIdRef = useRef(currentNoteId);
@@ -338,15 +349,34 @@ export default function Workspace() {
                     </Suspense>
                   )
                 ) : (
-                  /* En escritorio normal: muestra lista de notas + editor lado a lado */
-                  <>
+                  /* En escritorio normal: muestra lista de notas + editor lado a lado con soporte de pestañas */
+                  <Box sx={{ flexGrow: 1, display: 'flex', minWidth: 0, overflow: 'hidden' }}>
                     <Suspense fallback={null}>
                       <NoteList />
                     </Suspense>
-                    <Suspense fallback={null}>
-                      <NoteEditor />
-                    </Suspense>
-                  </>
+                    <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
+                      {currentNoteId && (
+                        <RecentNotesTabs
+                          notes={projectNotes}
+                          onOpenGraph={() => setGraphOpen(true)}
+                          onToggleSplit={() => setSplitActive((s) => !s)}
+                          splitActive={splitActive}
+                        />
+                      )}
+                      <Box sx={{ flexGrow: 1, display: 'flex', minWidth: 0, overflow: 'hidden' }}>
+                        <Suspense fallback={null}>
+                          <NoteEditor />
+                        </Suspense>
+                        {splitActive && (
+                          <Box sx={{ width: '50%', height: '100%', borderLeft: '2px solid', borderColor: 'primary.main', overflow: 'hidden' }}>
+                            <Suspense fallback={null}>
+                              <NoteEditor />
+                            </Suspense>
+                          </Box>
+                        )}
+                      </Box>
+                    </Box>
+                  </Box>
                 )}
               </>
             )}
@@ -357,6 +387,16 @@ export default function Workspace() {
 
         {/* AI panel inline on desktop (hidden on mobile — handled by AiAssistantDrawer) */}
         {!isMobile && <AiAssistantPanel />}
+
+        {/* Modal de Grafo de Conocimiento Interactivo 2D */}
+        {graphOpen && (
+          <GraphView
+            open={graphOpen}
+            onClose={() => setGraphOpen(false)}
+            notes={projectNotes}
+            currentProjectId={currentProjectId}
+          />
+        )}
       </Box>
     </Box>
   );

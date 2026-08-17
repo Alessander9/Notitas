@@ -300,6 +300,7 @@ export default function CommandPalette() {
           label: n.title || 'Sin título',
           hint: proj?.name || 'Nota',
           secondary: getSnippet(n.content, trimmed),
+          rawContent: n.content || '',
           icon: <NoteIcon sx={{ fontSize: 20 }} />,
           color: proj?.color || '#386c5f',
           projectId: n.projectId,
@@ -334,6 +335,7 @@ export default function CommandPalette() {
     if (filterTag && !item.tags?.includes(filterTag)) return false;
     return true;
   });
+  const activeItem = items[active];
 
   // Chip data derived from raw note results (before filtering)
   const noteItems = allItems.filter(i => i.kind === 'note');
@@ -402,17 +404,18 @@ export default function CommandPalette() {
             onClick={(e) => e.stopPropagation()}
             style={{
               width: 'calc(100% - 32px)',
-              maxWidth: 620,
+              maxWidth: activeItem?.kind === 'note' ? 820 : 620,
               display: 'flex',
               flexDirection: 'column',
+              transition: 'max-width 0.2s ease',
             }}
           >
             <Box
               sx={{
                 bgcolor: (theme) =>
-                  theme.palette.mode === 'dark' ? 'rgba(20, 24, 38, 0.85)' : 'rgba(255, 255, 255, 0.88)',
-                backdropFilter: 'blur(20px)',
-                WebkitBackdropFilter: 'blur(20px)',
+                  theme.palette.mode === 'dark' ? 'rgba(20, 24, 38, 0.92)' : 'rgba(255, 255, 255, 0.94)',
+                backdropFilter: 'blur(24px)',
+                WebkitBackdropFilter: 'blur(24px)',
                 borderRadius: 3.5,
                 border: '1px solid',
                 borderColor: (theme) =>
@@ -421,7 +424,7 @@ export default function CommandPalette() {
                 overflow: 'hidden',
                 display: 'flex',
                 flexDirection: 'column',
-                maxHeight: '65vh',
+                maxHeight: '75vh',
               }}
             >
               {/* Input */}
@@ -490,136 +493,183 @@ export default function CommandPalette() {
                 </Box>
               )}
 
-              {/* Resultados */}
-              <Box sx={{ overflowY: 'auto', py: 1, minHeight: 120 }}>
-                {/* Recent searches */}
-                {!trimmed && recentSearches.length > 0 && (
-                  <Box sx={{ px: 2, pt: 1.5, pb: 0.5 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        <HistoryIcon sx={{ fontSize: 13, color: 'text.disabled' }} />
-                        <Typography variant="caption" color="text.disabled" sx={{ fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', fontSize: '0.62rem' }}>
-                          Recientes
-                        </Typography>
-                      </Box>
-                      <Typography
-                        variant="caption"
-                        color="text.disabled"
-                        sx={{ fontSize: '0.62rem', cursor: 'pointer', '&:hover': { color: 'text.secondary' } }}
-                        onClick={() => {
-                          setRecentSearches([]);
-                          try { localStorage.removeItem('notitas-recent-searches'); } catch {}
-                        }}
-                      >
-                        Limpiar
-                      </Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', mt: 0.5 }}>
-                      {recentSearches.map(s => (
-                        <Chip
-                          key={s}
-                          label={s}
-                          size="small"
-                          variant="outlined"
-                          sx={{ height: 22, fontSize: '0.72rem', cursor: 'pointer' }}
-                          onClick={() => { setQuery(s); inputRef.current?.focus(); }}
-                        />
-                      ))}
-                    </Box>
-                  </Box>
-                )}
-                {searching && trimmed ? (
-                  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 4, gap: 1.5 }}>
-                    <CircularProgress size={18} thickness={3} />
-                    <Typography variant="body2" color="text.secondary">Buscando...</Typography>
-                  </Box>
-                ) : items.length === 0 ? (
-                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 4, gap: 1 }}>
-                    <SearchIcon sx={{ fontSize: 32, color: 'text.disabled' }} />
-                    <Typography variant="body2" color="text.secondary">
-                      Sin resultados para "{trimmed}"
-                    </Typography>
-                  </Box>
-                ) : (
-                  <List dense disablePadding>
-                    {items.map((item, i) => (
-                      <motion.div
-                        key={item.key}
-                        custom={i}
-                        variants={staggerItem}
-                        initial="hidden"
-                        animate="visible"
-                      >
-                        <ListItemButton
-                          selected={i === active}
-                          onMouseEnter={() => setActive(i)}
+              {/* Resultados con Quick Look Split */}
+              <Box sx={{ display: 'flex', overflow: 'hidden', minHeight: 140, maxHeight: '60vh' }}>
+                <Box sx={{ flex: 1, overflowY: 'auto', py: 1 }}>
+                  {/* Recent searches */}
+                  {!trimmed && recentSearches.length > 0 && (
+                    <Box sx={{ px: 2, pt: 1.5, pb: 0.5 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <HistoryIcon sx={{ fontSize: 13, color: 'text.disabled' }} />
+                          <Typography variant="caption" color="text.disabled" sx={{ fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', fontSize: '0.62rem' }}>
+                            Recientes
+                          </Typography>
+                        </Box>
+                        <Typography
+                          variant="caption"
+                          color="text.disabled"
+                          sx={{ fontSize: '0.62rem', cursor: 'pointer', '&:hover': { color: 'text.secondary' } }}
                           onClick={() => {
-                            if (item.run) {
-                              setOpen(false);
-                              item.run();
-                            }
-                          }}
-                          sx={{
-                            borderRadius: 2,
-                            mx: 1,
-                            px: 1.5,
-                            py: 0.9,
-                            transition: 'all 0.15s ease-out',
-                            '&.Mui-selected': {
-                              bgcolor: (theme) =>
-                                theme.palette.mode === 'dark' ? 'rgba(109, 74, 255, 0.12)' : 'rgba(56, 108, 95, 0.08)',
-                              '&:hover': {
-                                bgcolor: (theme) =>
-                                  theme.palette.mode === 'dark' ? 'rgba(109, 74, 255, 0.18)' : 'rgba(56, 108, 95, 0.12)',
-                              },
-                            },
-                            '&:hover': {
-                              transform: 'translateX(4px)',
-                            },
+                            setRecentSearches([]);
+                            try { localStorage.removeItem('notitas-recent-searches'); } catch {}
                           }}
                         >
-                          <ListItemIcon
+                          Limpiar
+                        </Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', mt: 0.5 }}>
+                        {recentSearches.map(s => (
+                          <Chip
+                            key={s}
+                            label={s}
+                            size="small"
+                            variant="outlined"
+                            sx={{ height: 22, fontSize: '0.72rem', cursor: 'pointer' }}
+                            onClick={() => { setQuery(s); inputRef.current?.focus(); }}
+                          />
+                        ))}
+                      </Box>
+                    </Box>
+                  )}
+                  {searching && trimmed ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 4, gap: 1.5 }}>
+                      <CircularProgress size={18} thickness={3} />
+                      <Typography variant="body2" color="text.secondary">Buscando...</Typography>
+                    </Box>
+                  ) : items.length === 0 ? (
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 4, gap: 1 }}>
+                      <SearchIcon sx={{ fontSize: 32, color: 'text.disabled' }} />
+                      <Typography variant="body2" color="text.secondary">
+                        Sin resultados para "{trimmed}"
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <List dense disablePadding>
+                      {items.map((item, i) => (
+                        <motion.div
+                          key={item.key}
+                          custom={i}
+                          variants={staggerItem}
+                          initial="hidden"
+                          animate="visible"
+                        >
+                          <ListItemButton
+                            selected={i === active}
+                            onMouseEnter={() => setActive(i)}
+                            onClick={() => {
+                              if (item.run) {
+                                setOpen(false);
+                                item.run();
+                              }
+                            }}
                             sx={{
-                              minWidth: 38,
-                              color: item.color || 'action',
+                              borderRadius: 2,
+                              mx: 1,
+                              px: 1.5,
+                              py: 0.9,
+                              transition: 'all 0.15s ease-out',
+                              '&.Mui-selected': {
+                                bgcolor: (theme) =>
+                                  theme.palette.mode === 'dark' ? 'rgba(109, 74, 255, 0.12)' : 'rgba(56, 108, 95, 0.08)',
+                                '&:hover': {
+                                  bgcolor: (theme) =>
+                                    theme.palette.mode === 'dark' ? 'rgba(109, 74, 255, 0.18)' : 'rgba(56, 108, 95, 0.12)',
+                                },
+                              },
+                              '&:hover': {
+                                transform: 'translateX(4px)',
+                              },
                             }}
                           >
-                            <Box sx={{ fontSize: '1.15rem', lineHeight: 1, display: 'flex' }}>{item.icon}</Box>
-                          </ListItemIcon>
-                          <ListItemText
-                            primary={
-                              <>
-                                <HighlightText text={item.label} query={trimmed} />
-                                {item.secondary && (
-                                  <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.3, display: 'block', mt: 0.2, fontWeight: 400, whiteSpace: 'normal' }}>
-                                    {item.secondary}
-                                  </Typography>
-                                )}
-                              </>
-                            }
-                            secondary={item.hint}
-                            primaryTypographyProps={{ fontWeight: 600, fontSize: '0.9rem', noWrap: !item.secondary }}
-                            secondaryTypographyProps={{ fontSize: '0.72rem', noWrap: true, color: 'text.secondary' }}
-                          />
-                          {i === active && (
-                            <Box
+                            <ListItemIcon
                               sx={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 0.5,
-                                px: 0.8,
-                                py: 0.3,
-                                borderRadius: 1,
-                                bgcolor: 'action.hover',
+                                minWidth: 38,
+                                color: item.color || 'action',
                               }}
                             >
-                              <ReturnIcon sx={{ fontSize: 13, color: 'text.secondary' }} />
-                            </Box>
-                          )}
-                        </ListItemButton>
-                      </motion.div>
-                    ))}
-                  </List>
+                              <Box sx={{ fontSize: '1.15rem', lineHeight: 1, display: 'flex' }}>{item.icon}</Box>
+                            </ListItemIcon>
+                            <ListItemText
+                              primary={
+                                <>
+                                  <HighlightText text={item.label} query={trimmed} />
+                                  {item.secondary && (
+                                    <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.3, display: 'block', mt: 0.2, fontWeight: 400, whiteSpace: 'normal' }}>
+                                      {item.secondary}
+                                    </Typography>
+                                  )}
+                                </>
+                              }
+                              secondary={item.hint}
+                              primaryTypographyProps={{ fontWeight: 600, fontSize: '0.9rem', noWrap: !item.secondary }}
+                              secondaryTypographyProps={{ fontSize: '0.72rem', noWrap: true, color: 'text.secondary' }}
+                            />
+                            {i === active && (
+                              <Box
+                                sx={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 0.5,
+                                  px: 0.8,
+                                  py: 0.3,
+                                  borderRadius: 1,
+                                  bgcolor: 'action.hover',
+                                }}
+                              >
+                                <ReturnIcon sx={{ fontSize: 13, color: 'text.secondary' }} />
+                              </Box>
+                            )}
+                          </ListItemButton>
+                        </motion.div>
+                      ))}
+                    </List>
+                  )}
+                </Box>
+
+                {/* Quick Look Preview Panel */}
+                {activeItem?.kind === 'note' && (
+                  <Box
+                    sx={{
+                      width: 250,
+                      flexShrink: 0,
+                      borderLeft: '1px solid',
+                      borderColor: 'divider',
+                      p: 2,
+                      display: { xs: 'none', sm: 'flex' },
+                      flexDirection: 'column',
+                      bgcolor: 'action.hover',
+                      overflowY: 'auto',
+                    }}
+                  >
+                    <Typography variant="caption" fontWeight={800} color="primary.main" sx={{ textTransform: 'uppercase', letterSpacing: 0.5, mb: 1 }}>
+                      Vista Previa
+                    </Typography>
+                    <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 1, lineHeight: 1.3 }}>
+                      {activeItem.label}
+                    </Typography>
+                    {activeItem.tags && activeItem.tags.length > 0 && (
+                      <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 1.5 }}>
+                        {activeItem.tags.map((t) => (
+                          <Chip key={t} label={`#${t}`} size="small" sx={{ height: 18, fontSize: '0.62rem' }} />
+                        ))}
+                      </Box>
+                    )}
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{
+                        lineHeight: 1.5,
+                        fontSize: '0.76rem',
+                        overflow: 'hidden',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 10,
+                        WebkitBoxOrient: 'vertical',
+                      }}
+                    >
+                      {activeItem.rawContent ? stripHtml(activeItem.rawContent) : 'Sin contenido adicional'}
+                    </Typography>
+                  </Box>
                 )}
               </Box>
 
