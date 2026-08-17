@@ -202,11 +202,12 @@ const CustomImage = Image.extend({
   },
 });
 
-export default function NoteEditor() {
+export default function NoteEditor({ noteIdOverride = null } = {}) {
   // Espera a que el usuario termine una ráfaga de escritura antes de enviar
   // otra petición. El guardado pendiente se fuerza al cambiar de nota o salir.
   const AUTOSAVE_DELAY = 2500;
-  const { currentNoteId, setCurrentNote, currentProjectId, setCurrentProject } = useUiStore();
+  const { currentNoteId: storeNoteId, setCurrentNote, currentProjectId, setCurrentProject } = useUiStore();
+  const currentNoteId = noteIdOverride || storeNoteId;
   const queryClient = useQueryClient();
 
   const [isListening, setIsListening] = useState(false);

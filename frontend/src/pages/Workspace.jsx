@@ -1,6 +1,6 @@
 import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Drawer, useMediaQuery, useTheme, Tooltip, IconButton, Typography } from '@mui/material';
+import { Box, Drawer, useMediaQuery, useTheme, Tooltip, IconButton, Typography, Select, MenuItem } from '@mui/material';
 import { FullscreenExit as ZenExitIcon } from '@mui/icons-material';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
@@ -42,12 +42,21 @@ export default function Workspace() {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [graphOpen, setGraphOpen] = useState(false);
   const [splitActive, setSplitActive] = useState(false);
+  const [splitNoteId, setSplitNoteId] = useState(null);
 
   // Fetch project notes for tabs and graph
   const { notes: projectNotes = [] } = useProjectNotes(
     typeof currentProjectId === 'number' ? currentProjectId : null,
     Boolean(currentProjectId && typeof currentProjectId === 'number')
   );
+
+  // Default secondary note to a different note in project if available
+  useEffect(() => {
+    if (splitActive && !splitNoteId && projectNotes.length > 0) {
+      const otherNote = projectNotes.find((n) => n.id !== currentNoteId);
+      if (otherNote) setSplitNoteId(otherNote.id);
+    }
+  }, [splitActive, splitNoteId, projectNotes, currentNoteId]);
 
   // Slide direction for note transitions
   const prevNoteIdRef = useRef(currentNoteId);
@@ -368,10 +377,29 @@ export default function Workspace() {
                           <NoteEditor />
                         </Suspense>
                         {splitActive && (
-                          <Box sx={{ width: '50%', height: '100%', borderLeft: '2px solid', borderColor: 'primary.main', overflow: 'hidden' }}>
-                            <Suspense fallback={null}>
-                              <NoteEditor />
-                            </Suspense>
+                          <Box sx={{ width: '50%', height: '100%', borderLeft: '2px solid', borderColor: 'primary.main', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                            <Box sx={{ p: 0.8, px: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', bgcolor: 'action.hover', borderBottom: '1px solid', borderColor: 'divider' }}>
+                              <Typography variant="caption" fontWeight={700} color="primary.main">
+                                Vista Dividida
+                              </Typography>
+                              <Select
+                                size="small"
+                                value={splitNoteId || ''}
+                                onChange={(e) => setSplitNoteId(e.target.value)}
+                                sx={{ height: 26, fontSize: '0.75rem', minWidth: 160 }}
+                              >
+                                {projectNotes.map((pn) => (
+                                  <MenuItem key={pn.id} value={pn.id} sx={{ fontSize: '0.8rem' }}>
+                                    {pn.icon ? `${pn.icon} ` : ''}{pn.title || 'Sin título'}
+                                  </MenuItem>
+                                ))}
+                              </Select>
+                            </Box>
+                            <Box sx={{ flexGrow: 1, overflow: 'hidden' }}>
+                              <Suspense fallback={null}>
+                                <NoteEditor noteIdOverride={splitNoteId} />
+                              </Suspense>
+                            </Box>
                           </Box>
                         )}
                       </Box>
