@@ -29,6 +29,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import api from '../services/api';
 import { useUiStore } from '../store/uiStore';
+import { useProjectNotes } from '../hooks/useProjectNotes';
 import { toast } from '../store/toastStore';
 import { getPlainText } from '../utils/text';
 import { renderMarkdown } from '../utils/markdown';
@@ -87,20 +88,16 @@ function AiPanelContent({ onClose }) {
 
   const activeProject = projects.find((p) => p.id === currentProjectId);
 
-  // Fetch project notes for AI context
-  const { data: projectNotes = [] } = useQuery({
-    queryKey: ['notes', currentProjectId],
-    queryFn: async () => {
-      const res = await api.get(`/projects/${currentProjectId}/notes`);
-      return res.data?.content || res.data || [];
-    },
-    enabled: Boolean(currentProjectId) && typeof currentProjectId === 'number',
-    staleTime: 60_000,
-  });
+  // Fetch project notes for AI context (shared paginated cache)
+  const { notes: projectNotes = [] } = useProjectNotes(
+    typeof currentProjectId === 'number' ? currentProjectId : null,
+    Boolean(currentProjectId && typeof currentProjectId === 'number')
+  );
 
   const noteSummaries = React.useMemo(() => {
-    if (!projectNotes.length) return [];
-    return projectNotes.slice(0, 20).map(n => ({
+    const list = Array.isArray(projectNotes) ? projectNotes : [];
+    if (!list.length) return [];
+    return list.slice(0, 20).map((n) => ({
       title: n.title || 'Sin título',
       tags: n.tags || [],
       preview: (n.content || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200),
