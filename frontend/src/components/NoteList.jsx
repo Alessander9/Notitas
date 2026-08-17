@@ -20,6 +20,7 @@ import {
   InputAdornment,
   ToggleButton,
   ToggleButtonGroup,
+  Divider,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -31,6 +32,7 @@ import {
   PushPin as PinIcon,
   PushPinOutlined as PinOutlinedIcon,
   OpenInFull as MaximizeIcon,
+  CloseFullscreen as MinimizeIcon,
   ArrowBack as ArrowBackIcon,
   Search as SearchIcon,
   Close as CloseIcon,
@@ -43,7 +45,6 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import { useUiStore } from '../store/uiStore';
-import { useAuthStore } from '../store/authStore';
 import { toast } from '../store/toastStore';
 import NoteListSkeleton from './skeletons/NoteListSkeleton';
 import CoverImage from './CoverImage';
@@ -52,14 +53,13 @@ import MemberProfileDialog from './MemberProfileDialog';
 import InfiniteScroll from './InfiniteScroll';
 import { usePaginatedNotes } from '../hooks/usePaginatedNotes';
 import HighlightText from './HighlightText';
-import { getPlainText, getAssetUrl, formatRelativeTime } from '../utils/text';
+import { getPlainText, getAssetUrl, formatRelativeTime, extractFirstImage } from '../utils/text';
 import ManageMembersDialog from './ManageMembersDialog';
 import { Group as GroupIcon } from '@mui/icons-material';
 import KanbanView from './KanbanView';
 
 export default function NoteList() {
   const { currentProjectId, currentNoteId, setCurrentNote, searchQuery, setCurrentProject, notesViewMode = 'masonry', setNotesViewMode } = useUiStore();
-  const { user } = useAuthStore();
   const [manageMembersOpen, setManageMembersOpen] = React.useState(false);
   const queryClient = useQueryClient();
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -389,51 +389,146 @@ export default function NoteList() {
       {/* Header */}
       <Box sx={{ p: isCollapsed ? 1 : 1.5, display: 'flex', alignItems: 'center', justifyContent: isCollapsed ? 'center' : 'space-between', borderBottom: '1px solid', borderColor: 'divider', minHeight: 56, gap: 1 }}>
         {isCollapsed ? (
-          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-            <Box
-              onClick={() => setIsCollapsed(false)}
-              sx={{ cursor: 'pointer', '&:hover': { transform: 'scale(1.05)' }, transition: 'transform 0.2s ease' }}
-            >
-              <Badge
-                badgeContent={totalCount}
-                color="primary"
-                sx={{
-                  '& .MuiBadge-badge': {
-                    fontSize: '0.6rem',
-                    height: 18,
-                    minWidth: 18,
-                    fontWeight: 700,
-                  },
-                }}
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.2, width: '100%' }}>
+            {/* Si estamos dentro de un proyecto, mostrar creador y colaboradores en círculos */}
+            {isProjectView && (() => {
+              const activeProj = projects.find((p) => p.id === currentProjectId);
+              const creator = activeProj?.creator;
+              const collabs = activeProj?.collaborators || [];
+              return (
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.75, width: '100%' }}>
+                  {/* Creador del proyecto */}
+                  {creator && (
+                    <Tooltip title={`Creador: ${creator.name}`} placement="right" arrow>
+                      <Box
+                        onClick={() => setProfileMember(creator)}
+                        sx={{ cursor: 'pointer', position: 'relative', '&:hover': { transform: 'scale(1.1)' }, transition: 'transform 0.2s' }}
+                      >
+                        <Avatar
+                          src={creator.avatar ? getAssetUrl(creator.avatar) : undefined}
+                          sx={{
+                            width: 38,
+                            height: 38,
+                            bgcolor: 'warning.main',
+                            border: '2px solid',
+                            borderColor: 'warning.main',
+                            boxShadow: '0 2px 8px rgba(245, 158, 11, 0.35)',
+                            fontSize: '0.85rem',
+                            fontWeight: 700,
+                          }}
+                        >
+                          {creator.name?.charAt(0)?.toUpperCase() || 'C'}
+                        </Avatar>
+                        <Box
+                          sx={{
+                            position: 'absolute',
+                            bottom: -2,
+                            right: -2,
+                            width: 14,
+                            height: 14,
+                            borderRadius: '50%',
+                            bgcolor: 'warning.main',
+                            color: '#fff',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '8px',
+                            fontWeight: 900,
+                            border: '1.5px solid',
+                            borderColor: 'background.default',
+                          }}
+                        >
+                          ★
+                        </Box>
+                      </Box>
+                    </Tooltip>
+                  )}
+
+                  {/* Colaboradores del proyecto */}
+                  {collabs.length > 0 && (
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
+                      {collabs.slice(0, 3).map((collab) => (
+                        <Tooltip key={collab.id} title={`Colaborador: ${collab.name}`} placement="right" arrow>
+                          <Avatar
+                            src={collab.avatar ? getAssetUrl(collab.avatar) : undefined}
+                            onClick={() => setProfileMember(collab)}
+                            sx={{
+                              width: 28,
+                              height: 28,
+                              cursor: 'pointer',
+                              bgcolor: 'primary.main',
+                              border: '1.5px solid',
+                              borderColor: 'divider',
+                              fontSize: '0.72rem',
+                              fontWeight: 600,
+                              '&:hover': { transform: 'scale(1.15)', borderColor: 'primary.main' },
+                              transition: 'all 0.2s',
+                            }}
+                          >
+                            {collab.name?.charAt(0)?.toUpperCase() || 'U'}
+                          </Avatar>
+                        </Tooltip>
+                      ))}
+                      {collabs.length > 3 && (
+                        <Tooltip title={`+${collabs.length - 3} colaboradores más`} placement="right">
+                          <Avatar
+                            sx={{
+                              width: 24,
+                              height: 24,
+                              fontSize: '0.62rem',
+                              fontWeight: 700,
+                              bgcolor: 'action.selected',
+                              color: 'text.secondary',
+                            }}
+                          >
+                            +{collabs.length - 3}
+                          </Avatar>
+                        </Tooltip>
+                      )}
+                    </Box>
+                  )}
+
+                  <Divider sx={{ width: '80%', my: 0.5 }} />
+                </Box>
+              );
+            })()}
+
+            {/* Badge de conteo de notas */}
+            <Tooltip title={`Expandir lista de notas (${totalCount} notas)`} placement="right">
+              <Box
+                onClick={() => setIsCollapsed(false)}
+                sx={{ cursor: 'pointer', '&:hover': { transform: 'scale(1.08)' }, transition: 'transform 0.2s ease' }}
               >
-                <Avatar
-                  src={user?.avatar ? getAssetUrl(user.avatar) : undefined}
+                <Badge
+                  badgeContent={totalCount}
+                  color="primary"
                   sx={{
-                    width: 40,
-                    height: 40,
-                    bgcolor: 'primary.main',
-                    border: '2px solid',
-                    borderColor: 'divider',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                    '& .MuiBadge-badge': {
+                      fontSize: '0.6rem',
+                      height: 18,
+                      minWidth: 18,
+                      fontWeight: 700,
+                    },
                   }}
                 >
-                  {user?.name?.charAt(0)?.toUpperCase() || 'U'}
-                </Avatar>
-              </Badge>
-            </Box>
-            <IconButton
-              size="small"
-              onClick={() => setIsCollapsed(false)}
-              sx={{
-                p: 1,
-                borderRadius: 2,
-                bgcolor: 'action.hover',
-                '&:hover': { bgcolor: 'primary.main', color: '#fff' },
-                transition: 'all 0.2s ease',
-              }}
-            >
-              <MaximizeIcon sx={{ fontSize: 18 }} />
-            </IconButton>
+                  <IconButton
+                    size="small"
+                    sx={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 2,
+                      bgcolor: 'action.hover',
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      '&:hover': { bgcolor: 'primary.main', color: '#fff' },
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
+                    <MaximizeIcon sx={{ fontSize: 18 }} />
+                  </IconButton>
+                </Badge>
+              </Box>
+            </Tooltip>
           </Box>
         ) : (
           <>
@@ -477,6 +572,24 @@ export default function NoteList() {
                   <Tooltip title="Kanban por Checklists"><ChecklistKanbanIcon sx={{ fontSize: 15 }} /></Tooltip>
                 </ToggleButton>
               </ToggleButtonGroup>
+
+              {isProjectView && (
+                <Tooltip title="Minimizar lista de notas">
+                  <IconButton
+                    size="small"
+                    onClick={() => setIsCollapsed(true)}
+                    sx={{
+                      p: 0.6,
+                      borderRadius: 1.5,
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      '&:hover': { bgcolor: 'action.hover', color: 'primary.main' },
+                    }}
+                  >
+                    <MinimizeIcon sx={{ fontSize: 16 }} />
+                  </IconButton>
+                </Tooltip>
+              )}
 
               {isProjectView && (
                 <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}>
@@ -657,45 +770,70 @@ export default function NoteList() {
             </Button>
           </Box>
         ) : isCollapsed ? (
-          /* Collapsed view: circular note avatars */
+          /* Collapsed view: circular note avatars with cover or inline images */
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, px: 0.5 }}>
-            {visibleNotes.slice(0, 10).map((note, index) => {
+            {visibleNotes.slice(0, 15).map((note, index) => {
               const isSelected = currentNoteId === note.id;
               const project = projects.find((p) => p.id === note.projectId);
               const color = project?.color || '#386c5f';
               const hasCover = Boolean(note.coverImage);
-              const coverUrl = hasCover ? getAssetUrl(note.coverImage) : null;
+              // Si no tiene coverImage explícita, extraemos la primera imagen insertada en el contenido
+              const inlineImg = !hasCover ? extractFirstImage(note.content) : null;
+              const effectiveImgUrl = hasCover
+                ? getAssetUrl(note.coverImage)
+                : inlineImg
+                  ? getAssetUrl(inlineImg)
+                  : null;
 
               return (
                 <motion.div
                   key={note.id}
                   initial={{ opacity: 0, scale: 0.5 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: index * 0.05, type: 'spring', stiffness: 300 }}
+                  transition={{ delay: index * 0.04, type: 'spring', stiffness: 300 }}
                   whileHover={{ scale: 1.15, x: 4 }}
                   whileTap={{ scale: 0.95 }}
                 >
-                  <Tooltip title={note.title || 'Sin título'} placement="right" arrow>
+                  <Tooltip
+                    title={
+                      <Box sx={{ p: 0.5, textAlign: 'center' }}>
+                        <Typography variant="caption" fontWeight={700} display="block">
+                          {note.icon ? `${note.icon} ` : ''}{note.title || 'Sin título'}
+                        </Typography>
+                        {note.tags && note.tags.length > 0 && (
+                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+                            #{note.tags.slice(0, 2).join(' #')}
+                          </Typography>
+                        )}
+                      </Box>
+                    }
+                    placement="right"
+                    arrow
+                  >
                     <Avatar
-                      src={coverUrl || undefined}
+                      src={effectiveImgUrl || undefined}
                       onClick={() => setCurrentNote(note.id)}
                       sx={{
-                        width: 36,
-                        height: 36,
+                        width: 38,
+                        height: 38,
                         cursor: 'pointer',
-                        bgcolor: coverUrl ? 'transparent' : `${color}20`,
+                        bgcolor: effectiveImgUrl ? 'transparent' : `${color}20`,
                         border: '2px solid',
                         borderColor: isSelected ? color : `${color}40`,
-                        boxShadow: isSelected ? `0 0 0 2px ${color}40` : 'none',
+                        boxShadow: isSelected ? `0 0 0 3px ${color}40, 0 4px 12px ${color}30` : '0 2px 6px rgba(0,0,0,0.1)',
                         transition: 'all 0.2s ease',
                         '&:hover': {
                           borderColor: color,
-                          boxShadow: `0 2px 8px ${color}30`,
+                          boxShadow: `0 4px 14px ${color}40`,
                         },
                       }}
                     >
-                      {coverUrl ? null : (
-                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color }}>
+                      {effectiveImgUrl ? null : note.icon ? (
+                        <Box component="span" sx={{ fontSize: '1rem', lineHeight: 1 }}>
+                          {note.icon}
+                        </Box>
+                      ) : (
+                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 800, color }}>
                           {(note.title || 'N').charAt(0).toUpperCase()}
                         </Typography>
                       )}
@@ -704,10 +842,24 @@ export default function NoteList() {
                 </motion.div>
               );
             })}
-            {visibleNotes.length > 10 && (
-              <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.6rem', mt: 0.5 }}>
-                +{visibleNotes.length - 10} más
-              </Typography>
+            {visibleNotes.length > 15 && (
+              <Tooltip title={`+${visibleNotes.length - 15} notas más`} placement="right">
+                <Avatar
+                  onClick={() => setIsCollapsed(false)}
+                  sx={{
+                    width: 28,
+                    height: 28,
+                    fontSize: '0.65rem',
+                    fontWeight: 800,
+                    bgcolor: 'action.selected',
+                    color: 'text.secondary',
+                    cursor: 'pointer',
+                    '&:hover': { bgcolor: 'primary.main', color: '#fff' },
+                  }}
+                >
+                  +{visibleNotes.length - 15}
+                </Avatar>
+              </Tooltip>
             )}
           </Box>
         ) : notesViewMode === 'kanban' ? (

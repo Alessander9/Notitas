@@ -66,5 +66,16 @@ export const getAssetUrl = (url) => {
  * @param {string} avatar - Avatar path or full URL.
  * @returns {string|null}
  */
+/**
+ * Extrae la primera URL de imagen encontrada en un contenido HTML (ej. <img src="...">).
+ * @param {string} html - Contenido HTML de la nota.
+ * @returns {string|null}
+ */
+export const extractFirstImage = (html) => {
+  if (!html) return null;
+  const match = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+  return match ? match[1] : null;
+};
+
 export const getAvatarUrl = (avatar) => getAssetUrl(avatar);
 

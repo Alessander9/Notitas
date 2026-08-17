@@ -22,6 +22,7 @@ import {
   AccountCircle as AccountCircleIcon,
   Menu as MenuIcon,
   AutoAwesome as SparklesIcon,
+  Bolt as QuickNoteIcon,
 } from '@mui/icons-material';
 import { styled, alpha } from '@mui/material/styles';
 import { useAuthStore } from '../store/authStore';
@@ -32,6 +33,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import CoverImage from './CoverImage';
 import ProfileDialog from './ProfileDialog';
 import NotificationBell from './NotificationBell';
+import QuickNoteModal from './QuickNoteModal';
 import { getAvatarUrl } from '../utils/text';
 import logoImage from '../assets/logo notitas.png';
 import textoImage from '../assets/notitas-texto.png';
@@ -87,10 +89,29 @@ export default function Navbar() {
     setSidebarMobileOpen,
     toggleAiDrawer,
     aiDrawerOpen,
+    currentProjectId,
   } = useUiStore();
   const [anchorEl, setAnchorEl] = useState(null);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [quickNoteOpen, setQuickNoteOpen] = useState(false);
   const avatarInputRef = useRef(null);
+
+  // Atajo global para abrir creación rápida de nota (Alt+N o Ctrl+Alt+N)
+  React.useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.altKey && (e.key === 'n' || e.key === 'N')) || (e.ctrlKey && e.altKey && (e.key === 'n' || e.key === 'N'))) {
+        e.preventDefault();
+        setQuickNoteOpen(true);
+      }
+    };
+    const handleOpenEvent = () => setQuickNoteOpen(true);
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('notitas:quick-note', handleOpenEvent);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('notitas:quick-note', handleOpenEvent);
+    };
+  }, []);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const queryClient = useQueryClient();
@@ -269,6 +290,32 @@ export default function Navbar() {
         {/* Acciones */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, flexShrink: 0 }}>
           {user && (
+            <Tooltip title="Nota rápida (Alt+N)">
+              <motion.div whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.92 }}>
+                <IconButton
+                  onClick={() => setQuickNoteOpen(true)}
+                  sx={{
+                    bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'rgba(56, 108, 95, 0.25)' : 'rgba(56, 108, 95, 0.12)'),
+                    color: 'primary.main',
+                    border: '1px solid',
+                    borderColor: 'primary.main',
+                    p: 0.85,
+                    borderRadius: 2.5,
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      bgcolor: 'primary.main',
+                      color: '#fff',
+                      boxShadow: '0 4px 14px rgba(56, 108, 95, 0.35)',
+                    },
+                  }}
+                >
+                  <QuickNoteIcon sx={{ fontSize: 20 }} />
+                </IconButton>
+              </motion.div>
+            </Tooltip>
+          )}
+
+          {user && (
             <Tooltip title="Asistente de IA (Ctrl+J)">
               <motion.div whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.92 }}>
                 <IconButton
@@ -371,6 +418,13 @@ export default function Navbar() {
 
       {/* Remounted each open so the form state is fresh */}
       {profileOpen && <ProfileDialog open={profileOpen} onClose={() => setProfileOpen(false)} />}
+      {quickNoteOpen && (
+        <QuickNoteModal
+          open={quickNoteOpen}
+          onClose={() => setQuickNoteOpen(false)}
+          defaultProjectId={typeof currentProjectId === 'number' ? currentProjectId : null}
+        />
+      )}
     </AppBar>
   );
 }

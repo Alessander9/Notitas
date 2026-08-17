@@ -7,6 +7,7 @@ import {
   FolderOpen as FolderIcon,
   DarkMode as DarkModeIcon,
   LightMode as LightModeIcon,
+  Bolt as QuickNoteIcon,
 } from '@mui/icons-material';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
@@ -56,11 +57,19 @@ export default function MobileFab() {
   });
 
   const actions = [
+    {
+      icon: <QuickNoteIcon sx={{ fontSize: 22 }} />,
+      name: 'Nota rápida',
+      color: '#386c5f',
+      onClick: () => {
+        window.dispatchEvent(new CustomEvent('notitas:quick-note'));
+      },
+    },
     ...(typeof currentProjectId === 'number'
       ? [
           {
             icon: <NoteAddIcon sx={{ fontSize: 22 }} />,
-            name: 'Nueva nota',
+            name: 'Nueva nota aquí',
             color: '#386c5f',
             onClick: () => createNoteMutation.mutate(),
           },

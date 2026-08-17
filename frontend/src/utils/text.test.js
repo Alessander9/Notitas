@@ -1,5 +1,18 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { getPlainText, formatShortDate, formatRelativeTime, getAssetUrl, getAvatarUrl } from './text';
+import { getPlainText, formatShortDate, formatRelativeTime, getAssetUrl, getAvatarUrl, extractFirstImage } from './text';
+
+describe('extractFirstImage', () => {
+  it('extrae el atributo src del primer tag img en el html', () => {
+    const html = '<p>Hola</p><img src="https://example.com/foto.jpg" alt="test"/><img src="otra.png"/>';
+    expect(extractFirstImage(html)).toBe('https://example.com/foto.jpg');
+  });
+
+  it('devuelve null si no hay imagenes o html vacio', () => {
+    expect(extractFirstImage('<p>Sin imagenes</p>')).toBeNull();
+    expect(extractFirstImage('')).toBeNull();
+    expect(extractFirstImage(null)).toBeNull();
+  });
+});
 
 describe('getPlainText', () => {
   it('extrae texto plano de HTML', () => {
