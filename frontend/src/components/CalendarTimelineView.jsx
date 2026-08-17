@@ -31,6 +31,17 @@ const MONTHS = [
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
 ];
 
+/** Formatea una fecha local a clave YYYY-MM-DD sin desfase de zona horaria UTC */
+const formatDateKey = (d) => {
+  if (!d) return null;
+  const dateObj = typeof d === 'string' ? new Date(d) : d;
+  if (isNaN(dateObj.getTime())) return null;
+  const y = dateObj.getFullYear();
+  const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const day = String(dateObj.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
 export default function CalendarTimelineView({ notes = [], onNoteClick, onCreateNote }) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [dateField, setDateField] = useState('created'); // 'created' | 'updated' | 'reminders'
@@ -62,17 +73,17 @@ export default function CalendarTimelineView({ notes = [], onNoteClick, onCreate
       if (dateField === 'reminders') {
         const rem = reminders.find((r) => r.noteId === note.id);
         if (rem && rem.remindAt) {
-          targetDateStr = new Date(rem.remindAt).toISOString().split('T')[0];
+          targetDateStr = formatDateKey(rem.remindAt);
         }
       } else if (dateField === 'updated') {
         if (note.updatedAt) {
-          targetDateStr = new Date(note.updatedAt).toISOString().split('T')[0];
+          targetDateStr = formatDateKey(note.updatedAt);
         }
       } else {
         // 'created'
         const rawDate = note.createdAt || note.created_at;
         if (rawDate) {
-          targetDateStr = new Date(rawDate).toISOString().split('T')[0];
+          targetDateStr = formatDateKey(rawDate);
         }
       }
 
@@ -102,7 +113,7 @@ export default function CalendarTimelineView({ notes = [], onNoteClick, onCreate
     for (let i = startDayOfWeek - 1; i >= 0; i--) {
       const d = prevMonthLastDay - i;
       const prevDate = new Date(year, month - 1, d);
-      const dateStr = prevDate.toISOString().split('T')[0];
+      const dateStr = formatDateKey(prevDate);
       days.push({
         dayNumber: d,
         date: prevDate,
@@ -115,7 +126,7 @@ export default function CalendarTimelineView({ notes = [], onNoteClick, onCreate
     // Días del mes actual
     for (let i = 1; i <= totalDays; i++) {
       const thisDate = new Date(year, month, i);
-      const dateStr = thisDate.toISOString().split('T')[0];
+      const dateStr = formatDateKey(thisDate);
       days.push({
         dayNumber: i,
         date: thisDate,
@@ -129,7 +140,7 @@ export default function CalendarTimelineView({ notes = [], onNoteClick, onCreate
     const remaining = (7 - (days.length % 7)) % 7;
     for (let i = 1; i <= remaining; i++) {
       const nextDate = new Date(year, month + 1, i);
-      const dateStr = nextDate.toISOString().split('T')[0];
+      const dateStr = formatDateKey(nextDate);
       days.push({
         dayNumber: i,
         date: nextDate,
@@ -142,7 +153,7 @@ export default function CalendarTimelineView({ notes = [], onNoteClick, onCreate
     return days;
   }, [year, month, notesByDate]);
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = formatDateKey(new Date());
 
   // Lista para vista Timeline ordenada
   const timelineItems = useMemo(() => {

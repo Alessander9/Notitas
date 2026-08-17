@@ -72,7 +72,7 @@ export default function CanvasModal({ open, onClose, onInsertImage }) {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
-    setHistory((prev) => [...prev, ctx.getImageData(0, 0, canvas.width, canvas.height)]);
+    setHistory((prev) => [...prev.slice(-19), ctx.getImageData(0, 0, canvas.width, canvas.height)]);
     setRedoList([]);
   };
 
