@@ -16,6 +16,7 @@ import CommandPalette from './components/CommandPalette';
 import ServerStatusBanner from './components/ServerStatusBanner';
 import AiAssistantDrawer from './components/AiAssistantDrawer';
 import AiFloatingButton from './components/AiFloatingButton';
+import Scratchpad from './components/Scratchpad';
 import { useNoteReminders } from './hooks/useNoteReminders';
 
 const Login = React.lazy(() => import('./pages/Login'));
@@ -398,6 +399,7 @@ export default function App() {
           </ErrorBoundary>
           <AiAssistantDrawer />
           <AiFloatingButton />
+          <Scratchpad />
         </BrowserRouter>
         <Toasts />
         <ConfirmDialog />

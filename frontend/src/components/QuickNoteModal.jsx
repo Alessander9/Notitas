@@ -35,14 +35,21 @@ import { getProjectIcon } from '../constants/projectOptions';
  * Permite seleccionar el proyecto de destino, asignar título, contenido breve,
  * etiquetas y marcar como favorita de forma inmediata.
  */
-export default function QuickNoteModal({ open, onClose, defaultProjectId = null }) {
+export default function QuickNoteModal({
+  open,
+  onClose,
+  defaultProjectId = null,
+  initialTitle = '',
+  initialContent = '',
+  initialTags = [],
+}) {
   const queryClient = useQueryClient();
   const { setCurrentProject, setCurrentNote } = useUiStore();
 
   const [projectId, setProjectId] = useState('');
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
-  const [tags, setTags] = useState([]);
+  const [title, setTitle] = useState(initialTitle || '');
+  const [content, setContent] = useState(initialContent || '');
+  const [tags, setTags] = useState(initialTags || []);
   const [tagInput, setTagInput] = useState('');
   const [isFavorite, setIsFavorite] = useState(false);
 
@@ -66,9 +73,9 @@ export default function QuickNoteModal({ open, onClose, defaultProjectId = null 
   // Inicializar campos al abrir
   useEffect(() => {
     if (open) {
-      setTitle('');
-      setContent('');
-      setTags([]);
+      setTitle(initialTitle || '');
+      setContent(initialContent || '');
+      setTags(initialTags || []);
       setTagInput('');
       setIsFavorite(false);
       if (defaultProjectId && typeof defaultProjectId === 'number') {
@@ -79,7 +86,7 @@ export default function QuickNoteModal({ open, onClose, defaultProjectId = null 
         setProjectId('');
       }
     }
-  }, [open, defaultProjectId, writableProjects]);
+  }, [open, defaultProjectId, writableProjects, initialTitle, initialContent, initialTags]);
 
   // Autofocus al abrir
   useEffect(() => {

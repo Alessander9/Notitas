@@ -23,6 +23,7 @@ import {
   NoteAdd as NoteAddIcon,
   FolderOpen as FolderOpenIcon,
   History as HistoryIcon,
+  NoteAlt as ScratchpadIcon,
 } from '@mui/icons-material';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -238,6 +239,16 @@ export default function CommandPalette() {
           hint: 'Papelera',
           icon: <TrashIcon />,
           run: () => setCurrentProject('trash'),
+        },
+        {
+          key: 'action-scratchpad',
+          kind: 'action',
+          label: 'Abrir bloc efímero (Scratchpad)',
+          hint: 'Alt+S',
+          icon: <ScratchpadIcon sx={{ color: '#f59e0b' }} />,
+          run: () => {
+            window.dispatchEvent(new KeyboardEvent('keydown', { altKey: true, key: 's' }));
+          },
         },
         {
           key: 'action-theme',
