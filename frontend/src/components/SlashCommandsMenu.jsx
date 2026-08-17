@@ -22,6 +22,8 @@ import {
   HorizontalRule as DividerIcon,
   Animation as MediaIcon,
   AutoAwesome as TemplateIcon,
+  Gesture as DrawIcon,
+  Calculate as CalcIcon,
 } from '@mui/icons-material';
 
 const SLASH_COMMANDS = [
@@ -130,6 +132,22 @@ const SLASH_COMMANDS = [
     aliases: ['template', 'plantilla', 'estructura', 'modelo'],
     customAction: 'openTemplates',
   },
+  {
+    id: 'canvas',
+    label: 'Pizarra de Dibujo / Canvas',
+    description: 'Crear diagrama o boceto vectorial e incrustar imagen',
+    icon: <DrawIcon sx={{ fontSize: 20, color: '#0ea5e9' }} />,
+    aliases: ['canvas', 'draw', 'dibujo', 'pizarra', 'boceto', 'diagrama', 'excalidraw'],
+    customAction: 'openCanvas',
+  },
+  {
+    id: 'calc',
+    label: 'Calculadora Integrada',
+    description: 'Calcular operaciones matemáticas y pegar cifras',
+    icon: <CalcIcon sx={{ fontSize: 20, color: '#10b981' }} />,
+    aliases: ['calc', 'calculadora', 'cuenta', 'math', 'calcular', 'numero'],
+    customAction: 'openCalculator',
+  },
 ];
 
 export default function SlashCommandsMenu({
@@ -141,6 +159,8 @@ export default function SlashCommandsMenu({
   onOpenMediaPicker,
   onOpenTemplates,
   onOpenAi,
+  onOpenCanvas,
+  onOpenCalculator,
 }) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const menuRef = useRef(null);
@@ -172,6 +192,10 @@ export default function SlashCommandsMenu({
       onOpenMediaPicker?.();
     } else if (cmd.customAction === 'openTemplates') {
       onOpenTemplates?.();
+    } else if (cmd.customAction === 'openCanvas') {
+      onOpenCanvas?.();
+    } else if (cmd.customAction === 'openCalculator') {
+      onOpenCalculator?.();
     } else if (cmd.customAction === 'openAi') {
       if (onOpenAi) onOpenAi();
       else useUiStore.getState().setAiDrawerOpen(true);
@@ -179,7 +203,7 @@ export default function SlashCommandsMenu({
       cmd.action(editor);
     }
     onClose();
-  }, [editor, query, onOpenMediaPicker, onOpenTemplates, onOpenAi, onClose]);
+  }, [editor, query, onOpenMediaPicker, onOpenTemplates, onOpenAi, onOpenCanvas, onOpenCalculator, onClose]);
 
   useEffect(() => {
     if (!open) return;

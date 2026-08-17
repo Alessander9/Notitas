@@ -41,6 +41,7 @@ import {
   ViewList as ListIcon,
   ViewKanban as KanbanIcon,
   Dashboard as ChecklistKanbanIcon,
+  CalendarMonth as CalendarIcon,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
@@ -57,6 +58,7 @@ import { getPlainText, getAssetUrl, formatRelativeTime, extractFirstImage } from
 import ManageMembersDialog from './ManageMembersDialog';
 import { Group as GroupIcon } from '@mui/icons-material';
 import KanbanView from './KanbanView';
+import CalendarTimelineView from './CalendarTimelineView';
 
 export default function NoteList() {
   const { currentProjectId, currentNoteId, setCurrentNote, searchQuery, setCurrentProject, notesViewMode = 'masonry', setNotesViewMode } = useUiStore();
@@ -571,6 +573,9 @@ export default function NoteList() {
                 <ToggleButton value="checklist-kanban" sx={{ px: 0.6, py: 0.2 }}>
                   <Tooltip title="Kanban por Checklists"><ChecklistKanbanIcon sx={{ fontSize: 15 }} /></Tooltip>
                 </ToggleButton>
+                <ToggleButton value="calendar" sx={{ px: 0.6, py: 0.2 }}>
+                  <Tooltip title="Calendario / Timeline"><CalendarIcon sx={{ fontSize: 15 }} /></Tooltip>
+                </ToggleButton>
               </ToggleButtonGroup>
 
               {isProjectView && (
@@ -1000,6 +1005,13 @@ export default function NoteList() {
         ) : notesViewMode === 'checklist-kanban' ? (
           /* Checklist-based Kanban View */
           <KanbanView notes={visibleNotes} onNoteClick={setCurrentNote} />
+        ) : notesViewMode === 'calendar' ? (
+          /* Calendar and Timeline View */
+          <CalendarTimelineView
+            notes={visibleNotes}
+            onNoteClick={setCurrentNote}
+            onCreateNote={isProjectView ? () => createNoteMutation.mutate() : undefined}
+          />
         ) : notesViewMode === 'list' ? (
           /* Compact List View */
           <InfiniteScroll hasMore={hasNextPage} loading={isFetchingNextPage} onLoadMore={fetchNextPage}>

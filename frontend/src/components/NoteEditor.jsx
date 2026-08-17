@@ -68,11 +68,15 @@ import {
   ContentCopy as DuplicateIcon,
   FileUpload as ImportFileIcon,
   AlarmAdd as AlarmAddIcon,
+  Gesture as DrawIcon,
+  Calculate as CalcIcon,
 } from '@mui/icons-material';
 import { useEditor, EditorContent, ReactNodeViewRenderer } from '@tiptap/react';
 import FloatingSelectionToolbar from './FloatingSelectionToolbar';
 import WikiLinkMenu from './WikiLinkMenu';
 import BacklinksPanel from './BacklinksPanel';
+import CanvasModal from './CanvasModal';
+import CalculatorModal from './CalculatorModal';
 import { mergeAttributes } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -273,6 +277,8 @@ export default function NoteEditor() {
   const [wikiOpen, setWikiOpen] = useState(false);
   const [wikiQuery, setWikiQuery] = useState('');
   const [wikiMenuPos, setWikiMenuPos] = useState({ top: 0, left: 0 });
+  const [canvasModalOpen, setCanvasModalOpen] = useState(false);
+  const [calculatorModalOpen, setCalculatorModalOpen] = useState(false);
 
   // Menu state for moving note to project
   const [projectMenuAnchor, setProjectMenuAnchor] = useState(null);
@@ -1485,6 +1491,28 @@ export default function NoteEditor() {
              <Tooltip title="Historial de versiones">
               <IconButton size="small" onClick={() => setHistoryOpen(true)} sx={{ p: 0.6 }}>
                 <HistoryIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip title="Pizarra de dibujo / Diagrama (/canvas)">
+              <IconButton
+                size="small"
+                onClick={() => setCanvasModalOpen(true)}
+                disabled={isReadOnly}
+                sx={{ p: 0.6, color: 'info.main' }}
+              >
+                <DrawIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip title="Calculadora integrada (/calc)">
+              <IconButton
+                size="small"
+                onClick={() => setCalculatorModalOpen(true)}
+                disabled={isReadOnly}
+                sx={{ p: 0.6, color: 'success.main' }}
+              >
+                <CalcIcon fontSize="small" />
               </IconButton>
             </Tooltip>
 
@@ -2886,6 +2914,8 @@ export default function NoteEditor() {
         }}
         onOpenTemplates={() => setTemplatesOpen(true)}
         onOpenAi={toggleAiDrawer}
+        onOpenCanvas={() => setCanvasModalOpen(true)}
+        onOpenCalculator={() => setCalculatorModalOpen(true)}
       />
 
       {/* Floating Wiki Link Menu [[ */}
@@ -2996,6 +3026,34 @@ export default function NoteEditor() {
             </Button>
           </DialogActions>
         </Dialog>
+      )}
+
+      {/* Pizarra de Dibujo / Canvas Modal */}
+      {canvasModalOpen && (
+        <CanvasModal
+          open={canvasModalOpen}
+          onClose={() => setCanvasModalOpen(false)}
+          onInsertImage={(dataUrl) => {
+            if (editor) {
+              editor.chain().focus().setImage({ src: dataUrl, alt: 'Boceto' }).run();
+              toast.success('Boceto incrustado');
+            }
+          }}
+        />
+      )}
+
+      {/* Calculadora Integrada Modal */}
+      {calculatorModalOpen && (
+        <CalculatorModal
+          open={calculatorModalOpen}
+          onClose={() => setCalculatorModalOpen(false)}
+          onInsertText={(text) => {
+            if (editor) {
+              editor.chain().focus().insertContent(text).run();
+              toast.success('Cifra insertada');
+            }
+          }}
+        />
       )}
     </Box>
   );
