@@ -43,6 +43,7 @@ import ProjectFormDialog from './ProjectFormDialog';
 import QuickNoteModal from './QuickNoteModal';
 import GraphView from './GraphView';
 import WorkspaceBackupModal from './WorkspaceBackupModal';
+import { useProjectNotes } from '../hooks/useProjectNotes';
 import { COLOR_OPTIONS, PROJECT_TEMPLATES } from '../constants/projectOptions';
 import SidebarProjectItem from './SidebarProjectItem';
 import { getAssetUrl } from '../utils/text';
@@ -115,6 +116,12 @@ export default function Sidebar({ embedded = false }) {
   const [shareToken, setShareToken] = useState('');
   const [shareProjectName, setShareProjectName] = useState('');
   const [copySuccess, setCopySuccess] = useState(false);
+
+  // Fetch active project notes for graph view
+  const { notes: activeProjectNotes = [] } = useProjectNotes(
+    typeof currentProjectId === 'number' ? currentProjectId : null,
+    Boolean(currentProjectId && typeof currentProjectId === 'number')
+  );
 
   // Fetch Projects from API
   const { data: projects = [], isLoading } = useQuery({
@@ -1028,7 +1035,7 @@ const navItemVariants = {
         <GraphView
           open={graphOpen}
           onClose={() => setGraphOpen(false)}
-          notes={[]}
+          notes={activeProjectNotes}
           currentProjectId={typeof currentProjectId === 'number' ? currentProjectId : null}
         />
       )}

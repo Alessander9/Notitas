@@ -43,7 +43,8 @@ export default function GraphView({ open, onClose, notes = [], currentProjectId 
 
   // Construir Nodos y Enlaces a partir de las notas
   const { nodes, links } = useMemo(() => {
-    const validNotes = notes.filter((n) => !n.deleted);
+    const safeNotes = Array.isArray(notes) ? notes : [];
+    const validNotes = safeNotes.filter((n) => !n.deleted);
     const nodeMap = new Map();
 
     validNotes.forEach((n, i) => {
