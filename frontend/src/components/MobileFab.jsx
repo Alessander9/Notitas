@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Box, Tooltip, IconButton } from '@mui/material';
 import { motion } from 'framer-motion';
 import { NoteAdd as NoteAddIcon } from '@mui/icons-material';

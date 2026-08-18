@@ -10,6 +10,7 @@ import {
   Menu,
   MenuItem,
   Tooltip,
+  Typography,
   useMediaQuery,
   useTheme,
 } from '@mui/material';
@@ -119,7 +120,6 @@ export default function Navbar() {
   }, []);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const isSmallMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const queryClient = useQueryClient();
 
   const handleMenu = (event) => {

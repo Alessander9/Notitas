@@ -11,7 +11,6 @@ import {
 } from '@mui/material';
 import {
   NoteAlt as ScratchpadIcon,
-  CloseFullscreen as MinimizeIcon,
   DriveFileMove as ConvertIcon,
   DeleteOutline as ClearIcon,
   ContentCopy as CopyIcon,
