@@ -702,6 +702,9 @@ export default function AiAssistantDrawer({ forceRender = false }) {
       ModalProps={{
         keepMounted: true,
       }}
+      sx={{
+        zIndex: 1400,
+      }}
       PaperProps={{
         sx: {
           width: { xs: '100%', sm: 420 },
@@ -715,7 +718,6 @@ export default function AiAssistantDrawer({ forceRender = false }) {
           boxShadow: '-8px 0 32px rgba(0,0,0,0.25)',
           borderLeft: '1px solid',
           borderColor: 'divider',
-          zIndex: 1400,
           overflow: 'hidden',
         },
       }}

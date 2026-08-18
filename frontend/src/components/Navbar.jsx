@@ -194,7 +194,7 @@ export default function Navbar() {
       color="default"
       elevation={0}
       sx={{
-        zIndex: 1201,
+        zIndex: 1100,
         bgcolor: (theme) =>
           theme.palette.mode === 'dark' ? 'rgba(26, 26, 53, 0.75)' : 'rgba(240, 243, 248, 0.88)',
         backdropFilter: 'blur(18px) saturate(140%)',
