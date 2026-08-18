@@ -15,6 +15,7 @@ import {
   DriveFileMove as ConvertIcon,
   DeleteOutline as ClearIcon,
   ContentCopy as CopyIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material';
 import { toast } from '../store/toastStore';
 import QuickNoteModal from './QuickNoteModal';
@@ -23,8 +24,7 @@ import { useUiStore } from '../store/uiStore';
 const STORAGE_KEY = 'notitas-scratchpad-content';
 
 export default function Scratchpad() {
-  const { currentProjectId } = useUiStore();
-  const [open, setOpen] = useState(false);
+  const { currentProjectId, scratchpadOpen, setScratchpadOpen, toggleScratchpad } = useUiStore();
   const [content, setContent] = useState(() => {
     try {
       return localStorage.getItem(STORAGE_KEY) || '';
@@ -51,21 +51,26 @@ export default function Scratchpad() {
     const handleKeyDown = (e) => {
       if (e.altKey && (e.key === 's' || e.key === 'S')) {
         e.preventDefault();
-        setOpen((prev) => !prev);
+        toggleScratchpad();
       }
     };
+    const handleCustomEvent = () => toggleScratchpad();
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+    window.addEventListener('notitas:scratchpad', handleCustomEvent);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('notitas:scratchpad', handleCustomEvent);
+    };
+  }, [toggleScratchpad]);
 
   // Autofocus al abrir el bloc
   useEffect(() => {
-    if (open) {
+    if (scratchpadOpen) {
       setTimeout(() => {
         textareaRef.current?.focus();
-      }, 100);
+      }, 120);
     }
-  }, [open]);
+  }, [scratchpadOpen]);
 
   const handleClear = () => {
     if (!content.trim()) return;
@@ -95,35 +100,32 @@ export default function Scratchpad() {
 
   return (
     <>
+      {/* Panel Desplegable del Scratchpad flotante superior */}
       <Box
         sx={{
           position: 'fixed',
-          bottom: { xs: 20, sm: 28 },
-          left: { xs: 18, sm: 28 },
-          zIndex: 9999,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'flex-start',
+          top: { xs: 62, sm: 70 },
+          right: { xs: 12, sm: 20 },
+          zIndex: 1300,
+          pointerEvents: scratchpadOpen ? 'auto' : 'none',
         }}
       >
-        {/* Panel Desplegable del Scratchpad */}
-        <Collapse in={open} timeout={250} unmountOnExit>
+        <Collapse in={scratchpadOpen} timeout={250} unmountOnExit>
           <Paper
-            elevation={12}
+            elevation={16}
             sx={{
-              width: { xs: 'calc(100vw - 36px)', sm: 340 },
-              maxHeight: 440,
-              mb: 1.5,
+              width: { xs: 'calc(100vw - 24px)', sm: 350 },
+              maxHeight: { xs: 'calc(100vh - 80px)', sm: 480 },
               borderRadius: 3.5,
               display: 'flex',
               flexDirection: 'column',
               overflow: 'hidden',
               border: '1px solid',
               borderColor: 'divider',
-              boxShadow: '0 16px 40px rgba(0,0,0,0.25)',
+              boxShadow: '0 20px 45px rgba(0,0,0,0.3)',
               bgcolor: (theme) =>
-                theme.palette.mode === 'dark' ? 'rgba(26, 32, 44, 0.95)' : 'rgba(255, 255, 255, 0.98)',
-              backdropFilter: 'blur(12px)',
+                theme.palette.mode === 'dark' ? 'rgba(26, 32, 44, 0.96)' : 'rgba(255, 255, 255, 0.98)',
+              backdropFilter: 'blur(16px)',
             }}
           >
             {/* Cabecera del Scratchpad */}
@@ -192,14 +194,14 @@ export default function Scratchpad() {
                     </IconButton>
                   </span>
                 </Tooltip>
-                <Tooltip title="Minimizar">
+                <Tooltip title="Cerrar (Alt+S)">
                   <IconButton
                     size="small"
-                    onClick={() => setOpen(false)}
-                    aria-label="Minimizar"
+                    onClick={() => setScratchpadOpen(false)}
+                    aria-label="Cerrar bloc rápido"
                     sx={{ p: 0.5 }}
                   >
-                    <MinimizeIcon sx={{ fontSize: 15 }} />
+                    <CloseIcon sx={{ fontSize: 16 }} />
                   </IconButton>
                 </Tooltip>
               </Box>
@@ -264,52 +266,6 @@ export default function Scratchpad() {
             </Box>
           </Paper>
         </Collapse>
-
-        {/* Botón flotante adhesivo minimizado */}
-        {!open && (
-          <Tooltip title="Bloc de notas adhesivo (Alt+S)" placement="right" arrow>
-            <Paper
-              elevation={8}
-              onClick={() => setOpen(true)}
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1,
-                px: 2,
-                py: 1,
-                borderRadius: '24px',
-                cursor: 'pointer',
-                bgcolor: (theme) =>
-                  theme.palette.mode === 'dark' ? 'rgba(30, 41, 59, 0.95)' : '#ffffff',
-                border: '1.5px solid',
-                borderColor: content.trim() ? 'warning.main' : 'divider',
-                boxShadow: content.trim()
-                  ? '0 6px 20px rgba(245, 158, 11, 0.3)'
-                  : '0 4px 16px rgba(0,0,0,0.15)',
-                transition: 'all 0.2s ease',
-                '&:hover': {
-                  transform: 'scale(1.06)',
-                  borderColor: 'warning.main',
-                },
-              }}
-            >
-              <ScratchpadIcon sx={{ fontSize: 18, color: 'warning.main' }} />
-              <Typography variant="caption" fontWeight={800} sx={{ fontSize: '0.78rem' }}>
-                Bloc Rápido
-              </Typography>
-              {content.trim() && (
-                <Box
-                  sx={{
-                    width: 7,
-                    height: 7,
-                    borderRadius: '50%',
-                    bgcolor: 'warning.main',
-                  }}
-                />
-              )}
-            </Paper>
-          </Tooltip>
-        )}
       </Box>
 
       {/* Modal para convertir el contenido del scratchpad en una nota formal */}

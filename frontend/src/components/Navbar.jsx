@@ -23,6 +23,8 @@ import {
   Menu as MenuIcon,
   AutoAwesome as SparklesIcon,
   Bolt as QuickNoteIcon,
+  NoteAlt as ScratchpadIcon,
+  Widgets as WidgetsIcon,
 } from '@mui/icons-material';
 import { styled, alpha } from '@mui/material/styles';
 import { useAuthStore } from '../store/authStore';
@@ -90,8 +92,11 @@ export default function Navbar() {
     toggleAiDrawer,
     aiDrawerOpen,
     currentProjectId,
+    scratchpadOpen,
+    toggleScratchpad,
   } = useUiStore();
   const [anchorEl, setAnchorEl] = useState(null);
+  const [toolsAnchorEl, setToolsAnchorEl] = useState(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [quickNoteOpen, setQuickNoteOpen] = useState(false);
   const avatarInputRef = useRef(null);
@@ -114,6 +119,7 @@ export default function Navbar() {
   }, []);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const isSmallMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const queryClient = useQueryClient();
 
   const handleMenu = (event) => {
@@ -197,9 +203,18 @@ export default function Navbar() {
         borderColor: 'divider',
       }}
     >
-      <Toolbar sx={{ justifyContent: 'space-between', minHeight: '64px', flexWrap: 'wrap', py: isMobile ? 1 : 0 }}>
+      <Toolbar
+        sx={{
+          justifyContent: 'space-between',
+          minHeight: { xs: '56px', sm: '64px' },
+          flexWrap: 'wrap',
+          px: { xs: 1, sm: 2, md: 3 },
+          py: isMobile ? 0.75 : 0,
+          gap: { xs: 0.5, sm: 1 },
+        }}
+      >
         {/* Fila principal: hamburguesa (móvil) + logo + acciones */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flex: 1, minWidth: 0 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.5, sm: 1 }, flex: 1, minWidth: 0 }}>
           {isMobile && (
             <Tooltip title={sidebarMobileOpen ? "Cerrar menú" : "Abrir menú"}>
               <motion.div whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }}>
@@ -210,7 +225,7 @@ export default function Navbar() {
                   aria-label="Menú de navegación"
                   sx={{
                     mr: 0.5,
-                    p: 1,
+                    p: { xs: 0.75, sm: 1 },
                     borderRadius: '12px',
                     bgcolor: (theme) =>
                       sidebarMobileOpen
@@ -231,21 +246,21 @@ export default function Navbar() {
                     transition={{ type: 'spring', stiffness: 300, damping: 20 }}
                     style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                   >
-                    <MenuIcon sx={{ fontSize: 22 }} />
+                    <MenuIcon sx={{ fontSize: { xs: 20, sm: 22 } }} />
                   </motion.div>
                 </IconButton>
               </motion.div>
             </Tooltip>
           )}
           <Box
-            sx={{ display: 'flex', alignItems: 'center', gap: 1, cursor: 'pointer', minWidth: 0 }}
+            sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.75, sm: 1 }, cursor: 'pointer', minWidth: 0 }}
             onClick={() => setCurrentProject(null)}
           >
             {/* Logo oficial de Notitas */}
             <Box
               sx={{
-                width: 40,
-                height: 40,
+                width: { xs: 34, sm: 40 },
+                height: { xs: 34, sm: 40 },
                 flexShrink: 0,
                 display: 'flex',
                 alignItems: 'center',
@@ -265,8 +280,8 @@ export default function Navbar() {
             </Box>
             <Box
               sx={{
-                height: 28,
-                display: 'flex',
+                height: { xs: 22, sm: 28 },
+                display: { xs: 'none', sm: 'flex' },
                 alignItems: 'center',
               }}
             >
@@ -287,78 +302,224 @@ export default function Navbar() {
         {/* Búsqueda (escritorio) */}
         {!isMobile && searchBar}
 
-        {/* Acciones */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, flexShrink: 0 }}>
+        {/* Barra de herramientas / Acciones de cabecera */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.6, sm: 0.9, md: 1.2 }, flexShrink: 0 }}>
+          {/* Botón de Menú de Herramientas Desplegable (Modo Móvil) */}
           {user && (
-            <Tooltip title="Nota rápida (Alt+N)">
-              <motion.div whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.92 }}>
-                <IconButton
-                  onClick={() => setQuickNoteOpen(true)}
-                  sx={{
-                    bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'rgba(56, 108, 95, 0.25)' : 'rgba(56, 108, 95, 0.12)'),
-                    color: 'primary.main',
+            <Box sx={{ display: { xs: 'flex', sm: 'none' } }}>
+              <Tooltip title="Herramientas">
+                <motion.div whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.92 }}>
+                  <IconButton
+                    onClick={(e) => setToolsAnchorEl(e.currentTarget)}
+                    aria-label="Menú desplegable de herramientas"
+                    sx={{
+                      bgcolor: Boolean(toolsAnchorEl)
+                        ? 'primary.main'
+                        : (theme) => (theme.palette.mode === 'dark' ? 'rgba(56, 108, 95, 0.28)' : 'rgba(56, 108, 95, 0.14)'),
+                      color: Boolean(toolsAnchorEl) ? '#fff' : 'primary.main',
+                      border: '1px solid',
+                      borderColor: 'primary.main',
+                      p: 0.7,
+                      borderRadius: 2.5,
+                      transition: 'all 0.2s ease',
+                      boxShadow: Boolean(toolsAnchorEl) ? '0 4px 14px rgba(56, 108, 95, 0.35)' : 'none',
+                    }}
+                  >
+                    <WidgetsIcon sx={{ fontSize: 19 }} />
+                  </IconButton>
+                </motion.div>
+              </Tooltip>
+
+              {/* Menú Desplegable de Herramientas para Móvil */}
+              <Menu
+                id="menu-tools-mobile"
+                anchorEl={toolsAnchorEl}
+                open={Boolean(toolsAnchorEl)}
+                onClose={() => setToolsAnchorEl(null)}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                PaperProps={{
+                  sx: {
+                    mt: 1,
+                    minWidth: 230,
+                    borderRadius: 3,
+                    boxShadow: '0 16px 36px rgba(0,0,0,0.22)',
                     border: '1px solid',
-                    borderColor: 'primary.main',
-                    p: 0.85,
-                    borderRadius: 2.5,
-                    transition: 'all 0.2s ease',
-                    '&:hover': {
-                      bgcolor: 'primary.main',
-                      color: '#fff',
-                      boxShadow: '0 4px 14px rgba(56, 108, 95, 0.35)',
-                    },
+                    borderColor: 'divider',
+                    p: 0.6,
+                    bgcolor: (theme) =>
+                      theme.palette.mode === 'dark' ? 'rgba(26, 32, 44, 0.96)' : 'rgba(255, 255, 255, 0.98)',
+                    backdropFilter: 'blur(14px)',
+                  },
+                }}
+              >
+                <MenuItem
+                  onClick={() => {
+                    setToolsAnchorEl(null);
+                    setQuickNoteOpen(true);
                   }}
+                  sx={{ borderRadius: 2, py: 1, gap: 1.5 }}
                 >
-                  <QuickNoteIcon sx={{ fontSize: 20 }} />
-                </IconButton>
-              </motion.div>
-            </Tooltip>
+                  <QuickNoteIcon sx={{ color: 'primary.main', fontSize: 20 }} />
+                  <Box sx={{ flexGrow: 1 }}>
+                    <Typography variant="body2" fontWeight={700}>Nota Rápida</Typography>
+                    <Typography variant="caption" color="text.secondary">Crear al vuelo (Alt+N)</Typography>
+                  </Box>
+                </MenuItem>
+
+                <MenuItem
+                  onClick={() => {
+                    setToolsAnchorEl(null);
+                    toggleScratchpad();
+                  }}
+                  sx={{ borderRadius: 2, py: 1, gap: 1.5 }}
+                >
+                  <ScratchpadIcon sx={{ color: 'warning.main', fontSize: 20 }} />
+                  <Box sx={{ flexGrow: 1 }}>
+                    <Typography variant="body2" fontWeight={700}>Bloc Rápido</Typography>
+                    <Typography variant="caption" color="text.secondary">Apunte efímero (Alt+S)</Typography>
+                  </Box>
+                </MenuItem>
+
+                <MenuItem
+                  onClick={() => {
+                    setToolsAnchorEl(null);
+                    toggleAiDrawer();
+                  }}
+                  sx={{ borderRadius: 2, py: 1, gap: 1.5 }}
+                >
+                  <SparklesIcon sx={{ color: '#845EC2', fontSize: 20 }} />
+                  <Box sx={{ flexGrow: 1 }}>
+                    <Typography variant="body2" fontWeight={700}>Asistente de IA</Typography>
+                    <Typography variant="caption" color="text.secondary">CleoBot (Ctrl+J)</Typography>
+                  </Box>
+                </MenuItem>
+
+                <MenuItem
+                  onClick={() => {
+                    setToolsAnchorEl(null);
+                    toggleDarkMode();
+                  }}
+                  sx={{ borderRadius: 2, py: 1, gap: 1.5 }}
+                >
+                  {darkMode ? <LightIcon sx={{ color: '#f59e0b', fontSize: 20 }} /> : <DarkIcon sx={{ color: 'text.secondary', fontSize: 20 }} />}
+                  <Box sx={{ flexGrow: 1 }}>
+                    <Typography variant="body2" fontWeight={700}>{darkMode ? 'Modo Claro' : 'Modo Oscuro'}</Typography>
+                    <Typography variant="caption" color="text.secondary">Alternar apariencia</Typography>
+                  </Box>
+                </MenuItem>
+              </Menu>
+            </Box>
           )}
 
+          {/* Herramientas individuales (Tablet y Escritorio >= sm) */}
           {user && (
-            <Tooltip title="Asistente de IA (Ctrl+J)">
-              <motion.div whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.92 }}>
-                <IconButton
-                  onClick={toggleAiDrawer}
-                  sx={{
-                    bgcolor: aiDrawerOpen
-                      ? 'primary.main'
-                      : (theme) => (theme.palette.mode === 'dark' ? 'rgba(56, 108, 95, 0.25)' : 'rgba(56, 108, 95, 0.12)'),
-                    color: aiDrawerOpen ? '#fff' : 'primary.main',
-                    border: '1px solid',
-                    borderColor: 'primary.main',
-                    p: 0.85,
-                    borderRadius: 2.5,
-                    transition: 'all 0.2s ease',
-                    boxShadow: aiDrawerOpen ? '0 4px 14px rgba(56, 108, 95, 0.35)' : 'none',
-                    '&:hover': {
-                      bgcolor: 'primary.main',
-                      color: '#fff',
-                    },
-                  }}
-                >
-                  <SparklesIcon sx={{ fontSize: 20 }} />
+            <Box sx={{ display: { xs: 'none', sm: 'flex' }, alignItems: 'center', gap: { sm: 0.8, md: 1.2 } }}>
+              <Tooltip title="Nota rápida (Alt+N)">
+                <motion.div whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.92 }}>
+                  <IconButton
+                    onClick={() => setQuickNoteOpen(true)}
+                    aria-label="Crear nota rápida"
+                    sx={{
+                      bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'rgba(56, 108, 95, 0.25)' : 'rgba(56, 108, 95, 0.12)'),
+                      color: 'primary.main',
+                      border: '1px solid',
+                      borderColor: 'primary.main',
+                      p: 0.85,
+                      borderRadius: 2.5,
+                      transition: 'all 0.2s ease',
+                      '&:hover': {
+                        bgcolor: 'primary.main',
+                        color: '#fff',
+                        boxShadow: '0 4px 14px rgba(56, 108, 95, 0.35)',
+                      },
+                    }}
+                  >
+                    <QuickNoteIcon sx={{ fontSize: 20 }} />
+                  </IconButton>
+                </motion.div>
+              </Tooltip>
+
+              <Tooltip title="Bloc Rápido (Alt+S)">
+                <motion.div whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.92 }}>
+                  <IconButton
+                    onClick={toggleScratchpad}
+                    aria-label="Abrir bloc rápido"
+                    sx={{
+                      bgcolor: scratchpadOpen
+                        ? 'warning.main'
+                        : (theme) => (theme.palette.mode === 'dark' ? 'rgba(245, 158, 11, 0.22)' : 'rgba(245, 158, 11, 0.12)'),
+                      color: scratchpadOpen ? '#fff' : 'warning.main',
+                      border: '1px solid',
+                      borderColor: 'warning.main',
+                      p: 0.85,
+                      borderRadius: 2.5,
+                      transition: 'all 0.2s ease',
+                      boxShadow: scratchpadOpen ? '0 4px 14px rgba(245, 158, 11, 0.35)' : 'none',
+                      '&:hover': {
+                        bgcolor: 'warning.main',
+                        color: '#fff',
+                      },
+                    }}
+                  >
+                    <ScratchpadIcon sx={{ fontSize: 20 }} />
+                  </IconButton>
+                </motion.div>
+              </Tooltip>
+
+              <Tooltip title="Asistente de IA (Ctrl+J)">
+                <motion.div whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.92 }}>
+                  <IconButton
+                    onClick={toggleAiDrawer}
+                    aria-label="Abrir asistente de IA"
+                    sx={{
+                      bgcolor: aiDrawerOpen
+                        ? 'primary.main'
+                        : (theme) => (theme.palette.mode === 'dark' ? 'rgba(56, 108, 95, 0.25)' : 'rgba(56, 108, 95, 0.12)'),
+                      color: aiDrawerOpen ? '#fff' : 'primary.main',
+                      border: '1px solid',
+                      borderColor: 'primary.main',
+                      p: 0.85,
+                      borderRadius: 2.5,
+                      transition: 'all 0.2s ease',
+                      boxShadow: aiDrawerOpen ? '0 4px 14px rgba(56, 108, 95, 0.35)' : 'none',
+                      '&:hover': {
+                        bgcolor: 'primary.main',
+                        color: '#fff',
+                      },
+                    }}
+                  >
+                    <SparklesIcon sx={{ fontSize: 20 }} />
+                  </IconButton>
+                </motion.div>
+              </Tooltip>
+
+              <Tooltip title={darkMode ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}>
+                <IconButton onClick={toggleDarkMode} color="inherit" aria-label="Cambiar tema" sx={{ p: 0.85 }}>
+                  {darkMode ? <LightIcon sx={{ fontSize: 20 }} /> : <DarkIcon sx={{ fontSize: 20 }} />}
                 </IconButton>
-              </motion.div>
-            </Tooltip>
+              </Tooltip>
+            </Box>
           )}
 
           {user && <NotificationBell />}
 
-          <IconButton onClick={toggleDarkMode} color="inherit">
-            {darkMode ? <LightIcon /> : <DarkIcon />}
-          </IconButton>
-
           {user && (
             <>
               <Tooltip title={user.name}>
-                <IconButton onClick={handleMenu} sx={{ p: 0 }}>
+                <IconButton onClick={handleMenu} sx={{ p: 0 }} aria-label="Menú de usuario">
                   <CoverImage
                     src={userAvatarUrl}
                     alt={user.name}
-                    sx={{ width: 38, height: 38, borderRadius: '50%', border: '2px solid', borderColor: 'primary.main' }}
+                    sx={{
+                      width: { xs: 32, sm: 38 },
+                      height: { xs: 32, sm: 38 },
+                      borderRadius: '50%',
+                      border: '2px solid',
+                      borderColor: 'primary.main',
+                    }}
                     fallback={
-                      <Avatar sx={{ width: '100%', height: '100%', bgcolor: 'primary.main', fontSize: '0.95rem' }}>
+                      <Avatar sx={{ width: '100%', height: '100%', bgcolor: 'primary.main', fontSize: { xs: '0.8rem', sm: '0.95rem' } }}>
                         {user.name?.charAt(0).toUpperCase() || '?'}
                       </Avatar>
                     }
@@ -413,7 +574,7 @@ export default function Navbar() {
         </Box>
 
         {/* Búsqueda (móvil): fila completa debajo */}
-        {isMobile && <Box sx={{ flexBasis: '100%', order: 3, mt: 0.5 }}>{searchBar}</Box>}
+        {isMobile && <Box sx={{ flexBasis: '100%', order: 3, mt: 0.5, mb: 0.25 }}>{searchBar}</Box>}
       </Toolbar>
 
       {/* Remounted each open so the form state is fresh */}

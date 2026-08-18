@@ -1,8 +1,9 @@
 import React from 'react';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Scratchpad from './Scratchpad';
+import { useUiStore } from '../store/uiStore';
 
 function renderWithClient(ui) {
   const queryClient = new QueryClient({
@@ -14,16 +15,19 @@ function renderWithClient(ui) {
 describe('Scratchpad', () => {
   beforeEach(() => {
     localStorage.clear();
+    useUiStore.setState({ scratchpadOpen: false });
   });
 
-  it('renderiza el botón flotante minimizado y permite abrir el bloc', () => {
+  it('permite abrir el bloc vía estado/atajo y muestra el editor efímero', () => {
     renderWithClient(<Scratchpad />);
 
-    const button = screen.getByText(/Bloc Rápido/i);
-    expect(button).toBeInTheDocument();
+    // Inicialmente cerrado
+    expect(screen.queryByPlaceholderText(/Escribe ideas rápidas/i)).not.toBeInTheDocument();
 
-    // Abrir el scratchpad
-    fireEvent.click(button);
+    // Abrir mediante store o atajo Alt+S
+    act(() => {
+      useUiStore.getState().setScratchpadOpen(true);
+    });
 
     expect(screen.getByPlaceholderText(/Escribe ideas rápidas/i)).toBeInTheDocument();
     expect(screen.getByText(/Bloc Efímero/i)).toBeInTheDocument();
@@ -33,7 +37,9 @@ describe('Scratchpad', () => {
     renderWithClient(<Scratchpad />);
 
     // Abrir
-    fireEvent.click(screen.getByText(/Bloc Rápido/i));
+    act(() => {
+      useUiStore.getState().setScratchpadOpen(true);
+    });
 
     const textarea = screen.getByPlaceholderText(/Escribe ideas rápidas/i);
     fireEvent.change(textarea, { target: { value: 'Idea para sprint 4' } });
