@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Drawer,
   Box,
@@ -25,6 +25,7 @@ import {
   Checklist as TasksIcon,
   Bolt as FastIcon,
   Folder as FolderIcon,
+  KeyboardArrowDown as KeyboardArrowDownIcon,
 } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import api from '../services/api';
@@ -46,6 +47,7 @@ const SUGGESTED_PROMPTS = [
 // ── Shared panel content (used by both Drawer and inline panel) ──────────────
 function AiPanelContent({ onClose }) {
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const {
     aiDrawerOpen,
     currentNoteId,
@@ -254,10 +256,74 @@ function AiPanelContent({ onClose }) {
 
   return (
     <>
+      {/* ── Top Drag / Minimize Handle for Mobile ── */}
+      {isMobile && (
+        <Box
+          onClick={onClose}
+          role="button"
+          tabIndex={0}
+          aria-label="Minimizar CleoBot"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              onClose();
+            }
+          }}
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            pt: 'calc(env(safe-area-inset-top, 0px) + 8px)',
+            pb: 0.75,
+            bgcolor: 'background.paper',
+            cursor: 'pointer',
+            borderBottom: '1px solid',
+            borderColor: 'divider',
+            transition: 'background 0.2s ease',
+            '&:hover': {
+              bgcolor: 'action.hover',
+            },
+          }}
+        >
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 0.8,
+              py: 0.4,
+              px: 2,
+              borderRadius: 3,
+              bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'),
+            }}
+          >
+            <Box
+              sx={{
+                width: 38,
+                height: 4,
+                borderRadius: 2,
+                bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.25)'),
+              }}
+            />
+            <Typography
+              variant="caption"
+              sx={{
+                fontSize: '0.72rem',
+                fontWeight: 700,
+                color: 'text.secondary',
+                letterSpacing: '0.02em',
+                userSelect: 'none',
+              }}
+            >
+              Minimizar
+            </Typography>
+          </Box>
+        </Box>
+      )}
+
       {/* ── Header ────────────────────────────────────────── */}
       <Box
         sx={{
-          p: 2,
+          p: { xs: 1.5, sm: 2 },
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -268,10 +334,31 @@ function AiPanelContent({ onClose }) {
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
+          {isMobile && (
+            <Tooltip title="Minimizar asistente">
+              <IconButton
+                onClick={onClose}
+                aria-label="Minimizar CleoBot"
+                size="small"
+                sx={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 2,
+                  bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'),
+                  color: 'primary.main',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  '&:hover': { bgcolor: 'primary.main', color: '#fff' },
+                }}
+              >
+                <KeyboardArrowDownIcon sx={{ fontSize: 24 }} />
+              </IconButton>
+            </Tooltip>
+          )}
           <Box
             sx={{
-              width: 36,
-              height: 36,
+              width: { xs: 34, sm: 36 },
+              height: { xs: 34, sm: 36 },
               borderRadius: 2.5,
               background: 'linear-gradient(135deg, #386c5f 0%, #264e44 100%)',
               color: '#fff',
@@ -281,10 +368,10 @@ function AiPanelContent({ onClose }) {
               boxShadow: '0 4px 12px rgba(56, 108, 95, 0.35)',
             }}
           >
-            <SparklesIcon sx={{ fontSize: 20 }} />
+            <SparklesIcon sx={{ fontSize: { xs: 18, sm: 20 } }} />
           </Box>
           <Box>
-            <Typography variant="subtitle1" fontWeight={800} sx={{ lineHeight: 1.2, display: 'flex', alignItems: 'center', gap: 0.8 }}>
+            <Typography variant="subtitle1" fontWeight={800} sx={{ lineHeight: 1.2, display: 'flex', alignItems: 'center', gap: 0.8, fontSize: { xs: '0.9rem', sm: '1rem' } }}>
               CleoBot
               <Chip
                 label="Multi-IA"
@@ -304,15 +391,44 @@ function AiPanelContent({ onClose }) {
           </Box>
         </Box>
 
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
           <Tooltip title="Limpiar conversación">
-            <IconButton size="small" onClick={handleClearHistory} sx={{ p: 0.6 }}>
+            <IconButton
+              size="small"
+              onClick={handleClearHistory}
+              aria-label="Limpiar conversación"
+              sx={{
+                width: { xs: 36, sm: 32 },
+                height: { xs: 36, sm: 32 },
+                borderRadius: 2,
+                bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'),
+                '&:hover': { bgcolor: 'action.hover' },
+              }}
+            >
               <ClearIcon fontSize="small" />
             </IconButton>
           </Tooltip>
           <Tooltip title="Cerrar (Esc o Ctrl+J)">
-            <IconButton size="small" onClick={onClose} sx={{ p: 0.6 }}>
-              <CloseIcon fontSize="small" />
+            <IconButton
+              onClick={onClose}
+              aria-label="Cerrar asistente de IA"
+              sx={{
+                width: { xs: 38, sm: 34 },
+                height: { xs: 38, sm: 34 },
+                borderRadius: 2,
+                bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)'),
+                color: 'text.primary',
+                border: '1px solid',
+                borderColor: 'divider',
+                '&:hover': {
+                  bgcolor: 'error.main',
+                  color: '#fff',
+                  borderColor: 'error.main',
+                },
+                transition: 'all 0.2s ease',
+              }}
+            >
+              <CloseIcon sx={{ fontSize: { xs: 20, sm: 18 } }} />
             </IconButton>
           </Tooltip>
         </Box>
@@ -519,7 +635,16 @@ function AiPanelContent({ onClose }) {
       </Box>
 
       {/* ── Input Box ──────────────────────────────────────── */}
-      <Box sx={{ p: 1.5, borderTop: '1px solid', borderColor: 'divider', bgcolor: 'background.paper' }}>
+      <Box
+        sx={{
+          p: { xs: 1.5, sm: 2 },
+          pt: 1.5,
+          pb: { xs: 'calc(env(safe-area-inset-bottom, 0px) + 12px)', sm: 2 },
+          borderTop: '1px solid',
+          borderColor: 'divider',
+          bgcolor: 'background.paper',
+        }}
+      >
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-end' }}>
           <TextField
             multiline
@@ -574,16 +699,24 @@ export default function AiAssistantDrawer({ forceRender = false }) {
       anchor="right"
       open={aiDrawerOpen}
       onClose={() => setAiDrawerOpen(false)}
+      ModalProps={{
+        keepMounted: true,
+      }}
       PaperProps={{
         sx: {
-          width: { xs: '100%', sm: 400 },
+          width: { xs: '100%', sm: 420 },
+          maxWidth: '100vw',
+          height: '100%',
+          '@supports (height: 100dvh)': { height: '100dvh' },
           bgcolor: 'background.default',
           backgroundImage: 'none',
           display: 'flex',
           flexDirection: 'column',
-          boxShadow: '-8px 0 32px rgba(0,0,0,0.2)',
+          boxShadow: '-8px 0 32px rgba(0,0,0,0.25)',
           borderLeft: '1px solid',
           borderColor: 'divider',
+          zIndex: 1400,
+          overflow: 'hidden',
         },
       }}
     >
