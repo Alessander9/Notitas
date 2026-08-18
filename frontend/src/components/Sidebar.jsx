@@ -30,7 +30,6 @@ import {
   ViewDay as ViewDayIcon,
   Inventory2 as ArchiveIcon,
   Bolt as QuickNoteIcon,
-  Hub as GraphIcon,
   CloudSync as BackupIcon,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -41,9 +40,7 @@ import { confirm } from '../store/confirmStore';
 import SidebarSkeleton from './skeletons/SidebarSkeleton';
 import ProjectFormDialog from './ProjectFormDialog';
 import QuickNoteModal from './QuickNoteModal';
-import GraphView from './GraphView';
 import WorkspaceBackupModal from './WorkspaceBackupModal';
-import { useProjectNotes } from '../hooks/useProjectNotes';
 import { COLOR_OPTIONS, PROJECT_TEMPLATES } from '../constants/projectOptions';
 import SidebarProjectItem from './SidebarProjectItem';
 import { getAssetUrl } from '../utils/text';
@@ -98,7 +95,6 @@ export default function Sidebar({ embedded = false }) {
 
   const [openModal, setOpenModal] = useState(false);
   const [quickNoteOpen, setQuickNoteOpen] = useState(false);
-  const [graphOpen, setGraphOpen] = useState(false);
   const [backupOpen, setBackupOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState(null);
@@ -116,12 +112,6 @@ export default function Sidebar({ embedded = false }) {
   const [shareToken, setShareToken] = useState('');
   const [shareProjectName, setShareProjectName] = useState('');
   const [copySuccess, setCopySuccess] = useState(false);
-
-  // Fetch active project notes for graph view
-  const { notes: activeProjectNotes = [] } = useProjectNotes(
-    typeof currentProjectId === 'number' ? currentProjectId : null,
-    Boolean(currentProjectId && typeof currentProjectId === 'number')
-  );
 
   // Fetch Projects from API
   const { data: projects = [], isLoading } = useQuery({
@@ -512,131 +502,6 @@ const navItemVariants = {
         </Box>
       </motion.div>
 
-      {/* Action Button: Nuevo Proyecto */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.25, type: 'spring', stiffness: 200 }}
-      >
-        <Box sx={{ p: effectiveCollapsed ? 1.5 : 2, px: effectiveCollapsed ? 1.5 : 2.5, display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'center' }}>
-          {effectiveCollapsed ? (
-            <>
-              <Tooltip title="Nota Rápida (Alt+N)" placement="right">
-                <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
-                  <IconButton
-                    onClick={() => {
-                      if (embedded) setSidebarMobileOpen(false);
-                      setQuickNoteOpen(true);
-                    }}
-                    sx={{
-                      bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'rgba(56, 108, 95, 0.25)' : 'rgba(56, 108, 95, 0.12)'),
-                      color: 'primary.main',
-                      border: '1px solid',
-                      borderColor: 'primary.main',
-                      width: 44,
-                      height: 44,
-                      borderRadius: 2.5,
-                      '&:hover': {
-                        bgcolor: 'primary.main',
-                        color: '#fff',
-                        boxShadow: '0 4px 14px rgba(56, 108, 95, 0.35)',
-                      },
-                      transition: 'all 0.2s ease',
-                    }}
-                  >
-                    <QuickNoteIcon sx={{ fontSize: 22 }} />
-                  </IconButton>
-                </motion.div>
-              </Tooltip>
-
-              <Tooltip title="Nuevo Proyecto" placement="right">
-                <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
-                  <IconButton
-                    color="primary"
-                    variant="contained"
-                    onClick={handleOpenCreateModal}
-                    sx={{
-                      background: 'linear-gradient(135deg, #386c5f 0%, #264e44 100%)',
-                      color: '#fff',
-                      width: 44,
-                      height: 44,
-                      boxShadow: '0 4px 14px rgba(56, 108, 95, 0.35)',
-                      '&:hover': {
-                        background: 'linear-gradient(135deg, #6a968c 0%, #386c5f 100%)',
-                        boxShadow: '0 6px 20px rgba(56, 108, 95, 0.45)',
-                      },
-                      transition: 'all 0.25s ease',
-                    }}
-                  >
-                    <AddIcon sx={{ fontSize: 24 }} />
-                  </IconButton>
-                </motion.div>
-              </Tooltip>
-            </>
-          ) : (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, width: '100%' }}>
-              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} style={{ width: '100%' }}>
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  startIcon={<QuickNoteIcon />}
-                  onClick={() => {
-                    if (embedded) setSidebarMobileOpen(false);
-                    setQuickNoteOpen(true);
-                  }}
-                  sx={{
-                    borderRadius: 3,
-                    textTransform: 'none',
-                    fontWeight: 700,
-                    py: 1,
-                    fontSize: '0.86rem',
-                    borderColor: 'primary.main',
-                    color: 'primary.main',
-                    bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'rgba(56, 108, 95, 0.1)' : 'rgba(56, 108, 95, 0.05)'),
-                    '&:hover': {
-                      bgcolor: 'primary.main',
-                      color: '#fff',
-                      boxShadow: '0 4px 14px rgba(56, 108, 95, 0.25)',
-                    },
-                    transition: 'all 0.2s ease',
-                  }}
-                >
-                  Nota Rápida (Alt+N)
-                </Button>
-              </motion.div>
-
-              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} style={{ width: '100%' }}>
-                <Button
-                  fullWidth
-                  variant="contained"
-                  startIcon={<AddIcon />}
-                  onClick={handleOpenCreateModal}
-                  sx={{
-                    borderRadius: 3,
-                    textTransform: 'none',
-                    fontWeight: 700,
-                    py: 1.1,
-                    fontSize: '0.88rem',
-                    background: 'linear-gradient(135deg, #386c5f 0%, #264e44 100%)',
-                    boxShadow: '0 4px 16px rgba(56, 108, 95, 0.3)',
-                    '&:hover': {
-                      background: 'linear-gradient(135deg, #6a968c 0%, #386c5f 100%)',
-                      boxShadow: '0 6px 24px rgba(56, 108, 95, 0.4)',
-                      transform: 'translateY(-1px)',
-                    },
-                    transition: 'all 0.25s ease',
-                  }}
-                >
-                  Nuevo Proyecto
-                </Button>
-              </motion.div>
-            </Box>
-          )}
-        </Box>
-      </motion.div>
-
-      <Divider />
-
       {/* Primary Navigation */}
       <List dense sx={{ px: 1.5, py: 1 }}>
         {/* Navigation Option: Dashboard */}
@@ -667,7 +532,7 @@ const navItemVariants = {
                 <ListItemIcon sx={{ minWidth: 40, justifyContent: 'center' }}>
                   <DashboardIcon sx={{ color: currentProjectId === null ? 'primary.main' : 'action.active', fontSize: 22 }} />
                 </ListItemIcon>
-                {!effectiveCollapsed && <ListItemText primary="Panel de Proyectos" primaryTypographyProps={{ fontWeight: currentProjectId === null ? 700 : 500, fontSize: '0.88rem' }} />}
+                {!effectiveCollapsed && <ListItemText primary={embedded ? 'Proyectos' : 'Panel de Proyectos'} primaryTypographyProps={{ fontWeight: currentProjectId === null ? 700 : 500, fontSize: '0.88rem' }} />}
               </ListItemButton>
             </Tooltip>
           </motion.div>
@@ -775,33 +640,122 @@ const navItemVariants = {
           </motion.div>
         </ListItem>
 
-        {/* Navigation Option: Grafo de Conocimiento */}
-        <ListItem disablePadding>
+        {/* Quick Actions: Nota Rápida + Nuevo Proyecto */}
+        <ListItem disablePadding sx={{ mt: 1 }}>
           <motion.div custom={4} variants={navItemVariants} initial="hidden" animate="visible" style={{ width: '100%' }}>
-            <Tooltip title={effectiveCollapsed ? "Grafo 2D" : ""} placement="right">
-              <ListItemButton
-                onClick={() => {
-                  if (embedded) setSidebarMobileOpen(false);
-                  setGraphOpen(true);
-                }}
-                sx={{
-                  borderRadius: 2.5,
-                  justifyContent: effectiveCollapsed ? 'center' : 'flex-start',
-                  px: effectiveCollapsed ? 0 : 2,
-                  minHeight: 44,
-                  transition: 'all 0.2s ease',
-                  '&:hover': {
-                    bgcolor: 'action.hover',
-                    transform: 'translateX(4px)',
-                  },
-                }}
-              >
-                <ListItemIcon sx={{ minWidth: 40, justifyContent: 'center' }}>
-                  <GraphIcon sx={{ color: '#0ea5e9', fontSize: 22 }} />
-                </ListItemIcon>
-                {!effectiveCollapsed && <ListItemText primary="Grafo 2D" primaryTypographyProps={{ fontWeight: 500, fontSize: '0.88rem' }} />}
-              </ListItemButton>
-            </Tooltip>
+            {effectiveCollapsed ? (
+              <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center', px: 0.5 }}>
+                <Tooltip title="Nota Rápida (Alt+N)" placement="right">
+                  <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
+                    <IconButton
+                      onClick={() => {
+                        if (embedded) setSidebarMobileOpen(false);
+                        setQuickNoteOpen(true);
+                      }}
+                      sx={{
+                        bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'rgba(56, 108, 95, 0.2)' : 'rgba(56, 108, 95, 0.08)'),
+                        color: 'primary.main',
+                        width: 40,
+                        height: 40,
+                        borderRadius: 2,
+                        '&:hover': {
+                          bgcolor: 'primary.main',
+                          color: '#fff',
+                          boxShadow: '0 4px 14px rgba(56, 108, 95, 0.35)',
+                        },
+                        transition: 'all 0.2s ease',
+                      }}
+                    >
+                      <QuickNoteIcon sx={{ fontSize: 20 }} />
+                    </IconButton>
+                  </motion.div>
+                </Tooltip>
+                <Tooltip title="Nuevo Proyecto" placement="right">
+                  <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
+                    <IconButton
+                      onClick={handleOpenCreateModal}
+                      sx={{
+                        background: 'linear-gradient(135deg, #386c5f 0%, #264e44 100%)',
+                        color: '#fff',
+                        width: 40,
+                        height: 40,
+                        borderRadius: 2,
+                        boxShadow: '0 4px 14px rgba(56, 108, 95, 0.35)',
+                        '&:hover': {
+                          background: 'linear-gradient(135deg, #6a968c 0%, #386c5f 100%)',
+                          boxShadow: '0 6px 20px rgba(56, 108, 95, 0.45)',
+                        },
+                        transition: 'all 0.25s ease',
+                      }}
+                    >
+                      <AddIcon sx={{ fontSize: 20 }} />
+                    </IconButton>
+                  </motion.div>
+                </Tooltip>
+              </Box>
+            ) : (
+              <Box sx={{ display: 'flex', gap: 1, px: embedded ? 2 : 1.5, width: '100%' }}>
+                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} style={{ flex: 1 }}>
+                  <Button
+                    fullWidth
+                    size="small"
+                    variant="outlined"
+                    startIcon={<QuickNoteIcon sx={{ fontSize: 18 }} />}
+                    onClick={() => {
+                      if (embedded) setSidebarMobileOpen(false);
+                      setQuickNoteOpen(true);
+                    }}
+                    sx={{
+                      borderRadius: 2,
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      py: embedded ? 0.9 : 0.7,
+                      minHeight: embedded ? 40 : undefined,
+                      fontSize: '0.78rem',
+                      borderColor: 'primary.main',
+                      color: 'primary.main',
+                      bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'rgba(56, 108, 95, 0.08)' : 'rgba(56, 108, 95, 0.04)'),
+                      '&:hover': {
+                        bgcolor: 'primary.main',
+                        color: '#fff',
+                        boxShadow: '0 4px 14px rgba(56, 108, 95, 0.25)',
+                      },
+                      transition: 'all 0.2s ease',
+                      minWidth: 0,
+                    }}
+                  >
+                    Rápida
+                  </Button>
+                </motion.div>
+                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} style={{ flex: 1 }}>
+                  <Button
+                    fullWidth
+                    size="small"
+                    variant="contained"
+                    startIcon={<AddIcon sx={{ fontSize: 18 }} />}
+                    onClick={handleOpenCreateModal}
+                    sx={{
+                      borderRadius: 2,
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      py: embedded ? 0.9 : 0.7,
+                      minHeight: embedded ? 40 : undefined,
+                      fontSize: '0.78rem',
+                      background: 'linear-gradient(135deg, #386c5f 0%, #264e44 100%)',
+                      boxShadow: '0 4px 14px rgba(56, 108, 95, 0.25)',
+                      '&:hover': {
+                        background: 'linear-gradient(135deg, #6a968c 0%, #386c5f 100%)',
+                        boxShadow: '0 6px 20px rgba(56, 108, 95, 0.35)',
+                      },
+                      transition: 'all 0.25s ease',
+                      minWidth: 0,
+                    }}
+                  >
+                    Proyecto
+                  </Button>
+                </motion.div>
+              </Box>
+            )}
           </motion.div>
         </ListItem>
 
@@ -829,14 +783,14 @@ const navItemVariants = {
                 <ListItemIcon sx={{ minWidth: 40, justifyContent: 'center' }}>
                   <BackupIcon sx={{ color: '#845EC2', fontSize: 22 }} />
                 </ListItemIcon>
-                {!effectiveCollapsed && <ListItemText primary="Respaldo / ZIP" primaryTypographyProps={{ fontWeight: 500, fontSize: '0.88rem' }} />}
+                {!effectiveCollapsed && <ListItemText primary={embedded ? 'Respaldo' : 'Respaldo / ZIP'} primaryTypographyProps={{ fontWeight: 500, fontSize: '0.88rem' }} />}
               </ListItemButton>
             </Tooltip>
           </motion.div>
         </ListItem>
       </List>
 
-      <Divider sx={{ my: 1 }} />
+      <Divider sx={{ my: 0.5 }} />
 
       {/* Projects Title Header */}
       {!effectiveCollapsed && (
@@ -1027,16 +981,6 @@ const navItemVariants = {
           open={quickNoteOpen}
           onClose={() => setQuickNoteOpen(false)}
           defaultProjectId={typeof currentProjectId === 'number' ? currentProjectId : null}
-        />
-      )}
-
-      {/* Modal de Grafo de Conocimiento */}
-      {graphOpen && (
-        <GraphView
-          open={graphOpen}
-          onClose={() => setGraphOpen(false)}
-          notes={activeProjectNotes}
-          currentProjectId={typeof currentProjectId === 'number' ? currentProjectId : null}
         />
       )}
 

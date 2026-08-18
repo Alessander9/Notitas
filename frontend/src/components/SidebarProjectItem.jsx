@@ -7,6 +7,13 @@ import {
   Tooltip,
   CircularProgress,
   Avatar,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
+  Divider,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import {
   Share as ShareIcon,
@@ -18,6 +25,7 @@ import {
   PushPin as PinIcon,
   PushPinOutlined as PinOutlinedIcon,
   Group as GroupIcon,
+  MoreVert as MoreIcon,
 } from '@mui/icons-material';
 import ManageMembersDialog from './ManageMembersDialog';
 import CoverImage from './CoverImage';
@@ -42,6 +50,9 @@ export default function SidebarProjectItem({
   onTogglePin,
 }) {
   const [manageMembersOpen, setManageMembersOpen] = React.useState(false);
+  const [anchorEl, setAnchorEl] = React.useState(null);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const isOwner = project.currentUserRole === 'OWNER';
   const hasCollaborators = (project.collaborators?.length ?? 0) > 0;
   const hasCover = Boolean(project.coverImage);
@@ -258,7 +269,7 @@ export default function SidebarProjectItem({
           </Box>
         </Tooltip>
 
-        {/* Hover action buttons (non-collapsed only) */}
+        {/* Action buttons: hover on desktop, persistent ⋮ on mobile when selected */}
         {!isCollapsed && (
           <Box
             className="project-hover-actions"
@@ -269,8 +280,8 @@ export default function SidebarProjectItem({
               transform: 'translateY(-50%)',
               display: 'flex',
               gap: 0.2,
-              opacity: 0,
-              pointerEvents: 'none',
+              opacity: isMobile ? (isSelected ? 1 : 0) : 0,
+              pointerEvents: isMobile ? (isSelected ? 'auto' : 'none') : 'none',
               transition: 'all 0.2s ease',
               bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(26, 26, 53, 0.95)' : 'rgba(255, 255, 255, 0.95)',
               backdropFilter: 'blur(8px)',
@@ -282,6 +293,57 @@ export default function SidebarProjectItem({
               zIndex: 2,
             }}
           >
+            {/* Mobile: show ⋮ context menu instead of individual icons */}
+            {isMobile ? (
+              <>
+                <IconButton
+                  size="small"
+                  onClick={(e) => { e.stopPropagation(); setAnchorEl(e.currentTarget); }}
+                  sx={{
+                    p: 0.7,
+                    color: 'text.secondary',
+                    borderRadius: 1.5,
+                    minWidth: 36,
+                    minHeight: 36,
+                    '&:hover': { bgcolor: 'action.hover', color: 'text.primary' },
+                  }}
+                >
+                  <MoreIcon sx={{ fontSize: 18 }} />
+                </IconButton>
+                <Menu
+                  anchorEl={anchorEl}
+                  open={Boolean(anchorEl)}
+                  onClose={() => setAnchorEl(null)}
+                  onClick={(e) => e.stopPropagation()}
+                  slotProps={{ paper: { sx: { minWidth: 180, borderRadius: 2, mt: 0.5 } } }}
+                >
+                  <MenuItem onClick={() => { setAnchorEl(null); onTogglePin(project.id); }}>
+                    <ListItemIcon><PinIcon sx={{ fontSize: 18, color: isPinned ? 'primary.main' : 'inherit' }} /></ListItemIcon>
+                    <ListItemText>{isPinned ? 'Desfijar' : 'Fijar'}</ListItemText>
+                  </MenuItem>
+                  {isOwner && hasCollaborators && (
+                    <MenuItem onClick={() => { setAnchorEl(null); setManageMembersOpen(true); }}>
+                      <ListItemIcon><GroupIcon sx={{ fontSize: 18 }} /></ListItemIcon>
+                      <ListItemText>Miembros</ListItemText>
+                    </MenuItem>
+                  )}
+                  <MenuItem onClick={(e) => { setAnchorEl(null); onShare(project, e); }}>
+                    <ListItemIcon><ShareIcon sx={{ fontSize: 18 }} /></ListItemIcon>
+                    <ListItemText>Compartir</ListItemText>
+                  </MenuItem>
+                  <MenuItem onClick={(e) => { setAnchorEl(null); onEdit(project, e); }}>
+                    <ListItemIcon><EditIcon sx={{ fontSize: 18 }} /></ListItemIcon>
+                    <ListItemText>Editar</ListItemText>
+                  </MenuItem>
+                  <Divider />
+                  <MenuItem onClick={(e) => { setAnchorEl(null); onDelete(project, e); }} sx={{ color: 'error.main' }}>
+                    <ListItemIcon><DeleteIcon sx={{ fontSize: 18, color: 'error.main' }} /></ListItemIcon>
+                    <ListItemText>Eliminar</ListItemText>
+                  </MenuItem>
+                </Menu>
+              </>
+            ) : (
+              <>
             <Tooltip title={isPinned ? 'Desfijar' : 'Fijar'} placement="top" arrow>
               <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
                 <IconButton
@@ -369,6 +431,8 @@ export default function SidebarProjectItem({
                 </IconButton>
               </motion.div>
             </Tooltip>
+              </>
+            )}
           </Box>
         )}
       </Box>
@@ -435,7 +499,7 @@ export default function SidebarProjectItem({
                           borderRadius: 2,
                           cursor: 'pointer',
                           transition: 'all 0.2s ease',
-                          minHeight: 44,
+                          minHeight: 48,
                           bgcolor: 'transparent',
                           '&:hover': {
                             bgcolor: `${accentColor}10`,
@@ -535,7 +599,7 @@ export default function SidebarProjectItem({
                         cursor: 'pointer',
                         color: 'text.secondary',
                         transition: 'all 0.2s ease',
-                        minHeight: 38,
+                        minHeight: 48,
                         border: '1px dashed',
                         borderColor: `${accentColor}30`,
                         bgcolor: `${accentColor}08`,

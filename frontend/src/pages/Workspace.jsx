@@ -16,7 +16,6 @@ import ArchivedView from '../components/ArchivedView';
 import MobileFab from '../components/MobileFab';
 import { AiAssistantPanel } from '../components/AiAssistantDrawer';
 import RecentNotesTabs from '../components/RecentNotesTabs';
-import GraphView from '../components/GraphView';
 import { useProjectNotes } from '../hooks/useProjectNotes';
 
 // NoteList + NoteEditor se cargan bajo demanda: TipTap y el editor son el
@@ -40,11 +39,10 @@ export default function Workspace() {
   const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const [graphOpen, setGraphOpen] = useState(false);
   const [splitActive, setSplitActive] = useState(false);
   const [splitNoteId, setSplitNoteId] = useState(null);
 
-  // Fetch project notes for tabs and graph
+  // Fetch project notes for tabs
   const { notes: projectNotes = [] } = useProjectNotes(
     typeof currentProjectId === 'number' ? currentProjectId : null,
     Boolean(currentProjectId && typeof currentProjectId === 'number')
@@ -285,7 +283,7 @@ export default function Workspace() {
                 transition: 'all 0.3s ease-out !important',
               },
               '& .MuiDrawer-paper': {
-                width: 300,
+                width: 'min(85vw, 300px)',
                 bgcolor: (theme) =>
                   theme.palette.mode === 'dark' ? 'rgba(26, 26, 53, 0.88)' : 'rgba(244, 246, 250, 0.94)',
                 backdropFilter: 'blur(24px) saturate(160%)',
@@ -367,7 +365,6 @@ export default function Workspace() {
                       {currentNoteId && (
                         <RecentNotesTabs
                           notes={projectNotes}
-                          onOpenGraph={() => setGraphOpen(true)}
                           onToggleSplit={() => setSplitActive((s) => !s)}
                           splitActive={splitActive}
                         />
@@ -416,15 +413,7 @@ export default function Workspace() {
         {/* AI panel inline on desktop (hidden on mobile — handled by AiAssistantDrawer) */}
         {!isMobile && <AiAssistantPanel />}
 
-        {/* Modal de Grafo de Conocimiento Interactivo 2D */}
-        {graphOpen && (
-          <GraphView
-            open={graphOpen}
-            onClose={() => setGraphOpen(false)}
-            notes={projectNotes}
-            currentProjectId={currentProjectId}
-          />
-        )}
+
       </Box>
     </Box>
   );

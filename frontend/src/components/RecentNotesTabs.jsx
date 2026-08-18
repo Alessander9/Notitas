@@ -9,7 +9,6 @@ import {
 import {
   Close as CloseIcon,
   VerticalSplit as SplitIcon,
-  Hub as GraphIcon,
 } from '@mui/icons-material';
 import { useUiStore } from '../store/uiStore';
 
@@ -17,7 +16,6 @@ const TABS_STORAGE_KEY = 'notitas-recent-tabs';
 
 export default function RecentNotesTabs({
   notes = [],
-  onOpenGraph,
   onToggleSplit,
   splitActive = false,
 }) {
@@ -155,17 +153,6 @@ export default function RecentNotesTabs({
               sx={{ p: 0.6, borderRadius: 1.5 }}
             >
               <SplitIcon sx={{ fontSize: 16 }} />
-            </IconButton>
-          </Tooltip>
-        )}
-        {onOpenGraph && (
-          <Tooltip title="Ver Grafo de conexiones">
-            <IconButton
-              size="small"
-              onClick={onOpenGraph}
-              sx={{ p: 0.6, borderRadius: 1.5 }}
-            >
-              <GraphIcon sx={{ fontSize: 16 }} />
             </IconButton>
           </Tooltip>
         )}
