@@ -644,7 +644,7 @@ const navItemVariants = {
         <ListItem disablePadding sx={{ mt: 1 }}>
           <motion.div custom={4} variants={navItemVariants} initial="hidden" animate="visible" style={{ width: '100%' }}>
             {effectiveCollapsed ? (
-              <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center', px: 0.5 }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'center', py: 0.5 }}>
                 <Tooltip title="Nota Rápida (Alt+N)" placement="right">
                   <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
                     <IconButton
@@ -655,9 +655,9 @@ const navItemVariants = {
                       sx={{
                         bgcolor: (theme) => (theme.palette.mode === 'dark' ? 'rgba(56, 108, 95, 0.2)' : 'rgba(56, 108, 95, 0.08)'),
                         color: 'primary.main',
-                        width: 40,
-                        height: 40,
-                        borderRadius: 2,
+                        width: 42,
+                        height: 42,
+                        borderRadius: 2.5,
                         '&:hover': {
                           bgcolor: 'primary.main',
                           color: '#fff',
@@ -677,9 +677,9 @@ const navItemVariants = {
                       sx={{
                         background: 'linear-gradient(135deg, #386c5f 0%, #264e44 100%)',
                         color: '#fff',
-                        width: 40,
-                        height: 40,
-                        borderRadius: 2,
+                        width: 42,
+                        height: 42,
+                        borderRadius: 2.5,
                         boxShadow: '0 4px 14px rgba(56, 108, 95, 0.35)',
                         '&:hover': {
                           background: 'linear-gradient(135deg, #6a968c 0%, #386c5f 100%)',
