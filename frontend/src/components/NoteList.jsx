@@ -289,7 +289,7 @@ function NoteMasonryCardItem({
       {/* Card Cover Image */}
       {coverUrl && (
         <Box sx={{ position: 'relative', flexShrink: 0 }}>
-          <CoverImage src={coverUrl} alt={note.title} sx={{ width: '100%', height: 132 }} zoomOnHover />
+          <CoverImage src={coverUrl} alt={note.title} seed={note.title || note.id} sx={{ width: '100%', height: 132 }} zoomOnHover />
         </Box>
       )}
 

@@ -123,6 +123,8 @@ import CommentsSection from './CommentsSection';
 import EmojiPickerPopover from './EmojiPickerPopover';
 import SlashCommandsMenu from './SlashCommandsMenu';
 import ZenAmbientSoundPlayer from './ZenAmbientSoundPlayer';
+import MobileKeyboardToolbar from './MobileKeyboardToolbar';
+import EditorStatsPill from './EditorStatsPill';
 import {
   CenterFocusStrong as ZenIcon,
   Animation as GifIcon,
@@ -2451,6 +2453,7 @@ export default function NoteEditor({ noteIdOverride = null } = {}) {
             <CoverImage
               src={coverUrl}
               alt="Cover"
+              seed={note?.title || note?.id}
               sx={{ width: '100%', height: { xs: 140, sm: 240 }, borderRadius: { xs: 2.5, sm: 3.5 }, boxShadow: 2 }}
             />
             <Box
@@ -2763,28 +2766,10 @@ export default function NoteEditor({ noteIdOverride = null } = {}) {
                 year: 'numeric',
               })}
             </Typography>
-            {wordCount > 0 && (
-              <Tooltip title="Tiempo de lectura aproximado">
-                <Typography
-                  variant="caption"
-                  sx={{
-                    fontSize: '0.7rem',
-                    whiteSpace: 'nowrap',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 0.4,
-                    fontWeight: 600,
-                    bgcolor: 'primary.main',
-                    color: 'primary.contrastText',
-                    px: 0.9,
-                    py: 0.25,
-                    borderRadius: '8px',
-                  }}
-                >
-                  {wordCount} palabras · {readingMinutes} min
-                </Typography>
-              </Tooltip>
-            )}
+            <EditorStatsPill
+              content={note?.content || editor?.getHTML() || ''}
+              isSaving={saveStatus === 'saving'}
+            />
           </Box>
         </Box>
 
@@ -3305,6 +3290,7 @@ export default function NoteEditor({ noteIdOverride = null } = {}) {
         >
           <EditorContent editor={editor} />
           <FloatingSelectionToolbar editor={editor} />
+          <MobileKeyboardToolbar editor={editor} />
         </Box>
 
         {/* Attachments & Images Section */}

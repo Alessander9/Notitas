@@ -62,6 +62,7 @@ import { useProjectNotes } from '../hooks/useProjectNotes';
 import { useTiltHover } from '../hooks/useTiltHover';
 import { formatShortDate, getAssetUrl } from '../utils/text';
 import { compressImage } from '../utils/imageCompressor';
+import { getGenerativeGradient } from '../utils/gradientGenerator';
 
 // Note count pill used on project cards and list rows
 function NoteCountChip({ projectId, color }) {
@@ -150,6 +151,7 @@ function ProjectGridCard({ project, index, onSelect, onEdit, onShare, onDelete, 
           <CoverImage
             src={coverUrl}
             alt={project.name}
+            seed={project.name || project.id}
             objectFit="contain"
             sx={{
               width: '100%',
@@ -164,7 +166,7 @@ function ProjectGridCard({ project, index, onSelect, onEdit, onShare, onDelete, 
             sx={{
               position: 'relative',
               height: 180,
-              background: `linear-gradient(135deg, ${project.color || '#1976d2'} 0%, ${project.color || '#1976d2'}cc 55%, ${project.color || '#1976d2'}66 100%)`,
+              background: getGenerativeGradient(project.name || project.id).background,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -378,6 +380,7 @@ function ProjectListItemRow({ project, coverUrl, onSelect, onEdit, onShare, onDe
             <CoverImage
               src={coverUrl}
               alt={project.name}
+              seed={project.name || project.id}
               sx={{ width: 44, height: 44, borderRadius: 2.5, border: '1px solid', borderColor: 'divider' }}
             />
           ) : (
@@ -386,14 +389,14 @@ function ProjectListItemRow({ project, coverUrl, onSelect, onEdit, onShare, onDe
                 width: 44,
                 height: 44,
                 borderRadius: 2.5,
-                bgcolor: `${project.color || '#1976d2'}1A`,
-                boxShadow: `inset 0 0 0 1px ${project.color || '#1976d2'}26`,
+                background: getGenerativeGradient(project.name || project.id).background,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.22)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
             >
-              <Typography sx={{ fontSize: '1.5rem', lineHeight: 1 }}>
+              <Typography sx={{ fontSize: '1.5rem', lineHeight: 1, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.25))' }}>
                 {getProjectIcon(project.icon)}
               </Typography>
             </Box>
