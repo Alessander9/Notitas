@@ -11,6 +11,7 @@ import { useCallback, useRef } from 'react';
 export function useLongPress(onLongPress, onClick, { delay = 450, moveThreshold = 10 } = {}) {
   const timeoutRef = useRef(null);
   const isLongPressRef = useRef(false);
+  const hasMovedRef = useRef(false);
   const startPosRef = useRef({ x: 0, y: 0 });
 
   const start = useCallback(
@@ -19,6 +20,7 @@ export function useLongPress(onLongPress, onClick, { delay = 450, moveThreshold 
       if (event.type === 'mousedown' && event.button !== 0) return;
 
       isLongPressRef.current = false;
+      hasMovedRef.current = false;
       const clientX = event.touches ? event.touches[0].clientX : event.clientX;
       const clientY = event.touches ? event.touches[0].clientY : event.clientY;
       startPosRef.current = { x: clientX, y: clientY };
@@ -43,16 +45,18 @@ export function useLongPress(onLongPress, onClick, { delay = 450, moveThreshold 
 
   const move = useCallback(
     (event) => {
-      if (!timeoutRef.current) return;
       const clientX = event.touches ? event.touches[0].clientX : event.clientX;
       const clientY = event.touches ? event.touches[0].clientY : event.clientY;
       const diffX = Math.abs(clientX - startPosRef.current.x);
       const diffY = Math.abs(clientY - startPosRef.current.y);
 
-      // Si el usuario se desplaza (scroll), cancelamos el long-press
+      // Si el usuario se desplaza (scroll), cancelamos el long-press y marcamos que hubo movimiento
       if (diffX > moveThreshold || diffY > moveThreshold) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
+        hasMovedRef.current = true;
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+          timeoutRef.current = null;
+        }
       }
     },
     [moveThreshold]
@@ -64,7 +68,8 @@ export function useLongPress(onLongPress, onClick, { delay = 450, moveThreshold 
         clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
       }
-      if (shouldTriggerClick && !isLongPressRef.current && onClick) {
+      // Solo disparar click si fue un toque limpio sin desplazamiento de scroll ni pulsación larga
+      if (shouldTriggerClick && !isLongPressRef.current && !hasMovedRef.current && onClick) {
         onClick(event);
       }
       isLongPressRef.current = false;

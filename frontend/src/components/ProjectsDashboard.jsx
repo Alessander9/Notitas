@@ -41,6 +41,8 @@ import {
   Description as NoteIcon,
   PlayArrow as PlayArrowIcon,
   FileUpload as ImportIcon,
+  MoreVert as MoreVertIcon,
+  ChevronRight as ChevronRightIcon,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
@@ -329,11 +331,11 @@ function ProjectGridCard({ project, index, onSelect, onEdit, onShare, onDelete, 
   );
 }
 
-function ProjectListItemRow({ project, coverUrl, onSelect, onEdit, onShare, onDelete, onLongPress }) {
+function ProjectListItemRow({ project, coverUrl, onSelect, onEdit, onShare, onDelete, onLongPress, onOpenMenu }) {
   const longPressHandlers = useLongPress(
     (e) => onLongPress?.(project, e),
     () => onSelect(project.id),
-    { delay: 450 }
+    { delay: 450, moveThreshold: 10 }
   );
 
   return (
@@ -349,7 +351,14 @@ function ProjectListItemRow({ project, coverUrl, onSelect, onEdit, onShare, onDe
     >
       <ListItemButton
         {...longPressHandlers}
-        sx={{ borderRadius: 2.5, py: 1.4, pl: 3.25, pr: { xs: 15, sm: 3 } }}
+        sx={{
+          borderRadius: 2.5,
+          py: 1.4,
+          pl: 3.25,
+          pr: { xs: 8, sm: 15 },
+          display: 'flex',
+          alignItems: 'center',
+        }}
       >
         {/* Color accent bar */}
         <Box
@@ -396,41 +405,79 @@ function ProjectListItemRow({ project, coverUrl, onSelect, onEdit, onShare, onDe
           primaryTypographyProps={{ fontWeight: 700, fontSize: '0.95rem' }}
           secondaryTypographyProps={{
             noWrap: true,
-            sx: { maxWidth: { xs: '200px', sm: '400px' }, fontSize: '0.8rem' },
+            sx: { maxWidth: { xs: '180px', sm: '380px' }, fontSize: '0.8rem' },
+          }}
+        />
+        {/* Flecha indicadora de apertura */}
+        <ChevronRightIcon
+          sx={{
+            color: 'text.secondary',
+            fontSize: 22,
+            opacity: { xs: 0.6, sm: 0.25 },
+            flexShrink: 0,
+            ml: 'auto',
+            mr: { xs: 0.5, sm: 1 },
           }}
         />
       </ListItemButton>
 
-      {/* Action buttons */}
+      {/* Botones de acción en escritorio / Menú de 3 puntos en móvil */}
       <Box
         className="project-list-actions"
         sx={{
           position: 'absolute',
-          right: 12,
+          right: { xs: 8, sm: 12 },
           top: '50%',
           transform: 'translateY(-50%)',
           display: 'flex',
+          alignItems: 'center',
           gap: 0.5,
           opacity: { xs: 1, sm: 0 },
           transition: 'opacity 0.2s',
           zIndex: 2,
         }}
       >
-        <Tooltip title="Compartir proyecto">
-          <IconButton size="small" onClick={(e) => { e.stopPropagation(); onShare(project); }}>
-            <ShareIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
-        <Tooltip title="Editar proyecto">
-          <IconButton size="small" onClick={(e) => { e.stopPropagation(); onEdit(project); }}>
-            <EditIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
-        <Tooltip title="Eliminar proyecto">
-          <IconButton size="small" onClick={(e) => { e.stopPropagation(); onDelete(project.id); }} sx={{ color: 'error.main' }}>
-            <DeleteIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
+        {/* Móvil: Botón compacto de 3 puntos (⋮) */}
+        <Box sx={{ display: { xs: 'flex', sm: 'none' } }}>
+          <Tooltip title="Opciones del proyecto">
+            <IconButton
+              size="small"
+              aria-label="Opciones del proyecto"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenMenu?.(project, e);
+              }}
+              sx={{
+                p: 0.85,
+                borderRadius: 2,
+                bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                color: 'text.secondary',
+                '&:hover': { color: 'text.primary', bgcolor: 'action.selected' },
+              }}
+            >
+              <MoreVertIcon sx={{ fontSize: 20 }} />
+            </IconButton>
+          </Tooltip>
+        </Box>
+
+        {/* Escritorio: Botones directos con tooltip */}
+        <Box sx={{ display: { xs: 'none', sm: 'flex' }, gap: 0.5 }}>
+          <Tooltip title="Compartir proyecto">
+            <IconButton size="small" onClick={(e) => { e.stopPropagation(); onShare(project); }}>
+              <ShareIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Editar proyecto">
+            <IconButton size="small" onClick={(e) => { e.stopPropagation(); onEdit(project); }}>
+              <EditIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Eliminar proyecto">
+            <IconButton size="small" onClick={(e) => { e.stopPropagation(); onDelete(project.id); }} sx={{ color: 'error.main' }}>
+              <DeleteIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Box>
       </Box>
     </Box>
   );
@@ -467,10 +514,16 @@ export default function ProjectsDashboard() {
   const handleOpenContextMenu = (project, event) => {
     if (event?.preventDefault) event.preventDefault();
     setContextMenuProject(project);
-    if (event?.touches?.[0]) {
+    if (event?.currentTarget && (!event?.touches || !event?.touches?.length) && (!event?.clientY || (event?.clientX === 0 && event?.clientY === 0))) {
+      const rect = event.currentTarget.getBoundingClientRect();
+      setMenuPosition({ top: rect.bottom + 6, left: Math.max(16, rect.right - 180) });
+    } else if (event?.touches?.[0]) {
       setMenuPosition({ top: event.touches[0].clientY, left: event.touches[0].clientX });
-    } else if (event?.clientY) {
+    } else if (event?.clientY && event?.clientX) {
       setMenuPosition({ top: event.clientY, left: event.clientX });
+    } else if (event?.currentTarget) {
+      const rect = event.currentTarget.getBoundingClientRect();
+      setMenuPosition({ top: rect.bottom + 6, left: Math.max(16, rect.right - 180) });
     } else {
       setMenuPosition({ top: window.innerHeight / 2 - 80, left: window.innerWidth / 2 - 100 });
     }
@@ -951,6 +1004,7 @@ export default function ProjectsDashboard() {
                   onShare={handleShareProject}
                   onDelete={handleDeleteProject}
                   onLongPress={handleOpenContextMenu}
+                  onOpenMenu={handleOpenContextMenu}
                 />
               );
             })}
