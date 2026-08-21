@@ -2340,17 +2340,17 @@ export default function NoteEditor({ noteIdOverride = null } = {}) {
           <>
             {/* Cover Image Banner */}
             {coverUrl && (
-          <Box sx={{ position: 'relative', mb: 3.5 }}>
+          <Box sx={{ position: 'relative', mb: { xs: 1.5, sm: 3.5 } }}>
             <CoverImage
               src={coverUrl}
               alt="Cover"
-              sx={{ width: '100%', height: 240, borderRadius: 3.5, boxShadow: 2 }}
+              sx={{ width: '100%', height: { xs: 140, sm: 240 }, borderRadius: { xs: 2.5, sm: 3.5 }, boxShadow: 2 }}
             />
             <Box
               sx={{
                 position: 'absolute',
                 inset: 0,
-                borderRadius: 3.5,
+                borderRadius: { xs: 2.5, sm: 3.5 },
                 background: 'linear-gradient(to bottom, transparent 60%, rgba(0,0,0,0.28))',
                 pointerEvents: 'none',
               }}
