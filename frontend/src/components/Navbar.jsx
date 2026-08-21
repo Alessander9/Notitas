@@ -97,6 +97,7 @@ export default function Navbar() {
     currentProjectId,
     currentNoteId,
     setCurrentNote,
+    mobileNavbarHidden,
     scratchpadOpen,
     toggleScratchpad,
   } = useUiStore();
@@ -200,6 +201,12 @@ export default function Navbar() {
       elevation={0}
       sx={{
         zIndex: 1100,
+        transform: isMobile && currentNoteId && mobileNavbarHidden ? 'translateY(-100%)' : 'translateY(0)',
+        maxHeight: isMobile && currentNoteId && mobileNavbarHidden ? 0 : 'auto',
+        opacity: isMobile && currentNoteId && mobileNavbarHidden ? 0 : 1,
+        overflow: 'hidden',
+        pointerEvents: isMobile && currentNoteId && mobileNavbarHidden ? 'none' : 'auto',
+        transition: 'transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease, max-height 0.28s ease',
         bgcolor: (theme) =>
           theme.palette.mode === 'dark' ? 'rgba(26, 26, 53, 0.75)' : 'rgba(240, 243, 248, 0.88)',
         backdropFilter: 'blur(18px) saturate(140%)',

@@ -131,6 +131,7 @@ import {
   AutoAwesome as SparklesIcon,
   Headphones as AmbientIcon,
 } from '@mui/icons-material';
+import { offlineSync } from '../services/offlineSync';
 
 // Modales secundarios cargados bajo demanda para aligerar el árbol principal de renderizado
 const CanvasModal = React.lazy(() => import('./CanvasModal'));
@@ -219,9 +220,37 @@ export default function NoteEditor({ noteIdOverride = null } = {}) {
   // Espera a que el usuario termine una ráfaga de escritura antes de enviar
   // otra petición. El guardado pendiente se fuerza al cambiar de nota o salir.
   const AUTOSAVE_DELAY = 2500;
-  const { currentNoteId: storeNoteId, setCurrentNote, currentProjectId, setCurrentProject } = useUiStore();
+  const { currentNoteId: storeNoteId, setCurrentNote, currentProjectId, setCurrentProject, setMobileNavbarHidden } = useUiStore();
   const currentNoteId = noteIdOverride || storeNoteId;
   const queryClient = useQueryClient();
+
+  const [networkState, setNetworkState] = useState({
+    isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
+    isSyncing: false,
+    pendingCount: 0,
+  });
+
+  useEffect(() => {
+    const unsubscribe = offlineSync.subscribe((state) => {
+      setNetworkState(state);
+    });
+    return () => {
+      unsubscribe();
+      if (setMobileNavbarHidden) setMobileNavbarHidden(false);
+    };
+  }, [setMobileNavbarHidden]);
+
+  const lastScrollY = useRef(0);
+  const handleEditorScroll = (e) => {
+    if (!isMobile) return;
+    const currentScrollY = e.target.scrollTop;
+    if (currentScrollY > lastScrollY.current + 25 && currentScrollY > 70) {
+      setMobileNavbarHidden(true);
+    } else if (currentScrollY < lastScrollY.current - 20) {
+      setMobileNavbarHidden(false);
+    }
+    lastScrollY.current = currentScrollY;
+  };
 
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef(null);
@@ -837,15 +866,25 @@ export default function NoteEditor({ noteIdOverride = null } = {}) {
     pendingSaveRef.current = { noteId, title: titleValue, content: contentValue, revision };
     setSaveStatus('unsaved');
     clearPendingSave();
+
+    // Guardado preventivo en caché offline local
+    offlineSync.saveDraft(noteId, { title: titleValue, content: contentValue });
+
     saveTimeoutRef.current = setTimeout(() => {
       setSaveStatus('saving');
       lastSavedContentRef.current = contentValue;
       lastSavedTitleRef.current = titleValue;
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        setSaveStatus('offline-saved');
+        return;
+      }
       const save = () => updateNoteMutation.mutateAsync({
         noteId,
         title: titleValue,
         content: contentValue,
         revision,
+      }).catch(() => {
+        setSaveStatus('offline-saved');
       });
       // Serializar peticiones evita que una respuesta lenta anterior llegue
       // después y deje el contenido persistido en un estado antiguo.
@@ -861,9 +900,17 @@ export default function NoteEditor({ noteIdOverride = null } = {}) {
       clearPendingSave();
       lastSavedContentRef.current = pending.content;
       lastSavedTitleRef.current = pending.title;
+      offlineSync.saveDraft(pending.noteId, { title: pending.title, content: pending.content });
       setSaveStatus('saving');
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        setSaveStatus('offline-saved');
+        pendingSaveRef.current = null;
+        return Promise.resolve();
+      }
       saveQueueRef.current = saveQueueRef.current.catch(() => {}).then(() =>
-        updateNoteMutation.mutateAsync(pending)
+        updateNoteMutation.mutateAsync(pending).catch(() => {
+          setSaveStatus('offline-saved');
+        })
       );
       pendingSaveRef.current = null;
     }
@@ -1437,6 +1484,7 @@ export default function NoteEditor({ noteIdOverride = null } = {}) {
 
   return (
     <Box
+      onScroll={handleEditorScroll}
       sx={{
         flexGrow: 1,
         height: '100%',
@@ -1530,6 +1578,64 @@ export default function NoteEditor({ noteIdOverride = null } = {}) {
 
         {/* Actions */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
+          {/* Status Indicator (Sync / Offline) */}
+          <Tooltip
+            title={
+              !networkState.isOnline
+                ? 'Sin conexión — Los cambios se guardan en este dispositivo y se sincronizarán al reconectar'
+                : saveStatus === 'saving' || networkState.isSyncing
+                ? 'Sincronizando cambios con la nube...'
+                : saveStatus === 'unsaved'
+                ? 'Guardando cambios locales...'
+                : 'Todos los cambios sincronizados con la nube'
+            }
+          >
+            <Chip
+              size="small"
+              variant="outlined"
+              icon={
+                <Box
+                  sx={{
+                    width: 7,
+                    height: 7,
+                    borderRadius: '50%',
+                    bgcolor: !networkState.isOnline
+                      ? '#f59e0b'
+                      : saveStatus === 'saving' || networkState.isSyncing
+                      ? '#3b82f6'
+                      : '#10b981',
+                    ml: 0.5,
+                    boxShadow: !networkState.isOnline
+                      ? '0 0 6px rgba(245, 158, 11, 0.6)'
+                      : '0 0 6px rgba(16, 185, 129, 0.6)',
+                  }}
+                />
+              }
+              label={
+                !networkState.isOnline
+                  ? 'Local'
+                  : saveStatus === 'saving' || networkState.isSyncing
+                  ? 'Guardando'
+                  : saveStatus === 'unsaved'
+                  ? 'Editando'
+                  : 'Sincronizado'
+              }
+              sx={{
+                height: 22,
+                fontSize: '0.67rem',
+                fontWeight: 600,
+                borderColor: !networkState.isOnline
+                  ? 'rgba(245, 158, 11, 0.4)'
+                  : 'rgba(16, 185, 129, 0.3)',
+                bgcolor: !networkState.isOnline
+                  ? 'rgba(245, 158, 11, 0.08)'
+                  : 'rgba(16, 185, 129, 0.06)',
+                color: !networkState.isOnline ? '#d97706' : '#059669',
+                display: { xs: 'none', sm: 'inline-flex' },
+              }}
+            />
+          </Tooltip>
+
           {isReadOnly && (
             <Chip
               icon={<LockIcon sx={{ fontSize: '0.85rem' }} />}

@@ -24,7 +24,10 @@ import {
   Avatar,
   AvatarGroup,
   Paper,
+  Menu,
+  MenuItem,
 } from '@mui/material';
+import { useLongPress } from '../hooks/useLongPress';
 import {
   ViewModule as GridViewIcon,
   ViewList as ListViewIcon,
@@ -89,10 +92,16 @@ function NoteCountChip({ projectId, color }) {
 }
 
 // Componente de tarjeta individual para vista cuadrícula
-function ProjectGridCard({ project, index, onSelect, onEdit, onShare, onDelete }) {
+function ProjectGridCard({ project, index, onSelect, onEdit, onShare, onDelete, onLongPress }) {
   const { rotateX, rotateY, handleMouseMove, handleMouseLeave } = useTiltHover(2.5);
   const hasCover = Boolean(project.coverImage);
   const coverUrl = hasCover ? getAssetUrl(project.coverImage) : null;
+
+  const longPressHandlers = useLongPress(
+    (e) => onLongPress?.(project, e),
+    () => onSelect(project.id),
+    { delay: 450 }
+  );
 
   return (
     <motion.div
@@ -114,6 +123,7 @@ function ProjectGridCard({ project, index, onSelect, onEdit, onShare, onDelete }
       }}
     >
       <Card
+        {...longPressHandlers}
         variant="outlined"
         sx={{
           position: 'relative',
@@ -133,7 +143,6 @@ function ProjectGridCard({ project, index, onSelect, onEdit, onShare, onDelete }
             '& .project-card-actions': { opacity: 1, pointerEvents: 'auto' },
           },
         }}
-        onClick={() => onSelect(project.id)}
       >
         {coverUrl ? (
           <CoverImage
@@ -320,6 +329,113 @@ function ProjectGridCard({ project, index, onSelect, onEdit, onShare, onDelete }
   );
 }
 
+function ProjectListItemRow({ project, coverUrl, onSelect, onEdit, onShare, onDelete, onLongPress }) {
+  const longPressHandlers = useLongPress(
+    (e) => onLongPress?.(project, e),
+    () => onSelect(project.id),
+    { delay: 450 }
+  );
+
+  return (
+    <Box
+      sx={{
+        position: 'relative',
+        borderRadius: 2.5,
+        mb: 0.75,
+        '&:last-of-type': { mb: 0 },
+        '&:hover': { bgcolor: 'action.hover' },
+        '&:hover .project-list-actions': { opacity: 1, pointerEvents: 'auto' },
+      }}
+    >
+      <ListItemButton
+        {...longPressHandlers}
+        sx={{ borderRadius: 2.5, py: 1.4, pl: 3.25, pr: { xs: 15, sm: 3 } }}
+      >
+        {/* Color accent bar */}
+        <Box
+          sx={{
+            position: 'absolute',
+            left: 8,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            width: 3,
+            height: 32,
+            borderRadius: 2,
+            bgcolor: project.color || '#1976d2',
+          }}
+        />
+        <ListItemIcon sx={{ minWidth: 52 }}>
+          {coverUrl ? (
+            <CoverImage
+              src={coverUrl}
+              alt={project.name}
+              sx={{ width: 44, height: 44, borderRadius: 2.5, border: '1px solid', borderColor: 'divider' }}
+            />
+          ) : (
+            <Box
+              sx={{
+                width: 44,
+                height: 44,
+                borderRadius: 2.5,
+                bgcolor: `${project.color || '#1976d2'}1A`,
+                boxShadow: `inset 0 0 0 1px ${project.color || '#1976d2'}26`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Typography sx={{ fontSize: '1.5rem', lineHeight: 1 }}>
+                {getProjectIcon(project.icon)}
+              </Typography>
+            </Box>
+          )}
+        </ListItemIcon>
+        <ListItemText
+          primary={project.name}
+          secondary={project.description || 'Sin descripción.'}
+          primaryTypographyProps={{ fontWeight: 700, fontSize: '0.95rem' }}
+          secondaryTypographyProps={{
+            noWrap: true,
+            sx: { maxWidth: { xs: '200px', sm: '400px' }, fontSize: '0.8rem' },
+          }}
+        />
+      </ListItemButton>
+
+      {/* Action buttons */}
+      <Box
+        className="project-list-actions"
+        sx={{
+          position: 'absolute',
+          right: 12,
+          top: '50%',
+          transform: 'translateY(-50%)',
+          display: 'flex',
+          gap: 0.5,
+          opacity: { xs: 1, sm: 0 },
+          transition: 'opacity 0.2s',
+          zIndex: 2,
+        }}
+      >
+        <Tooltip title="Compartir proyecto">
+          <IconButton size="small" onClick={(e) => { e.stopPropagation(); onShare(project); }}>
+            <ShareIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+        <Tooltip title="Editar proyecto">
+          <IconButton size="small" onClick={(e) => { e.stopPropagation(); onEdit(project); }}>
+            <EditIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+        <Tooltip title="Eliminar proyecto">
+          <IconButton size="small" onClick={(e) => { e.stopPropagation(); onDelete(project.id); }} sx={{ color: 'error.main' }}>
+            <DeleteIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      </Box>
+    </Box>
+  );
+}
+
 const DEMO_NOTES = [
   {
     title: '👋 Bienvenido a Notitas',
@@ -345,6 +461,20 @@ export default function ProjectsDashboard() {
     return localStorage.getItem('project-view-mode') || 'list';
   });
   const [filterQuery, setFilterQuery] = useState('');
+  const [contextMenuProject, setContextMenuProject] = useState(null);
+  const [menuPosition, setMenuPosition] = useState(null);
+
+  const handleOpenContextMenu = (project, event) => {
+    if (event?.preventDefault) event.preventDefault();
+    setContextMenuProject(project);
+    if (event?.touches?.[0]) {
+      setMenuPosition({ top: event.touches[0].clientY, left: event.touches[0].clientX });
+    } else if (event?.clientY) {
+      setMenuPosition({ top: event.clientY, left: event.clientX });
+    } else {
+      setMenuPosition({ top: window.innerHeight / 2 - 80, left: window.innerWidth / 2 - 100 });
+    }
+  };
   
   // Modal states for creating/editing projects
   const [openModal, setOpenModal] = useState(false);
@@ -798,6 +928,7 @@ export default function ProjectsDashboard() {
                 onEdit={handleOpenEditModal}
                 onShare={handleShareProject}
                 onDelete={handleDeleteProject}
+                onLongPress={handleOpenContextMenu}
               />
             ))}
           </AnimatePresence>
@@ -811,200 +942,84 @@ export default function ProjectsDashboard() {
               const coverUrl = hasCover ? getAssetUrl(project.coverImage) : null;
 
               return (
-                <Box
+                <ProjectListItemRow
                   key={project.id}
-                  sx={{
-                    position: 'relative',
-                    borderRadius: 2.5,
-                    mb: 0.75,
-                    '&:last-of-type': { mb: 0 },
-                    '&:hover': { bgcolor: 'action.hover' },
-                    '&:hover .project-list-actions': { opacity: 1, pointerEvents: 'auto' },
-                  }}
-                >
-                  <ListItemButton
-                    onClick={() => setCurrentProject(project.id)}
-                    sx={{ borderRadius: 2.5, py: 1.4, pl: 3.25, pr: { xs: 15, sm: 3 } }}
-                  >
-                    {/* Color accent bar */}
-                    <Box
-                      sx={{
-                        position: 'absolute',
-                        left: 8,
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        width: 3,
-                        height: 32,
-                        borderRadius: 2,
-                        bgcolor: project.color || '#1976d2',
-                      }}
-                    />
-                    <ListItemIcon sx={{ minWidth: 52 }}>
-                      {coverUrl ? (
-                        <CoverImage
-                          src={coverUrl}
-                          alt={project.name}
-                          sx={{ width: 44, height: 44, borderRadius: 2.5, border: '1px solid', borderColor: 'divider' }}
-                        />
-                      ) : (
-                        <Box
-                          sx={{
-                            width: 44,
-                            height: 44,
-                            borderRadius: 2.5,
-                            bgcolor: `${project.color || '#1976d2'}1A`,
-                            boxShadow: `inset 0 0 0 1px ${project.color || '#1976d2'}26`,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                        >
-                          <Typography sx={{ fontSize: '1.5rem', lineHeight: 1 }}>
-                            {getProjectIcon(project.icon)}
-                          </Typography>
-                        </Box>
-                      )}
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={project.name}
-                      secondary={project.description || 'Sin descripción.'}
-                      primaryTypographyProps={{ fontWeight: 700, fontSize: '0.95rem' }}
-                      secondaryTypographyProps={{ noWrap: true, maxWidth: { xs: '180px', sm: '320px', md: '520px' }, fontSize: '0.8rem' }}
-                    />
-                    <Box sx={{ mr: 4, display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 2 }}>
-                      <NoteCountChip projectId={project.id} color={project.color} />
-                      <CollaboratorsChip project={project} />
-                      <Tooltip title="Última actividad">
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.6 }}>
-                          <ScheduleIcon sx={{ fontSize: 13, color: 'text.disabled' }} />
-                          <Typography variant="caption" color="text.disabled">
-                            {formatShortDate(project.updatedAt || project.createdAt)}
-                          </Typography>
-                        </Box>
-                      </Tooltip>
-
-                      {/* Avatars in List View */}
-                      <AvatarGroup max={3} sx={{ '& .MuiAvatar-root': { width: 24, height: 24, fontSize: '0.65rem' } }}>
-                        {project.creator && (
-                          <Tooltip title={`Creador: ${project.creator.name}`}>
-                            <Avatar
-                              alt={project.creator.name}
-                              src={getAssetUrl(project.creator.avatar)}
-                              sx={{ border: `2px solid ${project.color || '#1976d2'} !important` }}
-                            />
-                          </Tooltip>
-                        )}
-                        {project.collaborators && project.collaborators.map((collab) => (
-                          <Tooltip key={collab.id} title={`Colaborador: ${collab.name}`}>
-                            <Avatar
-                              alt={collab.name}
-                              src={getAssetUrl(collab.avatar)}
-                            />
-                          </Tooltip>
-                        ))}
-                      </AvatarGroup>
-                    </Box>
-                  </ListItemButton>
-
-                  {/* Hover / Touch actions overlay */}
-                  <Box
-                    className="project-list-actions"
-                    sx={{
-                      position: 'absolute',
-                      right: 12,
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 0.5,
-                      opacity: { xs: 1, md: 0 },
-                      pointerEvents: { xs: 'auto', md: 'none' },
-                      transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                      bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(26, 26, 53, 0.95)' : 'rgba(255, 255, 255, 0.95)',
-                      backdropFilter: 'blur(12px)',
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      borderRadius: 3,
-                      boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
-                      p: 0.5,
-                      zIndex: 2,
-                    }}
-                  >
-                    <Tooltip title="Compartir" placement="top">
-                      <IconButton 
-                        size="small" 
-                        onClick={(e) => handleShareProject(project, e)} 
-                        sx={{ 
-                          p: 1, 
-                          color: 'text.secondary', 
-                          borderRadius: 2,
-                          '&:hover': { 
-                            color: 'info.main', 
-                            bgcolor: 'rgba(53, 150, 181, 0.12)',
-                            transform: 'scale(1.1)',
-                          },
-                          transition: 'all 0.2s ease',
-                        }}
-                      >
-                        <ShareIcon sx={{ fontSize: 18 }} />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Editar" placement="top">
-                      <IconButton 
-                        size="small" 
-                        onClick={(e) => handleOpenEditModal(project, e)} 
-                        sx={{ 
-                          p: 1, 
-                          color: 'text.secondary', 
-                          borderRadius: 2,
-                          '&:hover': { 
-                            color: 'primary.main', 
-                            bgcolor: 'rgba(56, 108, 95, 0.12)',
-                            transform: 'scale(1.1)',
-                          },
-                          transition: 'all 0.2s ease',
-                        }}
-                      >
-                        <EditIcon sx={{ fontSize: 18 }} />
-                      </IconButton>
-                    </Tooltip>
-                    <Box sx={{ width: 1, height: 20, bgcolor: 'divider', mx: 0.25 }} />
-                    <Tooltip title="Eliminar" placement="top">
-                      <IconButton
-                        size="small"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          confirm({
-                            title: 'Eliminar proyecto',
-                            message: `¿Eliminar proyecto "${project.name}" y sus notas? Esta acción no se puede deshacer.`,
-                            confirmLabel: 'Eliminar',
-                            cancelLabel: 'Cancelar',
-                            color: 'error',
-                            onConfirm: () => deleteProjectMutation.mutate(project.id),
-                          });
-                        }}
-                        sx={{ 
-                          p: 1, 
-                          color: 'text.secondary', 
-                          borderRadius: 2,
-                          '&:hover': { 
-                            color: 'error.main', 
-                            bgcolor: 'rgba(239, 68, 68, 0.12)',
-                            transform: 'scale(1.1)',
-                          },
-                          transition: 'all 0.2s ease',
-                        }}
-                      >
-                        <DeleteIcon sx={{ fontSize: 18 }} />
-                      </IconButton>
-                    </Tooltip>
-                  </Box>
-                </Box>
+                  project={project}
+                  coverUrl={coverUrl}
+                  onSelect={setCurrentProject}
+                  onEdit={handleOpenEditModal}
+                  onShare={handleShareProject}
+                  onDelete={handleDeleteProject}
+                  onLongPress={handleOpenContextMenu}
+                />
               );
             })}
           </List>
         </Card>
       )}
+
+      {/* Menú Rápido por Pulsación Larga (Long-Press Haptic Menu) */}
+      <Menu
+        open={Boolean(contextMenuProject)}
+        onClose={() => setContextMenuProject(null)}
+        anchorReference="anchorPosition"
+        anchorPosition={menuPosition}
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            minWidth: 210,
+            boxShadow: '0 16px 40px rgba(0,0,0,0.25)',
+            border: '1px solid',
+            borderColor: 'divider',
+            p: 0.5,
+          },
+        }}
+      >
+        {contextMenuProject && (
+          <>
+            <Box sx={{ px: 2, py: 1, borderBottom: '1px solid', borderColor: 'divider', mb: 0.5 }}>
+              <Typography variant="subtitle2" fontWeight={700} noWrap sx={{ maxWidth: 200 }}>
+                {getProjectIcon(contextMenuProject.icon)} {contextMenuProject.name}
+              </Typography>
+            </Box>
+            <MenuItem
+              onClick={() => {
+                handleOpenEditModal(contextMenuProject);
+                setContextMenuProject(null);
+              }}
+            >
+              <ListItemIcon>
+                <EditIcon sx={{ fontSize: 18 }} />
+              </ListItemIcon>
+              <ListItemText primary="Editar proyecto" />
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                handleShareProject(contextMenuProject);
+                setContextMenuProject(null);
+              }}
+            >
+              <ListItemIcon>
+                <ShareIcon sx={{ fontSize: 18 }} />
+              </ListItemIcon>
+              <ListItemText primary="Gestionar colaboradores" />
+            </MenuItem>
+            <Divider sx={{ my: 0.5 }} />
+            <MenuItem
+              onClick={() => {
+                handleDeleteProject(contextMenuProject.id);
+                setContextMenuProject(null);
+              }}
+              sx={{ color: 'error.main' }}
+            >
+              <ListItemIcon sx={{ color: 'error.main' }}>
+                <DeleteIcon sx={{ fontSize: 18 }} />
+              </ListItemIcon>
+              <ListItemText primary="Eliminar proyecto" />
+            </MenuItem>
+          </>
+        )}
+      </Menu>
 
       {/* Project Creation/Edition Modal */}
       <ProjectFormDialog

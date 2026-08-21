@@ -20,10 +20,14 @@ import {
   InputAdornment,
   ToggleButton,
   ToggleButtonGroup,
-  Divider,
   useTheme,
   useMediaQuery,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
 } from '@mui/material';
+import { useLongPress } from '../hooks/useLongPress';
 import {
   Add as AddIcon,
   Star as StarIcon,
@@ -61,6 +65,337 @@ import ManageMembersDialog from './ManageMembersDialog';
 import { Group as GroupIcon } from '@mui/icons-material';
 import KanbanView from './KanbanView';
 import CalendarTimelineView from './CalendarTimelineView';
+
+function NoteListItemRow({
+  note,
+  isSelected,
+  color,
+  pinnedNotes,
+  dragNoteId,
+  dragOverNoteId,
+  setDragNoteId,
+  setDragOverNoteId,
+  orderedNotes,
+  setManualOrder,
+  saveOrder,
+  setCurrentNote,
+  onLongPress,
+  duplicateNoteMutation,
+  deleteNoteMutation,
+}) {
+  const longPressHandlers = useLongPress(
+    (e) => onLongPress(note, e),
+    () => setCurrentNote(note.id),
+    { delay: 450 }
+  );
+
+  return (
+    <Box
+      {...longPressHandlers}
+      draggable
+      onDragStart={(e) => { e.dataTransfer.setData('note-reorder', String(note.id)); setDragNoteId(note.id); }}
+      onDragEnd={() => { setDragNoteId(null); setDragOverNoteId(null); }}
+      onDragOver={(e) => { e.preventDefault(); setDragOverNoteId(note.id); }}
+      onDrop={(e) => {
+        e.preventDefault();
+        const sourceId = Number(e.dataTransfer.getData('note-reorder'));
+        if (!sourceId || sourceId === note.id) return;
+        const ids = orderedNotes.map(x => x.id);
+        const from = ids.indexOf(sourceId);
+        const to = ids.indexOf(note.id);
+        if (from === -1 || to === -1) return;
+        const newIds = [...ids];
+        newIds.splice(from, 1);
+        newIds.splice(to, 0, sourceId);
+        const newOrder = Object.fromEntries(newIds.map((id, i) => [id, i]));
+        setManualOrder(newOrder);
+        saveOrder(newOrder);
+        setDragNoteId(null);
+        setDragOverNoteId(null);
+      }}
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        p: 1.2,
+        px: 1.5,
+        borderRadius: 2,
+        cursor: 'grab',
+        opacity: dragNoteId === note.id ? 0.5 : 1,
+        outline: dragOverNoteId === note.id && dragNoteId !== note.id ? '2px dashed' : 'none',
+        outlineColor: 'primary.main',
+        bgcolor: isSelected ? 'action.selected' : 'background.paper',
+        border: '1px solid',
+        borderColor: isSelected ? color : 'divider',
+        borderLeft: `4px solid ${color}`,
+        transition: 'all 0.15s ease',
+        '&:hover': {
+          bgcolor: 'action.hover',
+          transform: 'translateX(3px)',
+        },
+      }}
+    >
+      <Box sx={{ minWidth: 0, flex: 1, mr: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
+          {note.icon && (
+            <Box component="span" sx={{ fontSize: '1.05rem', lineHeight: 1, flexShrink: 0 }}>
+              {note.icon}
+            </Box>
+          )}
+          <Typography variant="body2" fontWeight={isSelected ? 700 : 600} noWrap sx={{ fontSize: '0.84rem' }}>
+            {note.title || 'Sin título'}
+          </Typography>
+          {pinnedNotes.includes(note.id) && (
+            <PinIcon sx={{ fontSize: 12, color: 'primary.main', transform: 'rotate(45deg)' }} />
+          )}
+          {note.favorite && (
+            <StarIcon sx={{ fontSize: 13, color: '#fbc02d' }} />
+          )}
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.3 }}>
+          <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.68rem' }}>
+            {formatRelativeTime(note.updatedAt || note.createdAt)}
+          </Typography>
+          {note.tags && note.tags.length > 0 && (
+            <Chip label={note.tags[0]} size="small" sx={{ height: 16, fontSize: '0.6rem' }} />
+          )}
+        </Box>
+      </Box>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.2 }}>
+        <Tooltip title="Duplicar">
+          <IconButton size="small" onClick={(e) => { e.stopPropagation(); duplicateNoteMutation.mutate(note.id); }} sx={{ p: 0.4 }}>
+            <DuplicateIcon sx={{ fontSize: 14 }} />
+          </IconButton>
+        </Tooltip>
+        <Tooltip title="Eliminar">
+          <IconButton size="small" onClick={(e) => { e.stopPropagation(); deleteNoteMutation.mutate(note.id); }} sx={{ p: 0.4 }}>
+            <DeleteIcon sx={{ fontSize: 14 }} />
+          </IconButton>
+        </Tooltip>
+      </Box>
+    </Box>
+  );
+}
+
+function NoteMasonryCardItem({
+  note,
+  isSelected,
+  project,
+  color,
+  members,
+  lastEditor,
+  hasCover,
+  coverUrl,
+  dragNoteId,
+  dragOverNoteId,
+  setDragNoteId,
+  setDragOverNoteId,
+  orderedNotes,
+  setManualOrder,
+  saveOrder,
+  setCurrentNote,
+  onLongPress,
+  toggleFavoriteMutation,
+  duplicateNoteMutation,
+  deleteNoteMutation,
+  togglePin,
+  pinnedNotes,
+  isCollapsed,
+  setProfileMember,
+}) {
+  const longPressHandlers = useLongPress(
+    (e) => onLongPress(note, e),
+    () => setCurrentNote(note.id),
+    { delay: 450 }
+  );
+
+  return (
+    <Card
+      {...longPressHandlers}
+      variant="outlined"
+      className="virtual-card-item"
+      draggable
+      onDragStart={(e) => { e.dataTransfer.setData('note-reorder', String(note.id)); setDragNoteId(note.id); }}
+      onDragEnd={() => { setDragNoteId(null); setDragOverNoteId(null); }}
+      onDragOver={(e) => { e.preventDefault(); setDragOverNoteId(note.id); }}
+      onDrop={(e) => {
+        e.preventDefault();
+        const sourceId = Number(e.dataTransfer.getData('note-reorder'));
+        if (!sourceId || sourceId === note.id) return;
+        const ids = orderedNotes.map(x => x.id);
+        const from = ids.indexOf(sourceId);
+        const to = ids.indexOf(note.id);
+        if (from === -1 || to === -1) return;
+        const newIds = [...ids];
+        newIds.splice(from, 1);
+        newIds.splice(to, 0, sourceId);
+        const newOrder = Object.fromEntries(newIds.map((id, i) => [id, i]));
+        setManualOrder(newOrder);
+        saveOrder(newOrder);
+        setDragNoteId(null);
+        setDragOverNoteId(null);
+      }}
+      sx={{
+        cursor: 'grab',
+        opacity: dragNoteId === note.id ? 0.5 : 1,
+        outline: dragOverNoteId === note.id && dragNoteId !== note.id ? '2px dashed' : 'none',
+        outlineColor: 'primary.main',
+        borderRadius: 3,
+        border: '1px solid',
+        borderColor: isSelected ? color : 'divider',
+        bgcolor: 'background.paper',
+        display: 'flex',
+        flexDirection: 'column',
+        transition: 'all 0.2s ease-in-out',
+        boxShadow: isSelected
+          ? `inset 3px 0 0 0 ${color}, 0 2px 12px ${color}26`
+          : '0 1px 3px rgba(0,0,0,0.05)',
+        overflow: 'hidden',
+        position: 'relative',
+        '&::after': !hasCover ? {
+          content: '""',
+          position: 'absolute',
+          top: 0,
+          right: 0,
+          width: 24,
+          height: 24,
+          background: 'linear-gradient(225deg, transparent 50%, rgba(0,0,0,0.06) 50%)',
+          borderBottomLeftRadius: 6,
+          pointerEvents: 'none',
+          zIndex: 1,
+        } : {},
+        '&:hover .note-card-actions': { opacity: 1, pointerEvents: 'auto', visibility: 'visible' },
+        '&:hover': {
+          boxShadow: isSelected
+            ? `inset 3px 0 0 0 ${color}, 0 6px 20px ${color}33`
+            : `0 6px 20px ${color}22`,
+          borderColor: isSelected ? color : `${color}88`,
+          transform: 'translateY(-2px)',
+        },
+      }}
+    >
+      {/* Accent bar on top for cards without cover */}
+      {!coverUrl && (
+        <Box
+          sx={{
+            height: 3.5,
+            width: '100%',
+            flexShrink: 0,
+            background: `linear-gradient(90deg, ${color}, ${color}66)`,
+          }}
+        />
+      )}
+
+      {/* Card Cover Image */}
+      {coverUrl && (
+        <Box sx={{ position: 'relative', flexShrink: 0 }}>
+          <CoverImage src={coverUrl} alt={note.title} sx={{ width: '100%', height: 132 }} zoomOnHover />
+        </Box>
+      )}
+
+      <CardContent sx={{ p: isCollapsed ? 1.5 : 2, '&:last-child': { pb: isCollapsed ? 1.5 : 2 } }}>
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, minWidth: 0, flex: 1 }}>
+            {note.icon && (
+              <Box component="span" sx={{ fontSize: '1.2rem', lineHeight: 1, flexShrink: 0 }}>
+                {note.icon}
+              </Box>
+            )}
+            <Typography variant="subtitle1" fontWeight="bold" noWrap sx={{ fontSize: '0.95rem' }}>
+              <HighlightText text={note.title || 'Sin título'} />
+            </Typography>
+            {pinnedNotes.includes(note.id) && (
+              <PinIcon sx={{ fontSize: 14, color: 'primary.main', transform: 'rotate(45deg)', flexShrink: 0 }} />
+            )}
+          </Box>
+          <Box className="note-card-actions" sx={{ display: 'flex', alignItems: 'center', gap: 0.3, opacity: { xs: 1, md: 0 }, transition: 'opacity 0.2s', flexShrink: 0 }}>
+            <Tooltip title={pinnedNotes.includes(note.id) ? 'Desfijar' : 'Fijar arriba'}>
+              <IconButton size="small" onClick={(e) => { e.stopPropagation(); togglePin(note.id); }} sx={{ p: 0.4 }}>
+                {pinnedNotes.includes(note.id) ? (
+                  <PinIcon sx={{ fontSize: 16, color: 'primary.main', transform: 'rotate(45deg)' }} />
+                ) : (
+                  <PinOutlinedIcon sx={{ fontSize: 16 }} />
+                )}
+              </IconButton>
+            </Tooltip>
+            <Tooltip title={note.favorite ? 'Quitar de favoritos' : 'Marcar como favorito'}>
+              <IconButton
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleFavoriteMutation.mutate({ id: note.id, favorite: note.favorite });
+                }}
+                sx={{ p: 0.4 }}
+              >
+                {note.favorite ? (
+                  <StarIcon sx={{ fontSize: 16, color: '#fbc02d' }} />
+                ) : (
+                  <StarBorderIcon sx={{ fontSize: 16 }} />
+                )}
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Duplicar">
+              <IconButton size="small" onClick={(e) => { e.stopPropagation(); duplicateNoteMutation.mutate(note.id); }} sx={{ p: 0.4 }}>
+                <DuplicateIcon sx={{ fontSize: 16 }} />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Eliminar">
+              <IconButton size="small" onClick={(e) => { e.stopPropagation(); deleteNoteMutation.mutate(note.id); }} sx={{ p: 0.4 }}>
+                <DeleteIcon sx={{ fontSize: 16 }} />
+              </IconButton>
+            </Tooltip>
+          </Box>
+        </Box>
+
+        <Typography variant="body2" color="text.secondary" sx={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', my: 1, fontSize: '0.82rem', lineHeight: 1.45 }}>
+          {getPlainText(note.content, 'Sin contenido')}
+        </Typography>
+
+        {note.tags && note.tags.length > 0 && (
+          <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 1.2 }}>
+            {note.tags.map((tag) => (
+              <Chip
+                key={tag}
+                label={`#${tag}`}
+                size="small"
+                sx={{
+                  height: 20,
+                  fontSize: '0.65rem',
+                  fontWeight: 600,
+                  bgcolor: 'action.hover',
+                  borderRadius: 1.5,
+                }}
+              />
+            ))}
+          </Box>
+        )}
+
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pt: 1, borderTop: '1px solid', borderColor: 'divider' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <AuthorAvatars
+              creator={project?.creator}
+              collaborators={project?.collaborators}
+              noteMembers={note?.noteMembers}
+              size={20}
+              onMemberClick={setProfileMember}
+            />
+            {lastEditor && (
+              <Tooltip title={`Última edición por ${lastEditor.name}`}>
+                <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.68rem', display: 'flex', alignItems: 'center', gap: 0.3 }}>
+                  <EditNoteIcon sx={{ fontSize: 13 }} />
+                  {lastEditor.name?.split(' ')[0]}
+                </Typography>
+              </Tooltip>
+            )}
+          </Box>
+          <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.68rem', fontWeight: 500, flexShrink: 0 }}>
+            {formatRelativeTime(note.updatedAt || note.createdAt)}
+          </Typography>
+        </Box>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function NoteList() {
   const { currentProjectId, currentNoteId, setCurrentNote, searchQuery, setCurrentProject, notesViewMode = 'masonry', setNotesViewMode } = useUiStore();
@@ -319,6 +654,20 @@ export default function NoteList() {
 
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [profileMember, setProfileMember] = useState(null);
+  const [contextMenuNote, setContextMenuNote] = useState(null);
+  const [menuPosition, setMenuPosition] = useState(null);
+
+  const handleOpenContextMenu = (note, event) => {
+    if (event?.preventDefault) event.preventDefault();
+    setContextMenuNote(note);
+    if (event?.touches?.[0]) {
+      setMenuPosition({ top: event.touches[0].clientY, left: event.touches[0].clientX });
+    } else if (event?.clientY) {
+      setMenuPosition({ top: event.clientY, left: event.clientX });
+    } else {
+      setMenuPosition({ top: window.innerHeight / 2 - 80, left: window.innerWidth / 2 - 100 });
+    }
+  };
 
   const getHeaderTitle = () => {
     if (isFavorites) return 'Favoritos';
@@ -1063,92 +1412,24 @@ export default function NoteList() {
                 const project = projects.find((p) => p.id === note.projectId);
                 const color = project?.color || '#386c5f';
                 return (
-                  <Box
+                  <NoteListItemRow
                     key={note.id}
-                    className="virtual-list-item"
-                    onClick={() => setCurrentNote(note.id)}
-                    draggable
-                    onDragStart={(e) => { e.dataTransfer.setData('note-reorder', String(note.id)); setDragNoteId(note.id); }}
-                    onDragEnd={() => { setDragNoteId(null); setDragOverNoteId(null); }}
-                    onDragOver={(e) => { e.preventDefault(); setDragOverNoteId(note.id); }}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      const sourceId = Number(e.dataTransfer.getData('note-reorder'));
-                      if (!sourceId || sourceId === note.id) return;
-                      const ids = orderedNotes.map(x => x.id);
-                      const from = ids.indexOf(sourceId);
-                      const to = ids.indexOf(note.id);
-                      if (from === -1 || to === -1) return;
-                      const newIds = [...ids];
-                      newIds.splice(from, 1);
-                      newIds.splice(to, 0, sourceId);
-                      const newOrder = Object.fromEntries(newIds.map((id, i) => [id, i]));
-                      setManualOrder(newOrder);
-                      saveOrder(newOrder);
-                      setDragNoteId(null);
-                      setDragOverNoteId(null);
-                    }}
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      p: 1.2,
-                      px: 1.5,
-                      borderRadius: 2,
-                      cursor: 'grab',
-                      opacity: dragNoteId === note.id ? 0.5 : 1,
-                      outline: dragOverNoteId === note.id && dragNoteId !== note.id ? '2px dashed' : 'none',
-                      outlineColor: 'primary.main',
-                      bgcolor: isSelected ? 'action.selected' : 'background.paper',
-                      border: '1px solid',
-                      borderColor: isSelected ? color : 'divider',
-                      borderLeft: `4px solid ${color}`,
-                      transition: 'all 0.15s ease',
-                      '&:hover': {
-                        bgcolor: 'action.hover',
-                        transform: 'translateX(3px)',
-                      },
-                    }}
-                  >
-                    <Box sx={{ minWidth: 0, flex: 1, mr: 1 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
-                        {note.icon && (
-                          <Box component="span" sx={{ fontSize: '1.05rem', lineHeight: 1, flexShrink: 0 }}>
-                            {note.icon}
-                          </Box>
-                        )}
-                        <Typography variant="body2" fontWeight={isSelected ? 700 : 600} noWrap sx={{ fontSize: '0.84rem' }}>
-                          {note.title || 'Sin título'}
-                        </Typography>
-                        {pinnedNotes.includes(note.id) && (
-                          <PinIcon sx={{ fontSize: 12, color: 'primary.main', transform: 'rotate(45deg)' }} />
-                        )}
-                        {note.favorite && (
-                          <StarIcon sx={{ fontSize: 13, color: '#fbc02d' }} />
-                        )}
-                      </Box>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.3 }}>
-                        <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.68rem' }}>
-                          {formatRelativeTime(note.updatedAt || note.createdAt)}
-                        </Typography>
-                        {note.tags && note.tags.length > 0 && (
-                          <Chip label={note.tags[0]} size="small" sx={{ height: 16, fontSize: '0.6rem' }} />
-                        )}
-                      </Box>
-                    </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.2 }}>
-                      <Tooltip title="Duplicar">
-                        <IconButton size="small" onClick={(e) => { e.stopPropagation(); duplicateNoteMutation.mutate(note.id); }} sx={{ p: 0.4 }}>
-                          <DuplicateIcon sx={{ fontSize: 14 }} />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Eliminar">
-                        <IconButton size="small" onClick={(e) => { e.stopPropagation(); deleteNoteMutation.mutate(note.id); }} sx={{ p: 0.4 }}>
-                          <DeleteIcon sx={{ fontSize: 14 }} />
-                        </IconButton>
-                      </Tooltip>
-                    </Box>
-                  </Box>
+                    note={note}
+                    isSelected={isSelected}
+                    color={color}
+                    pinnedNotes={pinnedNotes}
+                    dragNoteId={dragNoteId}
+                    dragOverNoteId={dragOverNoteId}
+                    setDragNoteId={setDragNoteId}
+                    setDragOverNoteId={setDragOverNoteId}
+                    orderedNotes={orderedNotes}
+                    setManualOrder={setManualOrder}
+                    saveOrder={saveOrder}
+                    setCurrentNote={setCurrentNote}
+                    onLongPress={handleOpenContextMenu}
+                    duplicateNoteMutation={duplicateNoteMutation}
+                    deleteNoteMutation={deleteNoteMutation}
+                  />
                 );
               })}
             </Stack>
@@ -1157,381 +1438,150 @@ export default function NoteList() {
           /* Masonry Cards View */
           <InfiniteScroll hasMore={hasNextPage} loading={isFetchingNextPage} onLoadMore={fetchNextPage}>
             <AnimatePresence mode="popLayout">
-            <Stack spacing={isCollapsed ? 0.5 : 2}>
-              {visibleNotes.map((note) => {
-                const isSelected = currentNoteId === note.id;
-                const project = projects.find((p) => p.id === note.projectId);
-                const color = project?.color || '#386c5f';
-                // Last editor: resolved from the project members (creator + collaborators)
-                const members = project ? [project.creator, ...(project.collaborators || [])] : [];
-                const lastEditor =
-                  note.updatedBy != null ? members.find((m) => m?.id === note.updatedBy) : null;
-                const hasCover = Boolean(note.coverImage);
-                const coverUrl = hasCover ? getAssetUrl(note.coverImage) : null;
+              <Stack spacing={isCollapsed ? 0.5 : 2}>
+                {visibleNotes.map((note) => {
+                  const isSelected = currentNoteId === note.id;
+                  const project = projects.find((p) => p.id === note.projectId);
+                  const color = project?.color || '#386c5f';
+                  const members = project ? [project.creator, ...(project.collaborators || [])] : [];
+                  const lastEditor =
+                    note.updatedBy != null ? members.find((m) => m?.id === note.updatedBy) : null;
+                  const hasCover = Boolean(note.coverImage);
+                  const coverUrl = hasCover ? getAssetUrl(note.coverImage) : null;
 
-                return (
-                  <motion.div
-                    key={note.id}
-                    layout
-                    initial={{ opacity: 0, x: -30 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -30 }}
-                    transition={{ type: 'spring', stiffness: 200, damping: 24 }}
-                    whileHover={{ scale: 1.01, y: -2 }}
-                    whileTap={{ scale: 0.99 }}
-                  >
-                    <Card
-                      variant="outlined"
-                      className="virtual-card-item"
-                      onClick={() => setCurrentNote(note.id)}
-                      draggable
-                      onDragStart={(e) => { e.dataTransfer.setData('note-reorder', String(note.id)); setDragNoteId(note.id); }}
-                      onDragEnd={() => { setDragNoteId(null); setDragOverNoteId(null); }}
-                      onDragOver={(e) => { e.preventDefault(); setDragOverNoteId(note.id); }}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        const sourceId = Number(e.dataTransfer.getData('note-reorder'));
-                        if (!sourceId || sourceId === note.id) return;
-                        const ids = orderedNotes.map(x => x.id);
-                        const from = ids.indexOf(sourceId);
-                        const to = ids.indexOf(note.id);
-                        if (from === -1 || to === -1) return;
-                        const newIds = [...ids];
-                        newIds.splice(from, 1);
-                        newIds.splice(to, 0, sourceId);
-                        const newOrder = Object.fromEntries(newIds.map((id, i) => [id, i]));
-                        setManualOrder(newOrder);
-                        saveOrder(newOrder);
-                        setDragNoteId(null);
-                        setDragOverNoteId(null);
-                      }}
-                      sx={{
-                        cursor: 'grab',
-                        opacity: dragNoteId === note.id ? 0.5 : 1,
-                        outline: dragOverNoteId === note.id && dragNoteId !== note.id ? '2px dashed' : 'none',
-                        outlineColor: 'primary.main',
-                        borderRadius: 3,
-                        border: '1px solid',
-                        borderColor: isSelected ? color : 'divider',
-                        bgcolor: 'background.paper',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        transition: 'all 0.2s ease-in-out',
-                        boxShadow: isSelected
-                          ? `inset 3px 0 0 0 ${color}, 0 2px 12px ${color}26`
-                          : '0 1px 3px rgba(0,0,0,0.05)',
-                        overflow: 'hidden',
-                        position: 'relative',
-                        '&::after': !hasCover ? {
-                          content: '""',
-                          position: 'absolute',
-                          top: 0,
-                          right: 0,
-                          width: 24,
-                          height: 24,
-                          background: 'linear-gradient(225deg, transparent 50%, rgba(0,0,0,0.06) 50%)',
-                          borderBottomLeftRadius: 6,
-                          pointerEvents: 'none',
-                          zIndex: 1,
-                        } : {},
-                        '&:hover .note-card-actions': { opacity: 1, pointerEvents: 'auto', visibility: 'visible' },
-                        '&:hover': {
-                          boxShadow: isSelected
-                            ? `inset 3px 0 0 0 ${color}, 0 6px 20px ${color}33`
-                            : `0 6px 20px ${color}22`,
-                          borderColor: isSelected ? color : `${color}88`,
-                          transform: 'translateY(-2px)',
-                        },
-                      }}
+                  return (
+                    <motion.div
+                      key={note.id}
+                      layout
+                      initial={{ opacity: 0, x: -30 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -30 }}
+                      transition={{ type: 'spring', stiffness: 200, damping: 24 }}
+                      whileHover={{ scale: 1.01, y: -2 }}
+                      whileTap={{ scale: 0.99 }}
                     >
-                      {/* Accent bar on top for cards without cover */}
-                      {!coverUrl && (
-                        <Box
-                          sx={{
-                            height: 3.5,
-                            width: '100%',
-                            flexShrink: 0,
-                            background: `linear-gradient(90deg, ${color}, ${color}66)`,
-                          }}
-                        />
-                      )}
-
-                      {/* Card Cover Image */}
-                      {coverUrl && (
-                        <Box sx={{ position: 'relative', flexShrink: 0 }}>
-                          <CoverImage src={coverUrl} alt={note.title} sx={{ width: '100%', height: 132 }} zoomOnHover />
-                          <Box
-                            sx={{
-                              position: 'absolute',
-                              inset: 0,
-                              background: 'linear-gradient(to bottom, transparent 55%, rgba(0,0,0,0.18))',
-                              pointerEvents: 'none',
-                            }}
-                          />
-                        </Box>
-                      )}
-
-                      <CardContent sx={{ p: 2.5, flexGrow: 1, display: 'flex', flexDirection: 'column', '&:last-child': { pb: 2.5 } }}>
-                        {/* Header with Title and Favorite Star */}
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-                          <Typography
-                            variant="body1"
-                            fontWeight={700}
-                            sx={{
-                              flex: 1,
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap',
-                              fontSize: '0.95rem',
-                              letterSpacing: '-0.01em',
-                              color: isSelected ? 'primary.main' : 'text.primary',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 0.6,
-                            }}
-                          >
-                            {note.icon && (
-                              <Box component="span" sx={{ fontSize: '1.1rem', lineHeight: 1, flexShrink: 0 }}>
-                                {note.icon}
-                              </Box>
-                            )}
-                            <Box component="span" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {isSearch ? (
-                                <HighlightText text={note.title || 'Sin Título'} query={searchQuery} />
-                              ) : (
-                                note.title || 'Sin Título'
-                              )}
-                            </Box>
-                          </Typography>
-
-                          {/* Favorite star + Pin + hover actions */}
-                          <Box sx={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-                            <Tooltip title={pinnedNotes.includes(note.id) ? 'Desfijar nota' : 'Fijar nota'}>
-                              <IconButton
-                                size="small"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  togglePin(note.id);
-                                }}
-                                sx={{ p: 0.4, flexShrink: 0 }}
-                              >
-                                {pinnedNotes.includes(note.id) ? (
-                                  <PinIcon fontSize="small" sx={{ color: 'primary.main', transform: 'rotate(45deg)' }} />
-                                ) : (
-                                  <PinOutlinedIcon fontSize="small" color="action" />
-                                )}
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title={note.favorite ? 'Quitar Favorito' : 'Marcar Favorito'}>
-                              <IconButton
-                                size="small"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  toggleFavoriteMutation.mutate({ id: note.id, favorite: note.favorite });
-                                }}
-                                sx={{ p: 0.4, flexShrink: 0 }}
-                              >
-                                {note.favorite ? (
-                                  <StarIcon fontSize="small" sx={{ color: '#fbc02d' }} />
-                                ) : (
-                                  <StarBorderIcon fontSize="small" color="action" />
-                                )}
-                              </IconButton>
-                            </Tooltip>
-
-                            {/* Hover / Touch actions */}
-                            <Box
-                              className="note-card-actions"
-                              sx={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 0.2,
-                                opacity: { xs: 1, md: 0 },
-                                pointerEvents: { xs: 'auto', md: 'none' },
-                                visibility: { xs: 'visible', md: 'hidden' },
-                                transition: 'opacity 0.18s ease, visibility 0.18s',
-                              }}
-                            >
-                              <Tooltip title="Duplicar nota">
-                                <IconButton
-                                  size="small"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    duplicateNoteMutation.mutate(note.id);
-                                  }}
-                                  sx={{ p: 0.4, color: 'text.secondary', '&:hover': { color: 'primary.main' } }}
-                                >
-                                  <DuplicateIcon fontSize="small" />
-                                </IconButton>
-                              </Tooltip>
-                              {isTrash ? (
-                                <>
-                                  <Tooltip title="Restaurar nota">
-                                    <IconButton
-                                      size="small"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        restoreNoteMutation.mutate(note.id);
-                                      }}
-                                      sx={{ p: 0.4, color: 'text.secondary', '&:hover': { color: 'success.main' } }}
-                                    >
-                                      <RestoreIcon fontSize="small" />
-                                    </IconButton>
-                                  </Tooltip>
-                                  <Tooltip title="Eliminar permanentemente">
-                                    <IconButton
-                                      size="small"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setConfirmDeleteId(note.id);
-                                      }}
-                                      sx={{ p: 0.4, color: 'text.secondary', '&:hover': { color: 'error.main' } }}
-                                    >
-                                      <DeleteIcon fontSize="small" />
-                                    </IconButton>
-                                  </Tooltip>
-                                </>
-                              ) : (
-                                <Tooltip title="Mover a Papelera">
-                                  <IconButton
-                                    size="small"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      deleteNoteMutation.mutate(note.id);
-                                    }}
-                                    sx={{ p: 0.4, color: 'text.secondary', '&:hover': { color: 'error.main' } }}
-                                  >
-                                    <DeleteIcon fontSize="small" />
-                                  </IconButton>
-                                </Tooltip>
-                              )}
-                            </Box>
-                          </Box>
-                        </Box>
-
-                        {/* Excerpt */}
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          sx={{
-                            display: '-webkit-box',
-                            WebkitLineClamp: 2,
-                            WebkitBoxOrient: 'vertical',
-                            overflow: 'hidden',
-                            mb: 1.5,
-                            fontSize: '0.8rem',
-                            lineHeight: 1.5,
-                          }}
-                        >
-                          {isSearch ? (
-                            <HighlightText text={getPlainText(note.content, 'Sin contenido...')} query={searchQuery} />
-                          ) : (
-                            getPlainText(note.content, 'Sin contenido...')
-                          )}
-                        </Typography>
-
-                        {/* Pinned indicator */}
-                        {pinnedNotes.includes(note.id) && (
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
-                            <PinIcon sx={{ fontSize: 12, color: 'primary.main', transform: 'rotate(45deg)' }} />
-                            <Typography variant="caption" color="primary.main" sx={{ fontSize: '0.62rem', fontWeight: 600 }}>
-                              Fijada
-                            </Typography>
-                          </Box>
-                        )}
-
-                        {/* Tags (soft chips tinted with the project color) */}
-                        {note.tags && note.tags.length > 0 && (
-                          <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', overflow: 'hidden', mb: 1.25 }}>
-                            {note.tags.slice(0, 2).map((tag) => (
-                              <Chip
-                                key={tag}
-                                label={tag}
-                                size="small"
-                                sx={{
-                                  height: 18,
-                                  fontSize: '0.62rem',
-                                  fontWeight: 600,
-                                  borderRadius: '5px',
-                                  bgcolor: `${color}1F`,
-                                  color: 'text.primary',
-                                  '& .MuiChip-label': { px: 0.8 },
-                                }}
-                              />
-                            ))}
-                            {note.tags.length > 2 && (
-                              <Typography
-                                variant="caption"
-                                color="text.disabled"
-                                sx={{ fontSize: '0.62rem', lineHeight: '18px', fontWeight: 600 }}
-                              >
-                                +{note.tags.length - 2}
-                              </Typography>
-                            )}
-                          </Box>
-                        )}
-
-                        {/* Footer: avatars + last editor + date */}
-                        <Box
-                          sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            gap: 1,
-                            mt: 'auto',
-                            pt: 0.5,
-                            borderTop: '1px solid',
-                            borderColor: 'divider',
-                          }}
-                        >
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
-                            <AuthorAvatars
-                              creator={project?.creator}
-                              collaborators={project?.collaborators}
-                              noteMembers={note?.noteMembers}
-                              onMemberClick={setProfileMember}
-                            />
-                            {lastEditor && (
-                              <Tooltip title={`Último editor: ${lastEditor.name}`} placement="top">
-                                <Typography
-                                  variant="caption"
-                                  color="text.disabled"
-                                  sx={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 0.35,
-                                    fontSize: '0.65rem',
-                                    fontWeight: 500,
-                                    minWidth: 0,
-                                  }}
-                                >
-                                  <EditNoteIcon sx={{ fontSize: 13, flexShrink: 0, opacity: 0.7 }} />
-                                  <Box
-                                    component="span"
-                                    sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                                  >
-                                    {lastEditor.name}
-                                  </Box>
-                                </Typography>
-                              </Tooltip>
-                            )}
-                          </Box>
-                          <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.68rem', fontWeight: 500, flexShrink: 0 }}>
-                            {formatRelativeTime(note.updatedAt || note.createdAt)}
-                          </Typography>
-                        </Box>
-                      </CardContent>
-                    </Card>
-                </motion.div>
-              );
-            })}
-            </Stack>
+                      <NoteMasonryCardItem
+                        note={note}
+                        isSelected={isSelected}
+                        project={project}
+                        color={color}
+                        members={members}
+                        lastEditor={lastEditor}
+                        hasCover={hasCover}
+                        coverUrl={coverUrl}
+                        dragNoteId={dragNoteId}
+                        dragOverNoteId={dragOverNoteId}
+                        setDragNoteId={setDragNoteId}
+                        setDragOverNoteId={setDragOverNoteId}
+                        orderedNotes={orderedNotes}
+                        setManualOrder={setManualOrder}
+                        saveOrder={saveOrder}
+                        setCurrentNote={setCurrentNote}
+                        onLongPress={handleOpenContextMenu}
+                        toggleFavoriteMutation={toggleFavoriteMutation}
+                        duplicateNoteMutation={duplicateNoteMutation}
+                        deleteNoteMutation={deleteNoteMutation}
+                        togglePin={togglePin}
+                        pinnedNotes={pinnedNotes}
+                        isCollapsed={isCollapsed}
+                        setProfileMember={setProfileMember}
+                      />
+                    </motion.div>
+                  );
+                })}
+              </Stack>
             </AnimatePresence>
           </InfiniteScroll>
         )}
         </Box>
         </>
       )}
+
+      {/* Menú Rápido por Pulsación Larga (Long-Press Haptic Menu) */}
+      <Menu
+        open={Boolean(contextMenuNote)}
+        onClose={() => setContextMenuNote(null)}
+        anchorReference="anchorPosition"
+        anchorPosition={menuPosition}
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            minWidth: 210,
+            boxShadow: '0 16px 40px rgba(0,0,0,0.25)',
+            border: '1px solid',
+            borderColor: 'divider',
+            p: 0.5,
+          },
+        }}
+      >
+        {contextMenuNote && (
+          <>
+            <Box sx={{ px: 2, py: 1, borderBottom: '1px solid', borderColor: 'divider', mb: 0.5 }}>
+              <Typography variant="subtitle2" fontWeight={700} noWrap sx={{ maxWidth: 200 }}>
+                {contextMenuNote.icon ? `${contextMenuNote.icon} ` : ''}{contextMenuNote.title || 'Sin título'}
+              </Typography>
+            </Box>
+            <MenuItem
+              onClick={() => {
+                toggleFavoriteMutation.mutate({ id: contextMenuNote.id, favorite: contextMenuNote.favorite });
+                setContextMenuNote(null);
+              }}
+            >
+              <ListItemIcon>
+                {contextMenuNote.favorite ? (
+                  <StarIcon sx={{ fontSize: 18, color: '#fbc02d' }} />
+                ) : (
+                  <StarBorderIcon sx={{ fontSize: 18 }} />
+                )}
+              </ListItemIcon>
+              <ListItemText primary={contextMenuNote.favorite ? 'Quitar favorito' : 'Marcar favorito'} />
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                togglePin(contextMenuNote.id);
+                setContextMenuNote(null);
+              }}
+            >
+              <ListItemIcon>
+                {pinnedNotes.includes(contextMenuNote.id) ? (
+                  <PinIcon sx={{ fontSize: 18, color: 'primary.main', transform: 'rotate(45deg)' }} />
+                ) : (
+                  <PinOutlinedIcon sx={{ fontSize: 18 }} />
+                )}
+              </ListItemIcon>
+              <ListItemText primary={pinnedNotes.includes(contextMenuNote.id) ? 'Desfijar' : 'Fijar nota'} />
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                duplicateNoteMutation.mutate(contextMenuNote.id);
+                setContextMenuNote(null);
+              }}
+            >
+              <ListItemIcon>
+                <DuplicateIcon sx={{ fontSize: 18 }} />
+              </ListItemIcon>
+              <ListItemText primary="Duplicar nota" />
+            </MenuItem>
+            <Divider sx={{ my: 0.5 }} />
+            <MenuItem
+              onClick={() => {
+                if (isTrash) {
+                  restoreNoteMutation.mutate(contextMenuNote.id);
+                } else {
+                  deleteNoteMutation.mutate(contextMenuNote.id);
+                }
+                setContextMenuNote(null);
+              }}
+              sx={{ color: isTrash ? 'success.main' : 'error.main' }}
+            >
+              <ListItemIcon sx={{ color: isTrash ? 'success.main' : 'error.main' }}>
+                {isTrash ? <RestoreIcon sx={{ fontSize: 18 }} /> : <DeleteIcon sx={{ fontSize: 18 }} />}
+              </ListItemIcon>
+              <ListItemText primary={isTrash ? 'Restaurar nota' : 'Mover a papelera'} />
+            </MenuItem>
+          </>
+        )}
+      </Menu>
 
       {/* Member profile (clicked avatar) */}
       {profileMember && (
