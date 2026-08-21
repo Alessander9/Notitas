@@ -1182,11 +1182,12 @@ export default function NoteEditor({ noteIdOverride = null } = {}) {
 
   // Tag Management
   const handleAddTag = (e) => {
-    if (e.key === 'Enter' && tagInput.trim() && !isReadOnly) {
+    if ((e.key === 'Enter' || e.key === ',') && tagInput.trim() && !isReadOnly) {
       e.preventDefault();
       const currentTags = note?.tags || [];
-      if (!currentTags.includes(tagInput.trim())) {
-        const newTags = [...currentTags, tagInput.trim()];
+      const val = tagInput.trim().replace(/^,+|,+$/g, '');
+      if (val && !currentTags.includes(val)) {
+        const newTags = [...currentTags, val];
         updateNoteMutation.mutate({ tags: newTags });
       }
       setTagInput('');
@@ -1194,7 +1195,7 @@ export default function NoteEditor({ noteIdOverride = null } = {}) {
   };
 
   const handleAddTagValue = (val) => {
-    const trimmed = (val || '').trim();
+    const trimmed = (val || '').trim().replace(/^,+|,+$/g, '');
     if (!trimmed || isReadOnly) return;
     const currentTags = note?.tags || [];
     if (!currentTags.includes(trimmed)) {
@@ -2594,7 +2595,7 @@ export default function NoteEditor({ noteIdOverride = null } = {}) {
                 disableClearable
                 blurOnSelect
                 size="small"
-                sx={{ minWidth: 110 }}
+                sx={{ minWidth: 120 }}
                 options={projectTags.filter((t) => !(note?.tags || []).includes(t))}
                 value={tagInput}
                 onInputChange={(_, val) => setTagInput(val)}
@@ -2605,10 +2606,24 @@ export default function NoteEditor({ noteIdOverride = null } = {}) {
                     variant="standard"
                     placeholder="+ Etiqueta"
                     onKeyDown={handleAddTag}
+                    onBlur={() => { if (tagInput.trim()) handleAddTagValue(tagInput); }}
                     InputProps={{
                       ...params.InputProps,
                       disableUnderline: true,
                       sx: { fontSize: '0.8rem' },
+                      endAdornment: tagInput.trim() ? (
+                        <IconButton
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAddTagValue(tagInput);
+                          }}
+                          sx={{ p: 0.25, color: 'primary.main', mr: 0.5 }}
+                          aria-label="Agregar etiqueta"
+                        >
+                          <CheckIcon sx={{ fontSize: 16 }} />
+                        </IconButton>
+                      ) : null,
                     }}
                   />
                 )}

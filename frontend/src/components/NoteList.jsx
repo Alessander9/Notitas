@@ -21,6 +21,8 @@ import {
   ToggleButton,
   ToggleButtonGroup,
   Divider,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -62,9 +64,12 @@ import CalendarTimelineView from './CalendarTimelineView';
 
 export default function NoteList() {
   const { currentProjectId, currentNoteId, setCurrentNote, searchQuery, setCurrentProject, notesViewMode = 'masonry', setNotesViewMode } = useUiStore();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [manageMembersOpen, setManageMembersOpen] = React.useState(false);
   const queryClient = useQueryClient();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const effectiveCollapsed = isCollapsed && !isMobile;
   const [pinnedNotes, setPinnedNotes] = useState(() => {
     try {
       const stored = localStorage.getItem('pinned-notes');
@@ -405,8 +410,8 @@ export default function NoteList() {
       onDragOver={handleDragOver}
       onDrop={handleDrop}
       sx={{
-        width: isCollapsed ? 60 : (notesViewMode === 'kanban' || notesViewMode === 'checklist-kanban') ? { xs: '100%', md: 440, lg: 560 } : { xs: '100%', md: 320 },
-        minWidth: isCollapsed ? 60 : (notesViewMode === 'kanban' || notesViewMode === 'checklist-kanban') ? { xs: '100%', md: 440, lg: 560 } : { xs: '100%', md: 320 },
+        width: effectiveCollapsed ? 60 : (notesViewMode === 'kanban' || notesViewMode === 'checklist-kanban') ? { xs: '100%', md: 440, lg: 560 } : { xs: '100%', md: 320 },
+        minWidth: effectiveCollapsed ? 60 : (notesViewMode === 'kanban' || notesViewMode === 'checklist-kanban') ? { xs: '100%', md: 440, lg: 560 } : { xs: '100%', md: 320 },
         height: '100%',
         flexShrink: 0,
         borderRight: '1px solid',
@@ -423,8 +428,8 @@ export default function NoteList() {
       ) : (
         <>
       {/* Header */}
-      <Box sx={{ p: isCollapsed ? 1 : 1.5, display: 'flex', alignItems: 'center', justifyContent: isCollapsed ? 'center' : 'space-between', borderBottom: '1px solid', borderColor: 'divider', minHeight: 56, gap: 1, flexWrap: { xs: 'wrap', sm: 'nowrap' } }}>
-        {isCollapsed ? (
+      <Box sx={{ p: effectiveCollapsed ? 1 : 1.5, display: 'flex', alignItems: 'center', justifyContent: effectiveCollapsed ? 'center' : 'space-between', borderBottom: '1px solid', borderColor: 'divider', minHeight: 56, gap: 1, flexWrap: { xs: 'wrap', sm: 'nowrap' } }}>
+        {effectiveCollapsed ? (
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.2, width: '100%' }}>
             {/* Si estamos dentro de un proyecto, mostrar creador y colaboradores en círculos */}
             {isProjectView && (() => {
@@ -568,26 +573,28 @@ export default function NoteList() {
           </Box>
         ) : (
           <>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0, flex: 1 }}>
               <Tooltip title="Volver a Proyectos">
                 <IconButton
                   size="small"
                   onClick={() => setCurrentProject(null)}
                   sx={{
-                    p: 0.6,
+                    p: { xs: 0.75, sm: 0.6 },
                     borderRadius: 2,
-                    '&:hover': { bgcolor: 'action.hover' },
+                    bgcolor: { xs: 'action.hover', sm: 'transparent' },
+                    color: 'primary.main',
+                    '&:hover': { bgcolor: 'action.selected' },
                   }}
                 >
-                  <ArrowBackIcon sx={{ fontSize: 18 }} />
+                  <ArrowBackIcon sx={{ fontSize: { xs: 20, sm: 18 } }} />
                 </IconButton>
               </Tooltip>
-              <Typography variant="subtitle1" fontWeight="bold" color="text.secondary" noWrap sx={{ fontSize: '0.82rem' }}>
-                {getHeaderTitle().toUpperCase()} ({isFiltering ? `${visibleNotes.length} / ${totalCount}` : totalCount})
+              <Typography variant="subtitle1" fontWeight="bold" color="text.primary" noWrap sx={{ fontSize: { xs: '0.88rem', sm: '0.82rem' } }}>
+                {getHeaderTitle()} ({isFiltering ? `${visibleNotes.length} / ${totalCount}` : totalCount})
               </Typography>
             </Box>
 
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, flexShrink: 0, flexWrap: 'wrap' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, flexShrink: 0 }}>
               <ToggleButtonGroup
                 size="small"
                 value={notesViewMode}
@@ -595,19 +602,19 @@ export default function NoteList() {
                 onChange={(_, val) => val && setNotesViewMode(val)}
                 sx={{ height: 28 }}
               >
-                <ToggleButton value="masonry" sx={{ px: 0.6, py: 0.2 }}>
+                <ToggleButton value="masonry" sx={{ px: { xs: 0.75, sm: 0.6 }, py: 0.2 }}>
                   <Tooltip title="Galería / Tarjetas"><MasonryIcon sx={{ fontSize: 15 }} /></Tooltip>
                 </ToggleButton>
-                <ToggleButton value="list" sx={{ px: 0.6, py: 0.2 }}>
+                <ToggleButton value="list" sx={{ px: { xs: 0.75, sm: 0.6 }, py: 0.2 }}>
                   <Tooltip title="Lista Compacta"><ListIcon sx={{ fontSize: 15 }} /></Tooltip>
                 </ToggleButton>
-                <ToggleButton value="kanban" sx={{ px: 0.6, py: 0.2 }}>
+                <ToggleButton value="kanban" sx={{ px: 0.6, py: 0.2, display: { xs: 'none', sm: 'inline-flex' } }}>
                   <Tooltip title="Tablero Kanban"><KanbanIcon sx={{ fontSize: 15 }} /></Tooltip>
                 </ToggleButton>
-                <ToggleButton value="checklist-kanban" sx={{ px: 0.6, py: 0.2 }}>
+                <ToggleButton value="checklist-kanban" sx={{ px: 0.6, py: 0.2, display: { xs: 'none', md: 'inline-flex' } }}>
                   <Tooltip title="Kanban por Checklists"><ChecklistKanbanIcon sx={{ fontSize: 15 }} /></Tooltip>
                 </ToggleButton>
-                <ToggleButton value="calendar" sx={{ px: 0.6, py: 0.2 }}>
+                <ToggleButton value="calendar" sx={{ px: 0.6, py: 0.2, display: { xs: 'none', md: 'inline-flex' } }}>
                   <Tooltip title="Calendario / Timeline"><CalendarIcon sx={{ fontSize: 15 }} /></Tooltip>
                 </ToggleButton>
               </ToggleButtonGroup>
@@ -618,6 +625,7 @@ export default function NoteList() {
                     size="small"
                     onClick={() => setIsCollapsed(true)}
                     sx={{
+                      display: { xs: 'none', md: 'inline-flex' },
                       p: 0.6,
                       borderRadius: 1.5,
                       border: '1px solid',
@@ -648,7 +656,7 @@ export default function NoteList() {
                 <Button
                   size="small"
                   variant="text"
-                  sx={{ textTransform: 'none', fontSize: '0.68rem', color: 'text.disabled', minHeight: 0, py: 0.2, px: 0.8 }}
+                  sx={{ display: { xs: 'none', sm: 'inline-flex' }, textTransform: 'none', fontSize: '0.68rem', color: 'text.disabled', minHeight: 0, py: 0.2, px: 0.8 }}
                   onClick={() => {
                     setManualOrder({});
                     if (typeof currentProjectId === 'number') {
@@ -665,7 +673,7 @@ export default function NoteList() {
       </Box>
 
       {/* Filtro local (solo en vista de proyecto) */}
-      {isProjectView && !isCollapsed && (
+      {isProjectView && !effectiveCollapsed && (
         <Box sx={{ px: 2, pt: 1.5, pb: 0.5, display: 'flex', flexDirection: 'column', gap: 1 }}>
           <TextField
             size="small"

@@ -26,6 +26,7 @@ import {
   Bolt as QuickNoteIcon,
   NoteAlt as ScratchpadIcon,
   Widgets as WidgetsIcon,
+  ArrowBack as ArrowBackIcon,
 } from '@mui/icons-material';
 import { styled, alpha } from '@mui/material/styles';
 import { useAuthStore } from '../store/authStore';
@@ -95,6 +96,7 @@ export default function Navbar() {
     aiDrawerOpen,
     currentProjectId,
     currentNoteId,
+    setCurrentNote,
     scratchpadOpen,
     toggleScratchpad,
   } = useUiStore();
@@ -216,9 +218,32 @@ export default function Navbar() {
           gap: { xs: 0.5, sm: 1 },
         }}
       >
-        {/* Fila principal: hamburguesa (móvil) + logo + acciones */}
+        {/* Fila principal: botón volver/hamburguesa (móvil) + logo + acciones */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.5, sm: 1 }, flex: 1, minWidth: 0 }}>
-          {isMobile && (
+          {isMobile && currentNoteId ? (
+            <Tooltip title="Volver a la lista de notas">
+              <IconButton
+                edge="start"
+                color="inherit"
+                onClick={() => setCurrentNote(null)}
+                aria-label="Volver a notas"
+                sx={{
+                  mr: 0.5,
+                  p: { xs: 0.75, sm: 1 },
+                  borderRadius: '12px',
+                  bgcolor: (theme) =>
+                    theme.palette.mode === 'dark' ? 'rgba(56, 108, 95, 0.28)' : 'rgba(56, 108, 95, 0.14)',
+                  border: '1px solid',
+                  borderColor: 'primary.main',
+                  color: 'primary.main',
+                  transition: 'all 0.2s ease',
+                  '&:hover': { transform: 'scale(1.05)' },
+                }}
+              >
+                <ArrowBackIcon sx={{ fontSize: { xs: 20, sm: 22 } }} />
+              </IconButton>
+            </Tooltip>
+          ) : isMobile ? (
             <Tooltip title={sidebarMobileOpen ? "Cerrar menú" : "Abrir menú"}>
               <motion.div whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }}>
                 <IconButton
@@ -254,7 +279,7 @@ export default function Navbar() {
                 </IconButton>
               </motion.div>
             </Tooltip>
-          )}
+          ) : null}
           <Box
             sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.75, sm: 1 }, cursor: 'pointer', minWidth: 0 }}
             onClick={() => setCurrentProject(null)}

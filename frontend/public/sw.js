@@ -1,5 +1,5 @@
 // Notitas Service Worker - PWA & Cache Management
-const CACHE_NAME = 'notitas-v4';
+const CACHE_NAME = 'notitas-v5';
 
 self.addEventListener('install', () => {
   self.skipWaiting();
