@@ -1,14 +1,17 @@
 import React from 'react';
-import { Box, Tooltip, Fab } from '@mui/material';
+import { Box, Tooltip, Fab, useTheme, useMediaQuery } from '@mui/material';
 import { AutoAwesome as SparklesIcon, SmartToy as BotIcon } from '@mui/icons-material';
 import { useUiStore } from '../store/uiStore';
 import { useAuthStore } from '../store/authStore';
 
 export default function AiFloatingButton() {
   const { isAuthenticated } = useAuthStore();
-  const { aiDrawerOpen, toggleAiDrawer } = useUiStore();
+  const { aiDrawerOpen, toggleAiDrawer, currentNoteId } = useUiStore();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
-  if (!isAuthenticated || aiDrawerOpen) return null;
+  // En móvil fuera de una nota, la barra inferior (MobileBottomNav) ya incluye el botón de CleoBot.
+  if (!isAuthenticated || aiDrawerOpen || (isMobile && !currentNoteId)) return null;
 
   return (
     <Box

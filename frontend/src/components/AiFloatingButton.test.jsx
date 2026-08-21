@@ -18,6 +18,7 @@ describe('AiFloatingButton', () => {
     });
     useUiStore.mockReturnValue({
       aiDrawerOpen: false,
+      currentNoteId: 1,
       toggleAiDrawer,
     });
   });

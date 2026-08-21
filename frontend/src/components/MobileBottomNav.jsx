@@ -6,7 +6,7 @@ import {
   Star as StarIcon,
   Add as AddIcon,
   DeleteOutline as TrashIcon,
-  AutoAwesome as SparklesIcon,
+  SmartToy as BotIcon,
 } from '@mui/icons-material';
 import { useUiStore } from '../store/uiStore';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -50,7 +50,7 @@ export default function MobileBottomNav({ onOpenQuickNote }) {
       id: 'dashboard',
       label: 'Proyectos',
       icon: <DashboardIcon sx={{ fontSize: 22 }} />,
-      active: currentProjectId === null,
+      active: currentProjectId === null && !aiDrawerOpen,
       onClick: () => {
         setCurrentProject(null);
         setCurrentNote(null);
@@ -60,7 +60,7 @@ export default function MobileBottomNav({ onOpenQuickNote }) {
       id: 'favorites',
       label: 'Favoritos',
       icon: <StarIcon sx={{ fontSize: 22 }} />,
-      active: currentProjectId === 'favorites',
+      active: currentProjectId === 'favorites' && !aiDrawerOpen,
       onClick: () => {
         setCurrentProject('favorites');
         setCurrentNote(null);
@@ -76,7 +76,7 @@ export default function MobileBottomNav({ onOpenQuickNote }) {
       id: 'trash',
       label: 'Papelera',
       icon: <TrashIcon sx={{ fontSize: 22 }} />,
-      active: currentProjectId === 'trash',
+      active: currentProjectId === 'trash' && !aiDrawerOpen,
       onClick: () => {
         setCurrentProject('trash');
         setCurrentNote(null);
@@ -85,25 +85,28 @@ export default function MobileBottomNav({ onOpenQuickNote }) {
     {
       id: 'ai',
       label: 'CleoBot',
-      icon: <SparklesIcon sx={{ fontSize: 22 }} />,
+      icon: <BotIcon sx={{ fontSize: 22 }} />,
       active: aiDrawerOpen,
       onClick: toggleAiDrawer,
-      color: '#845EC2',
+      color: '#10b981',
     },
   ];
 
   return (
     <Box
+      component="nav"
+      aria-label="Navegación inferior móvil"
       sx={{
         position: 'fixed',
         bottom: 0,
         left: 0,
         right: 0,
         zIndex: 1100,
-        height: 'calc(60px + env(safe-area-inset-bottom, 0px))',
-        pb: 'env(safe-area-inset-bottom, 0px)',
+        height: 'calc(62px + env(safe-area-inset-bottom, 0px))',
+        pb: 'max(env(safe-area-inset-bottom, 0px), 8px)',
+        pt: 0.5,
         bgcolor: (theme) =>
-          theme.palette.mode === 'dark' ? 'rgba(26, 26, 53, 0.94)' : 'rgba(255, 255, 255, 0.95)',
+          theme.palette.mode === 'dark' ? 'rgba(15, 15, 35, 0.94)' : 'rgba(255, 255, 255, 0.95)',
         backdropFilter: 'blur(20px) saturate(160%)',
         WebkitBackdropFilter: 'blur(20px) saturate(160%)',
         borderTop: '1px solid',
@@ -112,30 +115,33 @@ export default function MobileBottomNav({ onOpenQuickNote }) {
         alignItems: 'center',
         justifyContent: 'space-around',
         px: 1,
-        boxShadow: '0 -4px 20px rgba(0, 0, 0, 0.08)',
+        boxShadow: '0 -4px 24px rgba(0, 0, 0, 0.12)',
       }}
     >
       {navItems.map((item) => {
         if (item.isAction) {
           return (
-            <Box key={item.id} sx={{ position: 'relative', top: -10 }}>
-              <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+            <Box key={item.id} sx={{ position: 'relative', top: -12 }}>
+              <motion.div whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.92 }}>
                 <IconButton
                   onClick={item.onClick}
                   aria-label="Añadir nota"
                   sx={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: '16px',
-                    background: 'linear-gradient(135deg, #386c5f 0%, #264e44 100%)',
+                    width: 50,
+                    height: 50,
+                    borderRadius: '50%',
+                    background: 'linear-gradient(135deg, #10b981 0%, #386c5f 50%, #153830 100%)',
                     color: '#fff',
-                    boxShadow: '0 6px 20px rgba(56, 108, 95, 0.45)',
+                    boxShadow: '0 8px 24px rgba(16, 185, 129, 0.45)',
+                    border: '2px solid rgba(255, 255, 255, 0.25)',
+                    transition: 'all 0.2s ease',
                     '&:hover': {
-                      background: 'linear-gradient(135deg, #6a968c 0%, #386c5f 100%)',
+                      background: 'linear-gradient(135deg, #34d399 0%, #386c5f 100%)',
+                      boxShadow: '0 10px 28px rgba(16, 185, 129, 0.6)',
                     },
                   }}
                 >
-                  <AddIcon sx={{ fontSize: 26 }} />
+                  <AddIcon sx={{ fontSize: 28 }} />
                 </IconButton>
               </motion.div>
             </Box>
@@ -159,27 +165,61 @@ export default function MobileBottomNav({ onOpenQuickNote }) {
               alignItems: 'center',
               justifyContent: 'center',
               py: 0.5,
-              px: 1.2,
-              borderRadius: 2,
+              px: { xs: 0.8, sm: 1.5 },
+              minWidth: 54,
+              borderRadius: 2.5,
               color: item.active ? activeColor : 'text.secondary',
-              transition: 'all 0.2s ease',
+              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
               '&:active': { transform: 'scale(0.92)' },
             }}
           >
             <motion.div
-              animate={{ scale: item.active ? 1.15 : 1, y: item.active ? -2 : 0 }}
+              animate={{
+                scale: item.active ? 1.15 : 1,
+                y: item.active ? -2 : 0,
+              }}
               transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
             >
-              {item.icon}
+              {item.id === 'ai' ? (
+                <Box
+                  sx={{
+                    width: 30,
+                    height: 30,
+                    borderRadius: '50%',
+                    bgcolor: item.active ? 'rgba(16, 185, 129, 0.2)' : 'transparent',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <BotIcon
+                    sx={{
+                      fontSize: 22,
+                      color: item.active ? '#10b981' : 'text.secondary',
+                      filter: item.active ? 'drop-shadow(0 2px 6px rgba(16, 185, 129, 0.5))' : 'none',
+                    }}
+                  />
+                </Box>
+              ) : (
+                item.icon
+              )}
             </motion.div>
             <Typography
               variant="caption"
               sx={{
-                fontSize: '0.68rem',
+                fontSize: '0.67rem',
                 fontWeight: item.active ? 700 : 500,
                 color: item.active ? activeColor : 'text.secondary',
-                mt: 0.2,
-                lineHeight: 1,
+                mt: 0.3,
+                lineHeight: 1.1,
+                whiteSpace: 'nowrap',
+                letterSpacing: '0.01em',
               }}
             >
               {item.label}
