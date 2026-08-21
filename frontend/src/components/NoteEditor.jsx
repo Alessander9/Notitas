@@ -123,7 +123,7 @@ import CommentsSection from './CommentsSection';
 import EmojiPickerPopover from './EmojiPickerPopover';
 import SlashCommandsMenu from './SlashCommandsMenu';
 import ZenAmbientSoundPlayer from './ZenAmbientSoundPlayer';
-import MobileKeyboardToolbar from './MobileKeyboardToolbar';
+import MobileNoteBottomNav from './MobileNoteBottomNav';
 import EditorStatsPill from './EditorStatsPill';
 import {
   CenterFocusStrong as ZenIcon,
@@ -3290,7 +3290,28 @@ export default function NoteEditor({ noteIdOverride = null } = {}) {
         >
           <EditorContent editor={editor} />
           <FloatingSelectionToolbar editor={editor} />
-          <MobileKeyboardToolbar editor={editor} />
+          <MobileNoteBottomNav
+            editor={editor}
+            currentNoteId={currentNoteId}
+            currentProjectId={note?.projectId || currentProjectId}
+            projectNotes={notes || []}
+            projects={projects || []}
+            onSelectNote={(id) => {
+              flushPendingSaveRef.current?.();
+              setCurrentNote(id);
+            }}
+            onSelectProject={(id) => {
+              flushPendingSaveRef.current?.();
+              setCurrentProject(id);
+              setCurrentNote(null);
+            }}
+            onGoToDashboard={() => {
+              flushPendingSaveRef.current?.();
+              setCurrentProject(null);
+              setCurrentNote(null);
+            }}
+            onOpenAi={toggleAiDrawer}
+          />
         </Box>
 
         {/* Attachments & Images Section */}

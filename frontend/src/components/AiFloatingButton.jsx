@@ -10,8 +10,8 @@ export default function AiFloatingButton() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
-  // En móvil fuera de una nota, la barra inferior (MobileBottomNav) ya incluye el botón de CleoBot.
-  if (!isAuthenticated || aiDrawerOpen || (isMobile && !currentNoteId)) return null;
+  // En móvil, la barra inferior (MobileBottomNav / MobileNoteBottomNav) ya incluye el botón de CleoBot.
+  if (!isAuthenticated || aiDrawerOpen || isMobile) return null;
 
   return (
     <Box
