@@ -37,6 +37,7 @@ import {
   Schedule as ScheduleIcon,
   Description as NoteIcon,
   PlayArrow as PlayArrowIcon,
+  FileUpload as ImportIcon,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
@@ -48,12 +49,14 @@ import ProjectsDashboardSkeleton from './skeletons/ProjectsDashboardSkeleton';
 import EmptyState from './EmptyState';
 import CoverImage from './CoverImage';
 import ProjectFormDialog from './ProjectFormDialog';
+import UniversalNoteImporterModal from './UniversalNoteImporterModal';
 import { COLOR_OPTIONS, getProjectIcon, PROJECT_TEMPLATES } from '../constants/projectOptions';
 import FavoritesSection from './FavoritesSection';
 import CollaboratorsChip from './CollaboratorsChip';
 import { useProjectNotes } from '../hooks/useProjectNotes';
 import { useTiltHover } from '../hooks/useTiltHover';
 import { formatShortDate, getAssetUrl } from '../utils/text';
+import { compressImage } from '../utils/imageCompressor';
 
 // Note count pill used on project cards and list rows
 function NoteCountChip({ projectId, color }) {
@@ -165,7 +168,7 @@ function ProjectGridCard({ project, index, onSelect, onEdit, onShare, onDelete }
           </Box>
         )}
 
-        {/* Hover actions overlay */}
+        {/* Hover / Touch actions overlay */}
         <Box
           className="project-card-actions"
           sx={{
@@ -175,8 +178,8 @@ function ProjectGridCard({ project, index, onSelect, onEdit, onShare, onDelete }
             display: 'flex',
             alignItems: 'center',
             gap: 0.5,
-            opacity: 0,
-            pointerEvents: 'none',
+            opacity: { xs: 1, md: 0 },
+            pointerEvents: { xs: 'auto', md: 'none' },
             transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
             bgcolor: 'rgba(15, 15, 35, 0.85)',
             backdropFilter: 'blur(16px) saturate(150%)',
@@ -345,6 +348,7 @@ export default function ProjectsDashboard() {
   
   // Modal states for creating/editing projects
   const [openModal, setOpenModal] = useState(false);
+  const [importerModalOpen, setImporterModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState(null);
   const [name, setName] = useState('');
@@ -428,9 +432,10 @@ export default function ProjectsDashboard() {
   });
 
   const uploadProjectCover = async (projectId, file) => {
-    const formData = new FormData();
-    formData.append('file', file);
     try {
+      const optimizedFile = await compressImage(file, { maxWidth: 1920, maxHeight: 1080, quality: 0.85 });
+      const formData = new FormData();
+      formData.append('file', optimizedFile);
       await api.post(`/projects/${projectId}/cover`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
@@ -589,33 +594,43 @@ export default function ProjectsDashboard() {
   };
 
   return (
-    <Box sx={{ flexGrow: 1, height: '100%', p: { xs: 2, sm: 4 }, pb: { xs: 12, sm: 4 }, overflowY: 'auto' }}>
+    <Box sx={{ flexGrow: 1, height: '100%', p: { xs: 1.5, sm: 3, md: 4 }, pb: { xs: 12, sm: 4 }, overflowY: 'auto' }}>
       {/* Header section */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4, flexWrap: 'wrap', gap: 2 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, mb: { xs: 2.5, sm: 4 }, flexWrap: 'wrap', gap: 2 }}>
         <Box>
-          <Typography variant="h4" fontWeight="bold" gutterBottom>
+          <Typography variant="h4" fontWeight="bold" gutterBottom sx={{ fontSize: { xs: '1.5rem', sm: '2rem', md: '2.25rem' } }}>
             Mis Proyectos
           </Typography>
-           <Typography variant="body1" color="text.secondary">
+           <Typography variant="body1" color="text.secondary" sx={{ fontSize: { xs: '0.85rem', sm: '1rem' } }}>
              Organiza tus notas, tareas y adjuntos por proyectos
           </Typography>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={handleOpenCreateModal}
-           aria-label="Crear un nuevo proyecto"
-           sx={{ borderRadius: 2, py: 1, px: 2.5, minHeight: 44, fontWeight: 'bold' }}
-        >
-          Nuevo Proyecto
-        </Button>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', width: { xs: '100%', sm: 'auto' } }}>
+          <Button
+            variant="outlined"
+            startIcon={<ImportIcon sx={{ color: '#0ea5e9' }} />}
+            onClick={() => setImporterModalOpen(true)}
+            sx={{ borderRadius: 2, py: 1, px: 2, minHeight: 44, fontWeight: 700, textTransform: 'none' }}
+          >
+            Importar
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={handleOpenCreateModal}
+            aria-label="Crear un nuevo proyecto"
+            sx={{ borderRadius: 2, py: 1, px: 2.5, minHeight: 44, fontWeight: 'bold' }}
+          >
+            Nuevo Proyecto
+          </Button>
+        </Box>
       </Box>
 
       {/* Featured favorites section */}
       <FavoritesSection projects={projects} projectsLoading={isLoading} />
 
       {/* Toolbar filters and toggles */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 2 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 1.5 }}>
         <TextField
           placeholder="Filtrar proyectos..."
           size="small"
@@ -630,6 +645,7 @@ export default function ProjectsDashboard() {
             ),
             sx: { borderRadius: 2, bgcolor: 'background.paper', width: { xs: '100%', sm: 280 } },
           }}
+          sx={{ width: { xs: '100%', sm: 'auto' } }}
         />
 
         <ToggleButtonGroup
@@ -808,7 +824,7 @@ export default function ProjectsDashboard() {
                 >
                   <ListItemButton
                     onClick={() => setCurrentProject(project.id)}
-                    sx={{ borderRadius: 2.5, py: 1.4, pl: 3.25, pr: 3 }}
+                    sx={{ borderRadius: 2.5, py: 1.4, pl: 3.25, pr: { xs: 15, sm: 3 } }}
                   >
                     {/* Color accent bar */}
                     <Box
@@ -853,7 +869,7 @@ export default function ProjectsDashboard() {
                       primary={project.name}
                       secondary={project.description || 'Sin descripción.'}
                       primaryTypographyProps={{ fontWeight: 700, fontSize: '0.95rem' }}
-                      secondaryTypographyProps={{ noWrap: true, maxWidth: '520px', fontSize: '0.8rem' }}
+                      secondaryTypographyProps={{ noWrap: true, maxWidth: { xs: '180px', sm: '320px', md: '520px' }, fontSize: '0.8rem' }}
                     />
                     <Box sx={{ mr: 4, display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 2 }}>
                       <NoteCountChip projectId={project.id} color={project.color} />
@@ -890,7 +906,7 @@ export default function ProjectsDashboard() {
                     </Box>
                   </ListItemButton>
 
-                  {/* Hover actions overlay */}
+                  {/* Hover / Touch actions overlay */}
                   <Box
                     className="project-list-actions"
                     sx={{
@@ -901,8 +917,8 @@ export default function ProjectsDashboard() {
                       display: 'flex',
                       alignItems: 'center',
                       gap: 0.5,
-                      opacity: 0,
-                      pointerEvents: 'none',
+                      opacity: { xs: 1, md: 0 },
+                      pointerEvents: { xs: 'auto', md: 'none' },
                       transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                       bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(26, 26, 53, 0.95)' : 'rgba(255, 255, 255, 0.95)',
                       backdropFilter: 'blur(12px)',
@@ -1044,6 +1060,14 @@ export default function ProjectsDashboard() {
           <Button onClick={() => setOpenShareModal(false)}>Cerrar</Button>
         </DialogActions>
       </Dialog>
+
+      {/* Modal de Importación Universal de Notas */}
+      {importerModalOpen && (
+        <UniversalNoteImporterModal
+          open={importerModalOpen}
+          onClose={() => setImporterModalOpen(false)}
+        />
+      )}
     </Box>
   );
 }

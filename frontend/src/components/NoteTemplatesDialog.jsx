@@ -55,6 +55,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import { toast } from '../store/toastStore';
 import { useConfirmStore } from '../store/confirmStore';
+import AiTemplateGeneratorModal from './AiTemplateGeneratorModal';
 
 const NOTE_TEMPLATES = [
   {
@@ -605,6 +606,7 @@ export default function NoteTemplatesDialog({ open, onClose, onSelectTemplate })
   const [selectedId, setSelectedId] = useState('groceries');
   const [activeCategory, setActiveCategory] = useState('Todas');
   const [searchQuery, setSearchQuery] = useState('');
+  const [aiGeneratorOpen, setAiGeneratorOpen] = useState(false);
 
   // Estados para el editor modal de plantilla personalizada
   const [customEditorOpen, setCustomEditorOpen] = useState(false);
@@ -829,6 +831,23 @@ export default function NoteTemplatesDialog({ open, onClose, onSelectTemplate })
           </Box>
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<SparklesIcon sx={{ color: '#386c5f' }} />}
+              onClick={() => setAiGeneratorOpen(true)}
+              sx={{
+                textTransform: 'none',
+                fontWeight: 700,
+                borderRadius: 2.5,
+                px: 1.8,
+                borderColor: 'primary.main',
+                background: (theme) =>
+                  theme.palette.mode === 'dark' ? 'rgba(56, 108, 95, 0.2)' : 'rgba(56, 108, 95, 0.08)',
+              }}
+            >
+              Crear con CleoBot
+            </Button>
             <Button
               variant="contained"
               size="small"
@@ -1234,6 +1253,21 @@ export default function NoteTemplatesDialog({ open, onClose, onSelectTemplate })
           </DialogActions>
         </form>
       </Dialog>
+
+      {/* Modal Generador de Plantillas con IA (CleoBot) */}
+      {aiGeneratorOpen && (
+        <AiTemplateGeneratorModal
+          open={aiGeneratorOpen}
+          onClose={() => setAiGeneratorOpen(false)}
+          onApplyTemplate={(tmpl) => {
+            onSelectTemplate(tmpl);
+            onClose();
+          }}
+          onSaveToCustomTemplates={(tmplPayload) => {
+            createMutation.mutate(tmplPayload);
+          }}
+        />
+      )}
     </>
   );
 }

@@ -22,7 +22,12 @@ export default function AuthLayout({ children }) {
         minHeight: '100vh',
         '@supports (min-height: 100dvh)': { minHeight: '100dvh' },
         display: 'flex',
+        flexDirection: { xs: 'column', md: 'row' },
         bgcolor: 'background.default',
+        width: '100%',
+        maxWidth: '100vw',
+        overflowX: 'hidden',
+        boxSizing: 'border-box',
       }}
     >
       {/* Panel de marca (desktop) */}
@@ -105,26 +110,48 @@ export default function AuthLayout({ children }) {
       </Box>
 
       {/* Panel del formulario */}
-      <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: { xs: 2, sm: 4 } }}>
-        <Box sx={{ width: '100%', maxWidth: 420 }}>
+      <Box
+        sx={{
+          flex: 1,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          p: { xs: 1.5, sm: 3, md: 4 },
+          pt: { xs: 'max(20px, env(safe-area-inset-top, 20px))', sm: 3, md: 4 },
+          pb: { xs: 'max(20px, env(safe-area-inset-bottom, 20px))', sm: 3, md: 4 },
+          px: { xs: 'max(12px, env(safe-area-inset-left, 12px))', sm: 3, md: 4 },
+          width: '100%',
+          boxSizing: 'border-box',
+        }}
+      >
+        <Box sx={{ width: '100%', maxWidth: { xs: '100%', sm: 420 }, mx: 'auto' }}>
           {/* Logo compacto solo en móvil */}
-          <Box sx={{ textAlign: 'center', mb: 3, display: { xs: 'block', md: 'none' } }}>
-            <Box sx={{ display: 'flex', justifyContent: 'center', mb: 1.5 }}>
+          <Box sx={{ textAlign: 'center', mb: { xs: 2, sm: 3 }, display: { xs: 'block', md: 'none' } }}>
+            <Box sx={{ display: 'flex', justifyContent: 'center', mb: 1 }}>
               <img
                 src={logoImage}
                 alt="Notitas Logo"
                 style={{
-                  width: 64,
-                  height: 64,
+                  width: 52,
+                  height: 52,
                   objectFit: 'contain',
                   filter: 'drop-shadow(0 2px 8px rgba(56,108,95,0.3))',
                 }}
               />
             </Box>
-            <Typography variant="h4" fontWeight={800} color="primary">
+            <Typography
+              variant="h5"
+              fontWeight={800}
+              color="primary"
+              sx={{ fontSize: { xs: '1.45rem', sm: '1.75rem' }, letterSpacing: '-0.02em' }}
+            >
               Notitas
             </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{ mt: 0.25, fontSize: { xs: '0.78rem', sm: '0.875rem' }, px: 1 }}
+            >
               Organizador de Proyectos, Notas y Recursos
             </Typography>
           </Box>

@@ -172,3 +172,157 @@ export function renderMarkdown(content) {
 
   return blocks;
 }
+
+export function markdownToEditorHtml(content) {
+  if (!content) return '';
+  const lines = String(content).split('\n');
+  const htmlBlocks = [];
+  let i = 0;
+
+  const escapeHtml = (str) =>
+    String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+
+  const formatInline = (text) => {
+    if (!text) return '';
+    // Protegemos temporalmente los tokens de inline code para evitar reemplazos cruzados
+    const codeTokens = [];
+    let formatted = text.replace(/`([^`]+)`/g, (_, code) => {
+      codeTokens.push(`<code>${escapeHtml(code)}</code>`);
+      return `__CODE_TOKEN_${codeTokens.length - 1}__`;
+    });
+
+    formatted = escapeHtml(formatted)
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>');
+
+    // Restaurar tokens de código
+    codeTokens.forEach((token, idx) => {
+      formatted = formatted.replace(`__CODE_TOKEN_${idx}__`, token);
+    });
+
+    return formatted;
+  };
+
+  while (i < lines.length) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    // Bloque de código con fences ```
+    if (trimmed.startsWith('```')) {
+      const codeLines = [];
+      i += 1;
+      while (i < lines.length && !lines[i].trim().startsWith('```')) {
+        codeLines.push(escapeHtml(lines[i]));
+        i += 1;
+      }
+      i += 1; // saltar el cierre ```
+      htmlBlocks.push(`<pre><code>${codeLines.join('\n')}</code></pre>`);
+      continue;
+    }
+
+    // Encabezados (#, ##, ###)
+    const heading = trimmed.match(/^(#{1,3})\s+(.*)$/);
+    if (heading) {
+      const level = heading[1].length;
+      const headingText = formatInline(heading[2]);
+      htmlBlocks.push(`<h${level}>${headingText}</h${level}>`);
+      i += 1;
+      continue;
+    }
+
+    // Línea divisoria
+    if (/^\s*([-*_])\1{2,}\s*$/.test(trimmed)) {
+      htmlBlocks.push('<hr>');
+      i += 1;
+      continue;
+    }
+
+    // Tabla Markdown
+    if (line.includes('|') && i + 1 < lines.length && isTableSeparator(lines[i + 1])) {
+      const headerCells = splitCells(line);
+      i += 2; // saltar encabezado y separador
+      const rows = [];
+      while (i < lines.length && lines[i].includes('|') && lines[i].trim() !== '') {
+        rows.push(splitCells(lines[i]));
+        i += 1;
+      }
+      const headerHtml = `<tr>${headerCells.map((c) => `<th><p>${formatInline(c)}</p></th>`).join('')}</tr>`;
+      const bodyHtml = rows
+        .map((row) => `<tr>${row.map((c) => `<td><p>${formatInline(c)}</p></td>`).join('')}</tr>`)
+        .join('');
+      htmlBlocks.push(`<table><tbody>${headerHtml}${bodyHtml}</tbody></table>`);
+      continue;
+    }
+
+    // Cita (> ...)
+    if (trimmed.startsWith('>')) {
+      const quoteLines = [];
+      while (i < lines.length && lines[i].trim().startsWith('>')) {
+        quoteLines.push(formatInline(lines[i].trim().replace(/^>\s?/, '')));
+        i += 1;
+      }
+      htmlBlocks.push(`<blockquote><p>${quoteLines.join('<br>')}</p></blockquote>`);
+      continue;
+    }
+
+    // Lista de tareas (- [ ] o - [x])
+    const taskMatch = trimmed.match(/^[-*•]\s+\[([ xX])\]\s+(.*)$/);
+    if (taskMatch) {
+      const taskItems = [];
+      while (i < lines.length) {
+        const tm = lines[i].trim().match(/^[-*•]\s+\[([ xX])\]\s+(.*)$/);
+        if (tm) {
+          const checked = tm[1].toLowerCase() === 'x';
+          taskItems.push(
+            `<li data-type="taskItem" data-checked="${checked}"><label><input type="checkbox"${checked ? ' checked="checked"' : ''}><span></span></label><div><p>${formatInline(tm[2])}</p></div></li>`
+          );
+          i += 1;
+        } else {
+          break;
+        }
+      }
+      htmlBlocks.push(`<ul data-type="taskList">${taskItems.join('')}</ul>`);
+      continue;
+    }
+
+    // Listas con viñetas o numeradas
+    const ulMatch = trimmed.match(/^[-*•]\s+(.*)$/);
+    const olMatch = trimmed.match(/^\d+[.)]\s+(.*)$/);
+    if (ulMatch || olMatch) {
+      const isOrdered = Boolean(olMatch);
+      const items = [];
+      while (i < lines.length) {
+        const itemLine = lines[i].trim();
+        const m = isOrdered
+          ? itemLine.match(/^\d+[.)]\s+(.*)$/)
+          : itemLine.match(/^[-*•]\s+(.*)$/);
+        if (m) {
+          items.push(`<li><p>${formatInline(m[1])}</p></li>`);
+          i += 1;
+        } else {
+          break;
+        }
+      }
+      const tag = isOrdered ? 'ol' : 'ul';
+      htmlBlocks.push(`<${tag}>${items.join('')}</${tag}>`);
+      continue;
+    }
+
+    // Líneas vacías
+    if (trimmed === '') {
+      i += 1;
+      continue;
+    }
+
+    // Párrafo estándar
+    htmlBlocks.push(`<p>${formatInline(trimmed)}</p>`);
+    i += 1;
+  }
+
+  return htmlBlocks.join('');
+}
+

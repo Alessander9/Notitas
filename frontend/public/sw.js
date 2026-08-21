@@ -1,7 +1,7 @@
 // Notitas Service Worker - PWA & Cache Management
 const CACHE_NAME = 'notitas-v3';
 
-self.addEventListener('install', (event) => {
+self.addEventListener('install', () => {
   self.skipWaiting();
 });
 
@@ -32,6 +32,7 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') {
     return;
   }
+
 
   // 3. No interceptar llamadas API ni endpoints dinámicos del backend
   if (

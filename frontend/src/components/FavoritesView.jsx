@@ -186,7 +186,7 @@ export default function FavoritesView() {
                         pointerEvents: 'none',
                       }}
                     />
-                    {/* Hover actions */}
+                    {/* Hover / Touch actions */}
                     <Box
                       className="fav-view-actions"
                       onClick={(e) => e.stopPropagation()}
@@ -196,9 +196,9 @@ export default function FavoritesView() {
                         right: 8,
                         display: 'flex',
                         gap: 0.4,
-                        opacity: 0,
-                        pointerEvents: 'none',
-                        visibility: 'hidden',
+                        opacity: { xs: 1, md: 0 },
+                        pointerEvents: { xs: 'auto', md: 'none' },
+                        visibility: { xs: 'visible', md: 'hidden' },
                         transition: 'opacity 0.18s ease, visibility 0.18s',
                       }}
                     >

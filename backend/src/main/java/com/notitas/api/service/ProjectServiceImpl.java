@@ -21,7 +21,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -57,6 +59,7 @@ public class ProjectServiceImpl implements ProjectService {
     private NotificationService notificationService;
 
     @Override
+    @Transactional(readOnly = true)
     public List<ProjectResponse> getProjectsByUser(Long userId) {
         // Own projects
         List<Project> ownProjects = projectRepository.findByUserIdOrderByCreatedAtDesc(userId);
@@ -82,12 +85,20 @@ public class ProjectServiceImpl implements ProjectService {
             }
         }
 
+        // Carga en lote de miembros para eliminar el problema N+1
+        List<Long> projectIds = combined.stream().map(Project::getId).collect(Collectors.toList());
+        Map<Long, List<ProjectMember>> membersByProject = projectIds.isEmpty()
+                ? Collections.emptyMap()
+                : projectMemberRepository.findByProjectIdIn(projectIds).stream()
+                        .collect(Collectors.groupingBy(m -> m.getProject().getId()));
+
         return combined.stream()
-                .map(p -> mapToResponse(p, userId))
+                .map(p -> mapToResponse(p, userId, membersByProject.getOrDefault(p.getId(), Collections.emptyList())))
                 .collect(Collectors.toList());
     }
 
     @Override
+    @Transactional(readOnly = true)
     public ProjectResponse getProjectByIdAndUser(Long id, Long userId) {
         Project project = projectRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado"));
@@ -331,11 +342,18 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     private ProjectResponse mapToResponse(Project project, Long currentUserId) {
+        List<ProjectMember> members = projectMemberRepository.findByProjectId(project.getId());
+        return mapToResponse(project, currentUserId, members);
+    }
+
+    private ProjectResponse mapToResponse(Project project, Long currentUserId, List<ProjectMember> members) {
         String role = "VIEWER";
         if (project.getUser().getId().equals(currentUserId)) {
             role = "OWNER";
-        } else {
-            Optional<ProjectMember> memberOpt = projectMemberRepository.findByProjectIdAndUserId(project.getId(), currentUserId);
+        } else if (members != null) {
+            Optional<ProjectMember> memberOpt = members.stream()
+                    .filter(m -> m.getUser().getId().equals(currentUserId))
+                    .findFirst();
             if (memberOpt.isPresent()) {
                 role = memberOpt.get().getRole();
             }
@@ -349,8 +367,7 @@ public class ProjectServiceImpl implements ProjectService {
                 .role("OWNER")
                 .build();
 
-        List<ProjectMember> members = projectMemberRepository.findByProjectId(project.getId());
-        List<ProjectResponse.UserResponse> collaboratorsDto = members.stream()
+        List<ProjectResponse.UserResponse> collaboratorsDto = (members != null ? members : Collections.<ProjectMember>emptyList()).stream()
                 .map(m -> ProjectResponse.UserResponse.builder()
                         .id(m.getUser().getId())
                         .name(m.getUser().getName())

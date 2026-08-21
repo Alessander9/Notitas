@@ -9,6 +9,12 @@ import {
   Tooltip,
   Paper,
   CircularProgress,
+  Button,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
+  Divider,
   useTheme,
   useMediaQuery,
 } from '@mui/material';
@@ -18,7 +24,6 @@ import {
   AutoAwesome as SparklesIcon,
   Send as SendIcon,
   ContentCopy as CopyIcon,
-  AddCircleOutline as InsertIcon,
   DeleteSweep as ClearIcon,
   Lightbulb as IdeaIcon,
   MenuBook as BookIcon,
@@ -26,17 +31,26 @@ import {
   Bolt as FastIcon,
   Folder as FolderIcon,
   KeyboardArrowDown as KeyboardArrowDownIcon,
+  PostAdd as PostAddIcon,
+  NoteAdd as NoteAddIcon,
+  VerticalAlignBottom as AppendIcon,
+  FindReplace as ReplaceIcon,
+  Input as CursorInsertIcon,
+  ArrowDropDown as ArrowDropDownIcon,
+  AlternateEmail as AtIcon,
 } from '@mui/icons-material';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import { useUiStore } from '../store/uiStore';
 import { useProjectNotes } from '../hooks/useProjectNotes';
 import { toast } from '../store/toastStore';
+import { confirm } from '../store/confirmStore';
 import { getPlainText } from '../utils/text';
-import { renderMarkdown } from '../utils/markdown';
+import { renderMarkdown, markdownToEditorHtml } from '../utils/markdown';
 
 const SUGGESTED_PROMPTS = [
   { icon: <IdeaIcon sx={{ fontSize: 15 }} />, text: '¿Qué funciones y atajos tiene Notitas?', label: 'Atajos y funciones' },
+  { icon: <AtIcon sx={{ fontSize: 15 }} />, text: '¿Cómo arrobar y vincular notas de otros proyectos?', label: 'Menciones @ entre notas' },
   { icon: <FastIcon sx={{ fontSize: 15 }} />, text: '¿Cómo activar el Modo Zen o los comandos "/"?', label: 'Modo Zen y Slash' },
   { icon: <BookIcon sx={{ fontSize: 15 }} />, text: 'Resume los puntos clave de la nota actual', label: 'Resumir nota actual', needsNote: true },
   { icon: <TasksIcon sx={{ fontSize: 15 }} />, text: 'Extrae una lista de tareas de la nota actual', label: 'Extraer tareas', needsNote: true },
@@ -52,11 +66,15 @@ function AiPanelContent({ onClose }) {
     aiDrawerOpen,
     currentNoteId,
     currentProjectId,
+    setCurrentNote,
+    setCurrentProject,
   } = useUiStore();
+  const queryClient = useQueryClient();
 
   const [inputMessage, setInputMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [includeNoteContext, setIncludeNoteContext] = useState(true);
+  const [transferMenuAnchor, setTransferMenuAnchor] = useState(null);
   const [messages, setMessages] = useState([
     {
       id: 'welcome',
@@ -172,32 +190,23 @@ function AiPanelContent({ onClose }) {
         id: String(Date.now() + 1),
         role: 'assistant',
         content: res.data.message,
-        provider: res.data.provider || 'Groq',
+        provider: res.data.provider || 'CleoBot',
         model: res.data.model,
       };
 
       setMessages((prev) => [...prev, aiMsg]);
     } catch (err) {
-      console.warn('Backend AI endpoint no respondió o falló, activando failover directo:', err);
-      try {
-        const directRes = await directAiChat(apiMessages, noteContext, projectContext);
-        const aiMsg = {
-          id: String(Date.now() + 1),
-          role: 'assistant',
-          content: directRes.message,
-          provider: directRes.provider || 'Groq Direct',
-        };
-        setMessages((prev) => [...prev, aiMsg]);
-      } catch (directErr) {
-        console.error('Error total en AI Assistant chat:', directErr);
-        const errMsg = {
-          id: String(Date.now() + 1),
-          role: 'assistant',
-          content: '⚠️ Lo siento, ocurrió un problema al conectar con los servicios de IA. Por favor intenta de nuevo en unos momentos.',
-          isError: true,
-        };
-        setMessages((prev) => [...prev, errMsg]);
-      }
+      console.error('Error en AI Assistant chat:', err);
+      const serverMessage = err.response?.data?.message;
+      const errMsg = {
+        id: String(Date.now() + 1),
+        role: 'assistant',
+        content: serverMessage
+          ? `⚠️ ${serverMessage}`
+          : '⚠️ Lo siento, ocurrió un problema al conectar con los servicios de IA. Por favor intenta de nuevo en unos momentos.',
+        isError: true,
+      };
+      setMessages((prev) => [...prev, errMsg]);
     } finally {
       setLoading(false);
     }
@@ -215,32 +224,78 @@ function AiPanelContent({ onClose }) {
     toast.success('Respuesta copiada al portapapeles');
   };
 
-  const handleInsertIntoNote = (content) => {
+  const createNewNoteWithAiContent = async (markdownContent) => {
+    try {
+      const targetProjectId =
+        currentProjectId && typeof currentProjectId === 'number'
+          ? currentProjectId
+          : projects.length > 0
+            ? projects[0].id
+            : null;
+
+      if (!targetProjectId) {
+        toast.error('Crea o selecciona un proyecto para guardar notas');
+        return;
+      }
+
+      // Extraer una primera línea limpia como título sugerido
+      const firstLine = markdownContent
+        .split('\n')[0]
+        .replace(/^#+\s*/, '')
+        .replace(/[*`_]/g, '')
+        .trim()
+        .slice(0, 48);
+      const noteTitle = firstLine ? `CleoBot: ${firstLine}` : 'Respuesta de CleoBot';
+      const editorHtml = markdownToEditorHtml(markdownContent);
+
+      const res = await api.post(`/projects/${targetProjectId}/notes`, {
+        title: noteTitle,
+        content: editorHtml,
+        tags: ['CleoBot', 'IA'],
+        icon: '🤖',
+      });
+
+      queryClient.invalidateQueries({ queryKey: ['notes'] });
+      queryClient.invalidateQueries({ queryKey: ['projectNotes'] });
+      setCurrentProject(targetProjectId);
+      setCurrentNote(res.data.id);
+      toast.success('Nueva nota creada con el contenido de CleoBot');
+    } catch (err) {
+      console.error('Error creando nueva nota desde IA:', err);
+      toast.error('No se pudo crear la nueva nota');
+    }
+  };
+
+  const handleInsertIntoNote = (content, mode = 'insert') => {
     if (!currentNoteId) {
-      toast.info('Abre una nota para poder insertar el contenido generado');
+      createNewNoteWithAiContent(content);
       return;
     }
-    // Convert markdown to HTML rich text for the note editor
-    let formatted = content
-      .replace(/^### (.*)$/gm, '<h3>$1</h3>')
-      .replace(/^## (.*)$/gm, '<h2>$1</h2>')
-      .replace(/^# (.*)$/gm, '<h1>$1</h1>')
-      .replace(/^```[\w]*\n?([\s\S]*?)```/gm, '<pre><code>$1</code></pre>')
-      .replace(/^> (.*)$/gm, '<blockquote>$1</blockquote>')
-      .replace(/^[-*•]\s+(.*)$/gm, '<li>$1</li>')
-      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*([^*]+)\*/g, '<em>$1</em>')
-      .replace(/`([^`]+)`/g, '<code>$1</code>');
-    // Agrupar viñetas consecutivas en una lista
-    formatted = formatted.replace(/((?:<li>.*<\/li>\n?)+)/g, (m) => `<ul>${m}</ul>`);
-    formatted = formatted.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br/>');
+
+    const htmlContent = markdownToEditorHtml(content);
 
     window.dispatchEvent(
       new CustomEvent('notitas-ai-insert', {
-        detail: { content: `<p>${formatted}</p>` },
+        detail: { content: htmlContent, mode },
       })
     );
-    toast.success('Contenido insertado en la nota activa');
+
+    if (mode === 'replace') {
+      toast.success('Contenido de la nota reemplazado');
+    } else if (mode === 'append') {
+      toast.success('Contenido añadido al final de la nota');
+    } else {
+      toast.success('Contenido insertado en la nota activa');
+    }
+  };
+
+  const handleOpenTransferMenu = (event, content) => {
+    event.stopPropagation();
+    setTransferMenuAnchor({ el: event.currentTarget, content });
+  };
+
+  const handleCloseTransferMenu = () => {
+    setTransferMenuAnchor(null);
   };
 
   const handleClearHistory = () => {
@@ -567,26 +622,64 @@ function AiPanelContent({ onClose }) {
 
               {/* Action Buttons below AI messages */}
               {!isUser && !msg.isError && msg.id !== 'welcome' && (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.6, pl: 0.5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 0.8, pl: 0.5, mt: 0.3 }}>
                   {msg.provider && (
                     <Chip
                       label={msg.provider}
                       size="small"
-                      sx={{ height: 16, fontSize: '0.6rem', fontWeight: 600, opacity: 0.7 }}
+                      sx={{ height: 18, fontSize: '0.62rem', fontWeight: 600, opacity: 0.75 }}
                     />
                   )}
+
+                  {/* Botón principal para traspasar a la nota */}
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    color="primary"
+                    startIcon={<PostAddIcon sx={{ fontSize: 16 }} />}
+                    endIcon={<ArrowDropDownIcon sx={{ fontSize: 18, ml: -0.5 }} />}
+                    onClick={(e) => handleOpenTransferMenu(e, msg.content)}
+                    aria-label="Traspasar respuesta a la nota"
+                    sx={{
+                      textTransform: 'none',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      py: 0.3,
+                      px: 1.2,
+                      height: 26,
+                      borderRadius: 2,
+                      borderColor: 'divider',
+                      bgcolor: (theme) =>
+                        theme.palette.mode === 'dark' ? 'rgba(56, 108, 95, 0.18)' : 'rgba(56, 108, 95, 0.08)',
+                      color: 'primary.main',
+                      '&:hover': {
+                        bgcolor: 'primary.main',
+                        color: '#fff',
+                        borderColor: 'primary.main',
+                      },
+                    }}
+                  >
+                    {currentNoteId ? 'Traspasar a nota' : 'Crear nueva nota'}
+                  </Button>
+
+                  {/* Acceso rápido a copiar */}
                   <Tooltip title="Copiar al portapapeles">
-                    <IconButton size="small" onClick={() => handleCopy(msg.content)} sx={{ p: 0.4 }}>
+                    <IconButton
+                      size="small"
+                      onClick={() => handleCopy(msg.content)}
+                      aria-label="Copiar respuesta"
+                      sx={{
+                        p: 0.4,
+                        borderRadius: 1.5,
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        bgcolor: 'background.paper',
+                        '&:hover': { bgcolor: 'action.hover' },
+                      }}
+                    >
                       <CopyIcon sx={{ fontSize: 13 }} />
                     </IconButton>
                   </Tooltip>
-                  {currentNoteId && (
-                    <Tooltip title="Insertar en la nota activa">
-                      <IconButton size="small" onClick={() => handleInsertIntoNote(msg.content)} sx={{ p: 0.4, color: 'primary.main' }}>
-                        <InsertIcon sx={{ fontSize: 13 }} />
-                      </IconButton>
-                    </Tooltip>
-                  )}
                 </Box>
               )}
             </Box>
@@ -682,6 +775,152 @@ function AiPanelContent({ onClose }) {
           </IconButton>
         </Box>
       </Box>
+
+      {/* ── Menú de Opciones para Traspasar a la Nota ── */}
+      <Menu
+        anchorEl={transferMenuAnchor?.el}
+        open={Boolean(transferMenuAnchor)}
+        onClose={handleCloseTransferMenu}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            minWidth: 260,
+            boxShadow: '0 12px 36px rgba(0,0,0,0.22)',
+            border: '1px solid',
+            borderColor: 'divider',
+            p: 0.6,
+          },
+        }}
+      >
+        <Box sx={{ px: 1.5, py: 0.6, borderBottom: '1px solid', borderColor: 'divider', mb: 0.5 }}>
+          <Typography
+            variant="caption"
+            fontWeight={700}
+            color="text.secondary"
+            sx={{ textTransform: 'uppercase', fontSize: '0.65rem', letterSpacing: 0.6 }}
+          >
+            Traspasar a la nota
+          </Typography>
+        </Box>
+
+        {currentNoteId ? [
+          <MenuItem
+            key="insert"
+            onClick={() => {
+              if (transferMenuAnchor?.content) {
+                handleInsertIntoNote(transferMenuAnchor.content, 'insert');
+              }
+              handleCloseTransferMenu();
+            }}
+            sx={{ borderRadius: 2, py: 0.8, mb: 0.2 }}
+          >
+            <ListItemIcon sx={{ minWidth: 32, color: 'primary.main' }}>
+              <CursorInsertIcon sx={{ fontSize: 19 }} />
+            </ListItemIcon>
+            <ListItemText
+              primary="Insertar en el cursor"
+              secondary="En la posición actual de la nota"
+              primaryTypographyProps={{ fontSize: '0.82rem', fontWeight: 600 }}
+              secondaryTypographyProps={{ fontSize: '0.7rem' }}
+            />
+          </MenuItem>,
+
+          <MenuItem
+            key="append"
+            onClick={() => {
+              if (transferMenuAnchor?.content) {
+                handleInsertIntoNote(transferMenuAnchor.content, 'append');
+              }
+              handleCloseTransferMenu();
+            }}
+            sx={{ borderRadius: 2, py: 0.8, mb: 0.2 }}
+          >
+            <ListItemIcon sx={{ minWidth: 32, color: 'secondary.main' }}>
+              <AppendIcon sx={{ fontSize: 19 }} />
+            </ListItemIcon>
+            <ListItemText
+              primary="Añadir al final"
+              secondary="Agregar al final de la nota activa"
+              primaryTypographyProps={{ fontSize: '0.82rem', fontWeight: 600 }}
+              secondaryTypographyProps={{ fontSize: '0.7rem' }}
+            />
+          </MenuItem>,
+
+          <MenuItem
+            key="replace"
+            onClick={async () => {
+              const contentToReplace = transferMenuAnchor?.content;
+              handleCloseTransferMenu();
+              if (!contentToReplace) return;
+              const ok = await confirm({
+                title: '¿Reemplazar contenido de la nota?',
+                message:
+                  'Esta acción sustituirá todo el texto actual de la nota por la respuesta de CleoBot. Podrás deshacer el cambio con Ctrl+Z.',
+                confirmText: 'Reemplazar',
+                cancelText: 'Cancelar',
+              });
+              if (ok) {
+                handleInsertIntoNote(contentToReplace, 'replace');
+              }
+            }}
+            sx={{ borderRadius: 2, py: 0.8, mb: 0.2 }}
+          >
+            <ListItemIcon sx={{ minWidth: 32, color: 'warning.main' }}>
+              <ReplaceIcon sx={{ fontSize: 19 }} />
+            </ListItemIcon>
+            <ListItemText
+              primary="Reemplazar contenido"
+              secondary="Sustituir toda la nota actual"
+              primaryTypographyProps={{ fontSize: '0.82rem', fontWeight: 600 }}
+              secondaryTypographyProps={{ fontSize: '0.7rem' }}
+            />
+          </MenuItem>,
+
+          <Divider key="divider" sx={{ my: 0.6 }} />,
+        ] : null}
+
+        <MenuItem
+          onClick={() => {
+            if (transferMenuAnchor?.content) {
+              createNewNoteWithAiContent(transferMenuAnchor.content);
+            }
+            handleCloseTransferMenu();
+          }}
+          sx={{ borderRadius: 2, py: 0.8, mb: 0.2 }}
+        >
+          <ListItemIcon sx={{ minWidth: 32, color: '#10b981' }}>
+            <NoteAddIcon sx={{ fontSize: 19 }} />
+          </ListItemIcon>
+          <ListItemText
+            primary="Crear como nueva nota"
+            secondary="Guardar en el proyecto activo"
+            primaryTypographyProps={{ fontSize: '0.82rem', fontWeight: 600 }}
+            secondaryTypographyProps={{ fontSize: '0.7rem' }}
+          />
+        </MenuItem>
+
+        <MenuItem
+          onClick={() => {
+            if (transferMenuAnchor?.content) {
+              handleCopy(transferMenuAnchor.content);
+            }
+            handleCloseTransferMenu();
+          }}
+          sx={{ borderRadius: 2, py: 0.8 }}
+        >
+          <ListItemIcon sx={{ minWidth: 32, color: 'text.secondary' }}>
+            <CopyIcon sx={{ fontSize: 19 }} />
+          </ListItemIcon>
+          <ListItemText
+            primary="Copiar texto"
+            secondary="Copiar respuesta al portapapeles"
+            primaryTypographyProps={{ fontSize: '0.82rem', fontWeight: 600 }}
+            secondaryTypographyProps={{ fontSize: '0.7rem' }}
+          />
+        </MenuItem>
+      </Menu>
     </>
   );
 }

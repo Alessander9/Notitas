@@ -3,14 +3,19 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import AiFloatingButton from './AiFloatingButton';
 import { useUiStore } from '../store/uiStore';
+import { useAuthStore } from '../store/authStore';
 
 vi.mock('../store/uiStore');
+vi.mock('../store/authStore');
 
 describe('AiFloatingButton', () => {
   const toggleAiDrawer = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
+    useAuthStore.mockReturnValue({
+      isAuthenticated: true,
+    });
     useUiStore.mockReturnValue({
       aiDrawerOpen: false,
       toggleAiDrawer,
@@ -34,6 +39,14 @@ describe('AiFloatingButton', () => {
     useUiStore.mockReturnValue({
       aiDrawerOpen: true,
       toggleAiDrawer,
+    });
+    const { container } = render(<AiFloatingButton />);
+    expect(container.querySelector('button')).toBeNull();
+  });
+
+  it('se oculta cuando el usuario no está autenticado (isAuthenticated: false)', () => {
+    useAuthStore.mockReturnValue({
+      isAuthenticated: false,
     });
     const { container } = render(<AiFloatingButton />);
     expect(container.querySelector('button')).toBeNull();

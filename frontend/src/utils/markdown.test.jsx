@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Fragment } from 'react';
-import { renderMarkdown } from './markdown';
+import { renderMarkdown, markdownToEditorHtml } from './markdown';
 
 // Cada bloque se envuelve en un <React.Fragment key>; desempaquetamos el hijo real
 const unwrap = (block) => (block && block.type === Fragment ? block.props.children : block);
@@ -85,5 +85,46 @@ describe('renderMarkdown', () => {
     const blocks = renderMarkdown('Hola mundo');
     expect(first(blocks).type).toBe('p');
     expect(flatten(first(blocks).props.children)).toBe('Hola mundo');
+  });
+});
+
+describe('markdownToEditorHtml', () => {
+  it('convierte encabezados y párrafos con formato inline', () => {
+    const html = markdownToEditorHtml('# Título\n\nTexto con **negrita**, *cursiva* y `código`.');
+    expect(html).toContain('<h1>Título</h1>');
+    expect(html).toContain('<p>');
+    expect(html).toContain('<strong>negrita</strong>');
+    expect(html).toContain('<em>cursiva</em>');
+    expect(html).toContain('<code>código</code>');
+  });
+
+  it('convierte listas de tareas para TipTap TaskList', () => {
+    const html = markdownToEditorHtml('- [ ] Tarea pendiente\n- [x] Tarea completada');
+    expect(html).toContain('<ul data-type="taskList">');
+    expect(html).toContain('<li data-type="taskItem" data-checked="false">');
+    expect(html).toContain('<li data-type="taskItem" data-checked="true">');
+    expect(html).toContain('Tarea pendiente');
+    expect(html).toContain('Tarea completada');
+  });
+
+  it('convierte listas ordenadas y con viñetas', () => {
+    const ulHtml = markdownToEditorHtml('- Item 1\n- Item 2');
+    expect(ulHtml).toContain('<ul><li><p>Item 1</p></li><li><p>Item 2</p></li></ul>');
+
+    const olHtml = markdownToEditorHtml('1. Primero\n2. Segundo');
+    expect(olHtml).toContain('<ol><li><p>Primero</p></li><li><p>Segundo</p></li></ol>');
+  });
+
+  it('convierte bloques de código y citas', () => {
+    const html = markdownToEditorHtml('```js\nconsole.log("hola");\n```\n\n> Cita motivacional');
+    expect(html).toContain('<pre><code>console.log("hola");</code></pre>');
+    expect(html).toContain('<blockquote><p>Cita motivacional</p></blockquote>');
+  });
+
+  it('convierte tablas markdown a HTML', () => {
+    const html = markdownToEditorHtml('| Col1 | Col2 |\n|---|---|\n| Val1 | Val2 |');
+    expect(html).toContain('<table><tbody>');
+    expect(html).toContain('<th><p>Col1</p></th>');
+    expect(html).toContain('<td><p>Val1</p></td>');
   });
 });

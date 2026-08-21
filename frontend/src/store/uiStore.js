@@ -22,6 +22,15 @@ export const useUiStore = create((set) => ({
   zenMode: false,
   aiDrawerOpen: false,
   scratchpadOpen: false,
+  // Interlineado del editor (persisted in localStorage)
+  editorLineHeight: (() => {
+    try {
+      const stored = parseFloat(localStorage.getItem('notitas-line-height'));
+      return isNaN(stored) ? 1.6 : stored;
+    } catch {
+      return 1.6;
+    }
+  })(),
   toggleDarkMode: () => set((state) => ({ darkMode: !state.darkMode })),
   toggleZenMode: () => set((state) => ({ zenMode: !state.zenMode })),
   setZenMode: (val) => set({ zenMode: val }),
@@ -41,5 +50,11 @@ export const useUiStore = create((set) => ({
       localStorage.setItem('notitas-view-mode', mode);
     } catch {}
     set({ notesViewMode: mode });
+  },
+  setEditorLineHeight: (value) => {
+    try {
+      localStorage.setItem('notitas-line-height', String(value));
+    } catch {}
+    set({ editorLineHeight: value });
   },
 }));

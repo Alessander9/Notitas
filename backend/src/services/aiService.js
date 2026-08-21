@@ -50,6 +50,8 @@ async function callGroq(messages) {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) throw new Error('GROQ_API_KEY no configurada');
 
+  const model = process.env.GROQ_MODEL || 'groq/compound';
+
   const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -57,7 +59,7 @@ async function callGroq(messages) {
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
+      model,
       messages,
       temperature: 0.7,
       max_tokens: 2048,
@@ -75,9 +77,9 @@ async function callGroq(messages) {
   if (!content) throw new Error('Groq devolvió una respuesta vacía');
 
   return {
-    content,
+    content: content.trim(),
     provider: 'Groq',
-    model: 'llama-3.3-70b-versatile',
+    model,
   };
 }
 
@@ -88,16 +90,18 @@ async function callOpenRouter(messages) {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) throw new Error('OPENROUTER_API_KEY no configurada');
 
+  const model = process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.3-70b-instruct';
+
   const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${apiKey}`,
       'HTTP-Referer': 'https://notitas-cleo.vercel.app',
-      'X-Title': 'CleoBot — Asistente Virtual',
+      'X-Title': 'CleoBot - Asistente Virtual',
     },
     body: JSON.stringify({
-      model: 'meta-llama/llama-3.3-70b-instruct',
+      model,
       messages,
       temperature: 0.7,
       max_tokens: 2048,
@@ -115,9 +119,9 @@ async function callOpenRouter(messages) {
   if (!content) throw new Error('OpenRouter devolvió una respuesta vacía');
 
   return {
-    content,
+    content: content.trim(),
     provider: 'OpenRouter',
-    model: 'llama-3.3-70b',
+    model,
   };
 }
 
@@ -147,8 +151,10 @@ async function callGemini(messages) {
     },
   };
 
+  const model = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
     {
       method: 'POST',
       headers: {
@@ -169,9 +175,9 @@ async function callGemini(messages) {
   if (!content) throw new Error('Gemini devolvió una respuesta vacía');
 
   return {
-    content,
+    content: content.trim(),
     provider: 'Google Gemini',
-    model: 'gemini-flash-latest',
+    model,
   };
 }
 

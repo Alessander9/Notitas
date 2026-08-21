@@ -19,8 +19,14 @@ import {
   DialogActions,
   Menu,
   MenuItem,
+  ListItemText,
+  ListItemIcon,
   Breadcrumbs,
   Link,
+  Slider,
+  Popover,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material';
 import {
   Star as StarIcon,
@@ -73,6 +79,9 @@ import {
   Slideshow as PresentationIcon,
   AccountTree as MermaidIcon,
   Mic as VoiceIcon,
+  SettingsVoice as LiveVoiceIcon,
+  FormatLineSpacing as LineSpacingIcon,
+  MoreVert as MoreVertIcon,
 } from '@mui/icons-material';
 import { useEditor, EditorContent, ReactNodeViewRenderer } from '@tiptap/react';
 import FloatingSelectionToolbar from './FloatingSelectionToolbar';
@@ -113,16 +122,20 @@ import {
 import CommentsSection from './CommentsSection';
 import EmojiPickerPopover from './EmojiPickerPopover';
 import SlashCommandsMenu from './SlashCommandsMenu';
+import ZenAmbientSoundPlayer from './ZenAmbientSoundPlayer';
 import {
   CenterFocusStrong as ZenIcon,
   Animation as GifIcon,
   EmojiEmotions as EmojiIcon,
   AutoAwesome as TemplateIcon,
+  AutoAwesome as SparklesIcon,
+  Headphones as AmbientIcon,
 } from '@mui/icons-material';
 
 // Modales secundarios cargados bajo demanda para aligerar el árbol principal de renderizado
 const CanvasModal = React.lazy(() => import('./CanvasModal'));
 const CalculatorModal = React.lazy(() => import('./CalculatorModal'));
+const SpeechDictationModal = React.lazy(() => import('./SpeechDictationModal'));
 const NoteHistoryDialog = React.lazy(() => import('./NoteHistoryDialog'));
 const NoteCollaboratorsDialog = React.lazy(() => import('./NoteCollaboratorsDialog'));
 const MediaPickerModal = React.lazy(() => import('./MediaPickerModal'));
@@ -286,12 +299,33 @@ export default function NoteEditor({ noteIdOverride = null } = {}) {
    const [reminderDialogOpen, setReminderDialogOpen] = useState(false);
   const [wikiOpen, setWikiOpen] = useState(false);
   const [wikiQuery, setWikiQuery] = useState('');
+  const [mentionTrigger, setMentionTrigger] = useState('@');
   const [wikiMenuPos, setWikiMenuPos] = useState({ top: 0, left: 0 });
+
+  // Notas de todos los proyectos del usuario para autocompletar menciones (@)
+  const { data: allUserNotes = [] } = useQuery({
+    queryKey: ['all-user-notes-mention'],
+    queryFn: async () => {
+      const res = await api.get('/notes/search?size=300');
+      return res.data?.content || [];
+    },
+    staleTime: 30000,
+  });
+
+  const { data: userProjects = [] } = useQuery({
+    queryKey: ['projects'],
+    queryFn: async () => (await api.get('/projects')).data,
+    staleTime: 60000,
+  });
   const [canvasModalOpen, setCanvasModalOpen] = useState(false);
   const [calculatorModalOpen, setCalculatorModalOpen] = useState(false);
   const [presentationModalOpen, setPresentationModalOpen] = useState(false);
   const [mermaidModalOpen, setMermaidModalOpen] = useState(false);
   const [audioModalOpen, setAudioModalOpen] = useState(false);
+  const [dictationModalOpen, setDictationModalOpen] = useState(false);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const [mobileToolsAnchor, setMobileToolsAnchor] = useState(null);
 
   // Menu state for moving note to project
   const [projectMenuAnchor, setProjectMenuAnchor] = useState(null);
@@ -312,8 +346,10 @@ export default function NoteEditor({ noteIdOverride = null } = {}) {
   const [mediaPickerTab, setMediaPickerTab] = useState('gifs');
 
   // Estados de Emoji Picker, Plantillas, Slash Commands, Modo Zen y Asistente IA
-  const { zenMode, toggleZenMode, toggleAiDrawer } = useUiStore();
+  const { zenMode, toggleZenMode, toggleAiDrawer, editorLineHeight, setEditorLineHeight } = useUiStore();
+  const [lineSpacingAnchor, setLineSpacingAnchor] = useState(null);
   const [emojiAnchor, setEmojiAnchor] = useState(null);
+  const [ambientAnchor, setAmbientAnchor] = useState(null);
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [slashOpen, setSlashOpen] = useState(false);
   const [slashQuery, setSlashQuery] = useState('');
@@ -660,9 +696,20 @@ export default function NoteEditor({ noteIdOverride = null } = {}) {
               setSlashOpen(false);
             }
 
-            // Detección de enlaces wiki [[
+            // Detección de menciones @ o enlaces wiki [[
+            const mentionMatch = textBefore.match(/(?:^|\s)@([a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s]*)$/);
             const wikiMatch = textBefore.match(/\[\[([^\]]*)$/);
-            if (wikiMatch) {
+
+            if (mentionMatch) {
+              setMentionTrigger('@');
+              setWikiQuery(mentionMatch[1] || '');
+              setWikiOpen(true);
+              try {
+                const coords = ed.view.coordsAtPos($from.pos);
+                setWikiMenuPos({ top: coords.bottom + 8, left: coords.left });
+              } catch {}
+            } else if (wikiMatch) {
+              setMentionTrigger('[[');
               setWikiQuery(wikiMatch[1] || '');
               setWikiOpen(true);
               try {
@@ -688,8 +735,20 @@ export default function NoteEditor({ noteIdOverride = null } = {}) {
   // Escuchar inserciones automáticas generadas por CleoBot
   useEffect(() => {
     const handleAiInsert = (e) => {
-      const content = e.detail?.content;
-      if (editor && content) {
+      const { content, mode = 'insert' } = e.detail || {};
+      if (!editor || !content || isReadOnlyRef.current) return;
+
+      if (mode === 'replace') {
+        editor.commands.setContent(content);
+        scheduleSaveRef.current(titleRef.current, content);
+      } else if (mode === 'append') {
+        const isDocEmpty = editor.isEmpty;
+        if (isDocEmpty) {
+          editor.chain().focus('end').insertContent(content).run();
+        } else {
+          editor.chain().focus('end').insertContent(`<p></p>${content}`).run();
+        }
+      } else {
         editor.chain().focus().insertContent(content).run();
       }
     };
@@ -1406,29 +1465,36 @@ export default function NoteEditor({ noteIdOverride = null } = {}) {
               size="small"
               onClick={() => setCurrentNote(null)}
               sx={{
-                p: 0.8,
+                p: { xs: 0.6, sm: 0.8 },
                 borderRadius: 2,
                 '&:hover': { bgcolor: 'action.hover' },
               }}
             >
-              <ArrowBackIcon sx={{ fontSize: 18 }} />
+              <ArrowBackIcon sx={{ fontSize: { xs: 18, sm: 20 } }} />
             </IconButton>
           </Tooltip>
 
           <Breadcrumbs
             separator="›"
             sx={{
-              fontSize: '0.8rem',
+              fontSize: { xs: '0.75rem', sm: '0.8rem' },
               minWidth: 0,
               overflow: 'hidden',
-              '& .MuiBreadcrumbs-ol': { flexWrap: 'wrap' },
+              '& .MuiBreadcrumbs-ol': { flexWrap: 'nowrap', overflow: 'hidden' },
+              '& .MuiBreadcrumbs-li': { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
             }}
           >
             <Link
               component="button"
               variant="body2"
               onClick={() => { setCurrentProject(null); setCurrentNote(null); }}
-              sx={{ color: 'text.secondary', textDecoration: 'none', '&:hover': { color: 'primary.main' } }}
+              sx={{
+                color: 'text.secondary',
+                textDecoration: 'none',
+                '&:hover': { color: 'primary.main' },
+                display: { xs: 'none', sm: 'inline-block' },
+                fontSize: '0.75rem',
+              }}
             >
               Proyectos
             </Link>
@@ -1436,17 +1502,32 @@ export default function NoteEditor({ noteIdOverride = null } = {}) {
               component="button"
               variant="body2"
               onClick={() => setCurrentNote(null)}
-              sx={{ color: 'text.secondary', textDecoration: 'none', '&:hover': { color: 'primary.main' } }}
+              sx={{
+                color: 'text.secondary',
+                textDecoration: 'none',
+                '&:hover': { color: 'primary.main' },
+                maxWidth: { xs: 110, sm: 180 },
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                fontSize: { xs: '0.75rem', sm: '0.8rem' },
+              }}
             >
               {currentProjectName}
             </Link>
-            <Typography variant="body2" color="text.primary" fontWeight={600} noWrap>
+            <Typography
+              variant="body2"
+              color="text.primary"
+              fontWeight={600}
+              noWrap
+              sx={{ maxWidth: { xs: 120, sm: 220 }, fontSize: { xs: '0.75rem', sm: '0.8rem' } }}
+            >
               {note?.title || 'Sin título'}
             </Typography>
           </Breadcrumbs>
         </Box>
 
-        {/* Actions: status (moved to the sticky formatting bar) + icon group */}
+        {/* Actions */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
           {isReadOnly && (
             <Chip
@@ -1455,13 +1536,14 @@ export default function NoteEditor({ noteIdOverride = null } = {}) {
               size="small"
               color="warning"
               variant="outlined"
-              sx={{ mr: 0.75, height: 24 }}
+              sx={{ mr: 0.5, height: 22, fontSize: '0.7rem' }}
             />
           )}
 
+          {/* Desktop Toolbar (md+) */}
           <Box
             sx={{
-              display: 'flex',
+              display: { xs: 'none', md: 'flex' },
               alignItems: 'center',
               gap: 0.25,
               px: 0.5,
@@ -1545,6 +1627,17 @@ export default function NoteEditor({ noteIdOverride = null } = {}) {
               </IconButton>
             </Tooltip>
 
+            <Tooltip title="Dictado por voz en vivo (/dictado)">
+              <IconButton
+                size="small"
+                onClick={() => setDictationModalOpen(true)}
+                disabled={isReadOnly}
+                sx={{ p: 0.6, color: '#0ea5e9' }}
+              >
+                <LiveVoiceIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+
             <Tooltip title="Nota de voz / Audio (/audio)">
               <IconButton
                 size="small"
@@ -1603,6 +1696,16 @@ export default function NoteEditor({ noteIdOverride = null } = {}) {
                 ) : (
                   <DownloadIcon fontSize="small" />
                 )}
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip title="Sonidos de concentración (Lluvia, Olas, Café...)">
+              <IconButton
+                size="small"
+                onClick={(e) => setAmbientAnchor(e.currentTarget)}
+                sx={{ p: 0.6, color: ambientAnchor ? 'primary.main' : 'inherit' }}
+              >
+                <AmbientIcon fontSize="small" />
               </IconButton>
             </Tooltip>
 
@@ -1669,6 +1772,370 @@ export default function NoteEditor({ noteIdOverride = null } = {}) {
               ))}
           </Box>
 
+          {/* Mobile Toolbar (< md): Sleek 3-button compact bar */}
+          <Box sx={{ display: { xs: 'flex', md: 'none' }, alignItems: 'center', gap: 0.5 }}>
+            {!isReadOnly && (
+              <Tooltip title={note?.favorite ? 'Quitar de favoritas' : 'Marcar como favorita'}>
+                <IconButton size="small" onClick={toggleFavorite} sx={{ p: 0.6 }}>
+                  {note?.favorite ? (
+                    <StarIcon fontSize="small" sx={{ color: '#fbc02d' }} />
+                  ) : (
+                    <StarBorderIcon fontSize="small" />
+                  )}
+                </IconButton>
+              </Tooltip>
+            )}
+
+            <Tooltip title="Compartir nota">
+              <IconButton size="small" onClick={handleOpenShareDialog} sx={{ p: 0.6 }}>
+                <ShareIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip title="Herramientas y opciones">
+              <IconButton
+                size="small"
+                onClick={(e) => setMobileToolsAnchor(e.currentTarget)}
+                sx={{
+                  p: 0.6,
+                  bgcolor: mobileToolsAnchor ? 'action.selected' : 'action.hover',
+                  borderRadius: 2,
+                }}
+              >
+                <MoreVertIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+
+            {/* Mobile Tools Menu */}
+            <Menu
+              anchorEl={mobileToolsAnchor}
+              open={Boolean(mobileToolsAnchor)}
+              onClose={() => setMobileToolsAnchor(null)}
+              PaperProps={{
+                sx: {
+                  mt: 1,
+                  width: 290,
+                  maxWidth: 'calc(100vw - 32px)',
+                  maxHeight: 'calc(100vh - 120px)',
+                  borderRadius: 3,
+                  boxShadow: '0 16px 36px rgba(0,0,0,0.25)',
+                  p: 0.5,
+                },
+              }}
+            >
+              <Typography variant="overline" sx={{ px: 2, py: 0.4, fontWeight: 800, color: 'text.secondary', display: 'block', fontSize: '0.65rem' }}>
+                Edición y Estructura
+              </Typography>
+
+              {!isReadOnly && (
+                <MenuItem
+                  onClick={() => {
+                    setMobileToolsAnchor(null);
+                    setMediaPickerTarget('cover');
+                    setMediaPickerTab('gifs');
+                    setMediaPickerOpen(true);
+                  }}
+                  sx={{ borderRadius: 1.5, py: 0.7, gap: 1.5 }}
+                >
+                  <AddCoverIcon sx={{ fontSize: 19, color: 'primary.main' }} />
+                  <ListItemText
+                    primary={coverUrl ? 'Cambiar portada' : 'Agregar portada'}
+                    secondary="GIF animado o fondo HD"
+                    primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
+                    secondaryTypographyProps={{ variant: 'caption' }}
+                  />
+                </MenuItem>
+              )}
+
+              {!isReadOnly && (
+                <MenuItem
+                  onClick={(e) => {
+                    setMobileToolsAnchor(null);
+                    setEmojiAnchor(e.currentTarget);
+                  }}
+                  sx={{ borderRadius: 1.5, py: 0.7, gap: 1.5 }}
+                >
+                  <EmojiIcon sx={{ fontSize: 19, color: '#f59e0b' }} />
+                  <ListItemText
+                    primary="Icono / Emoji"
+                    secondary={note?.icon ? `Actual: ${note.icon}` : 'Personalizar icono'}
+                    primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
+                    secondaryTypographyProps={{ variant: 'caption' }}
+                  />
+                </MenuItem>
+              )}
+
+              {!isReadOnly && (
+                <MenuItem
+                  onClick={() => {
+                    setMobileToolsAnchor(null);
+                    setTemplatesOpen(true);
+                  }}
+                  sx={{ borderRadius: 1.5, py: 0.7, gap: 1.5 }}
+                >
+                  <TemplateIcon sx={{ fontSize: 19, color: '#f39c12' }} />
+                  <ListItemText
+                    primary="Plantillas de notas"
+                    secondary="15 plantillas disponibles"
+                    primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
+                    secondaryTypographyProps={{ variant: 'caption' }}
+                  />
+                </MenuItem>
+              )}
+
+              <MenuItem
+                onClick={() => {
+                  setMobileToolsAnchor(null);
+                  toggleAiDrawer();
+                }}
+                sx={{ borderRadius: 1.5, py: 0.7, gap: 1.5 }}
+              >
+                <SparklesIcon sx={{ fontSize: 19, color: '#845EC2' }} />
+                <ListItemText
+                  primary="Asistente IA CleoBot"
+                  secondary="Resumir, redactar y consultar"
+                  primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
+                  secondaryTypographyProps={{ variant: 'caption' }}
+                />
+              </MenuItem>
+
+              <Divider sx={{ my: 0.5 }} />
+              <Typography variant="overline" sx={{ px: 2, py: 0.4, fontWeight: 800, color: 'text.secondary', display: 'block', fontSize: '0.65rem' }}>
+                Herramientas Creativas
+              </Typography>
+
+              <MenuItem
+                disabled={isReadOnly}
+                onClick={() => {
+                  setMobileToolsAnchor(null);
+                  setCanvasModalOpen(true);
+                }}
+                sx={{ borderRadius: 1.5, py: 0.7, gap: 1.5 }}
+              >
+                <DrawIcon sx={{ fontSize: 19, color: 'info.main' }} />
+                <ListItemText primary="Pizarra de dibujo" secondary="Dibujar a mano (/canvas)" primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }} secondaryTypographyProps={{ variant: 'caption' }} />
+              </MenuItem>
+
+              <MenuItem
+                disabled={isReadOnly}
+                onClick={() => {
+                  setMobileToolsAnchor(null);
+                  setCalculatorModalOpen(true);
+                }}
+                sx={{ borderRadius: 1.5, py: 0.7, gap: 1.5 }}
+              >
+                <CalcIcon sx={{ fontSize: 19, color: 'success.main' }} />
+                <ListItemText primary="Calculadora" secondary="Cálculos matemáticos (/calc)" primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }} secondaryTypographyProps={{ variant: 'caption' }} />
+              </MenuItem>
+
+              <MenuItem
+                disabled={isReadOnly}
+                onClick={() => {
+                  setMobileToolsAnchor(null);
+                  setMermaidModalOpen(true);
+                }}
+                sx={{ borderRadius: 1.5, py: 0.7, gap: 1.5 }}
+              >
+                <MermaidIcon sx={{ fontSize: 19, color: '#845EC2' }} />
+                <ListItemText primary="Diagrama Mermaid" secondary="Diagramas y flujos (/mermaid)" primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }} secondaryTypographyProps={{ variant: 'caption' }} />
+              </MenuItem>
+
+              <MenuItem
+                disabled={isReadOnly}
+                onClick={() => {
+                  setMobileToolsAnchor(null);
+                  setDictationModalOpen(true);
+                }}
+                sx={{ borderRadius: 1.5, py: 0.7, gap: 1.5 }}
+              >
+                <LiveVoiceIcon sx={{ fontSize: 19, color: '#0ea5e9' }} />
+                <ListItemText primary="Dictado por voz" secondary="Transcribe voz a texto" primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }} secondaryTypographyProps={{ variant: 'caption' }} />
+              </MenuItem>
+
+              <MenuItem
+                disabled={isReadOnly}
+                onClick={() => {
+                  setMobileToolsAnchor(null);
+                  setAudioModalOpen(true);
+                }}
+                sx={{ borderRadius: 1.5, py: 0.7, gap: 1.5 }}
+              >
+                <VoiceIcon sx={{ fontSize: 19, color: '#e11d48' }} />
+                <ListItemText primary="Grabar nota de audio" secondary="Adjuntar grabación de voz" primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }} secondaryTypographyProps={{ variant: 'caption' }} />
+              </MenuItem>
+
+              <MenuItem
+                onClick={() => {
+                  setMobileToolsAnchor(null);
+                  setPresentationModalOpen(true);
+                }}
+                sx={{ borderRadius: 1.5, py: 0.7, gap: 1.5 }}
+              >
+                <PresentationIcon sx={{ fontSize: 19, color: '#0284c7' }} />
+                <ListItemText primary="Modo Presentación" secondary="Ver como diapositivas" primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }} secondaryTypographyProps={{ variant: 'caption' }} />
+              </MenuItem>
+
+              <Divider sx={{ my: 0.5 }} />
+              <Typography variant="overline" sx={{ px: 2, py: 0.4, fontWeight: 800, color: 'text.secondary', display: 'block', fontSize: '0.65rem' }}>
+                Gestión y Opciones
+              </Typography>
+
+              {!isReadOnly && (
+                <MenuItem
+                  onClick={() => {
+                    setMobileToolsAnchor(null);
+                    fileInputRef.current?.click();
+                  }}
+                  sx={{ borderRadius: 1.5, py: 0.7, gap: 1.5 }}
+                >
+                  <AttachFileIcon sx={{ fontSize: 19 }} />
+                  <ListItemText primary="Adjuntar archivo" secondary="Documentos, PDFs, imágenes" primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }} secondaryTypographyProps={{ variant: 'caption' }} />
+                </MenuItem>
+              )}
+
+              {!isReadOnly && (
+                <MenuItem
+                  onClick={(e) => {
+                    setMobileToolsAnchor(null);
+                    handleMoveNoteClick(e);
+                  }}
+                  sx={{ borderRadius: 1.5, py: 0.7, gap: 1.5 }}
+                >
+                  <MoveIcon sx={{ fontSize: 19 }} />
+                  <ListItemText primary="Mover a otro proyecto" secondary={`Actual: ${currentProjectName}`} primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }} secondaryTypographyProps={{ variant: 'caption' }} />
+                </MenuItem>
+              )}
+
+              {note?.shareToken && (
+                <MenuItem
+                  onClick={() => {
+                    setMobileToolsAnchor(null);
+                    setCollaboratorsOpen(true);
+                  }}
+                  sx={{ borderRadius: 1.5, py: 0.7, gap: 1.5 }}
+                >
+                  <PeopleAltIcon sx={{ fontSize: 19 }} />
+                  <ListItemText primary="Colaboradores" secondary="Gestionar permisos" primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }} secondaryTypographyProps={{ variant: 'caption' }} />
+                </MenuItem>
+              )}
+
+              <MenuItem
+                onClick={() => {
+                  setMobileToolsAnchor(null);
+                  setHistoryOpen(true);
+                }}
+                sx={{ borderRadius: 1.5, py: 0.7, gap: 1.5 }}
+              >
+                <HistoryIcon sx={{ fontSize: 19 }} />
+                <ListItemText primary="Historial de versiones" secondary="Ver y restaurar cambios" primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }} secondaryTypographyProps={{ variant: 'caption' }} />
+              </MenuItem>
+
+              <MenuItem
+                onClick={() => {
+                  setMobileToolsAnchor(null);
+                  setReminderDialogOpen(true);
+                }}
+                sx={{ borderRadius: 1.5, py: 0.7, gap: 1.5 }}
+              >
+                <AlarmAddIcon sx={{ fontSize: 19, color: getReminderForNote(currentNoteId) ? 'warning.main' : 'inherit' }} />
+                <ListItemText primary="Recordatorio" secondary={getReminderForNote(currentNoteId) ? `Programado: ${new Date(getReminderForNote(currentNoteId).remindAt).toLocaleString()}` : 'Añadir alarma'} primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }} secondaryTypographyProps={{ variant: 'caption' }} />
+              </MenuItem>
+
+              <MenuItem
+                onClick={() => {
+                  setMobileToolsAnchor(null);
+                  duplicateMutation.mutate();
+                }}
+                disabled={duplicateMutation.isPending}
+                sx={{ borderRadius: 1.5, py: 0.7, gap: 1.5 }}
+              >
+                <DuplicateIcon sx={{ fontSize: 19 }} />
+                <ListItemText primary="Duplicar nota" secondary="Crear una copia exacta" primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }} secondaryTypographyProps={{ variant: 'caption' }} />
+              </MenuItem>
+
+              <MenuItem
+                onClick={(e) => {
+                  setMobileToolsAnchor(null);
+                  setExportMenuAnchor(e.currentTarget);
+                }}
+                sx={{ borderRadius: 1.5, py: 0.7, gap: 1.5 }}
+              >
+                <DownloadIcon sx={{ fontSize: 19 }} />
+                <ListItemText primary="Exportar / Importar" secondary="PDF, Word, Markdown, HTML, PNG" primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }} secondaryTypographyProps={{ variant: 'caption' }} />
+              </MenuItem>
+
+              <MenuItem
+                onClick={(e) => {
+                  setMobileToolsAnchor(null);
+                  setAmbientAnchor(e.currentTarget);
+                }}
+                sx={{ borderRadius: 1.5, py: 0.7, gap: 1.5 }}
+              >
+                <AmbientIcon sx={{ fontSize: 19 }} />
+                <ListItemText primary="Sonidos de concentración" secondary="Lluvia, Olas, Café..." primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }} secondaryTypographyProps={{ variant: 'caption' }} />
+              </MenuItem>
+
+              <MenuItem
+                onClick={() => {
+                  setMobileToolsAnchor(null);
+                  toggleZenMode();
+                }}
+                sx={{ borderRadius: 1.5, py: 0.7, gap: 1.5 }}
+              >
+                <ZenIcon sx={{ fontSize: 19, color: zenMode ? 'primary.main' : 'inherit' }} />
+                <ListItemText primary="Modo Concentración (Zen)" secondary="Ocultar distracciones" primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }} secondaryTypographyProps={{ variant: 'caption' }} />
+              </MenuItem>
+
+              {!isReadOnly && (
+                <MenuItem
+                  onClick={() => {
+                    setMobileToolsAnchor(null);
+                    setPinModalMode(note?.hasPin ? 'remove' : 'set');
+                    setPinInputValue('');
+                    setPinModalOpen(true);
+                  }}
+                  sx={{ borderRadius: 1.5, py: 0.7, gap: 1.5 }}
+                >
+                  <LockIcon sx={{ fontSize: 19, color: note?.hasPin ? 'error.main' : 'primary.main' }} />
+                  <ListItemText primary={note?.hasPin ? 'Quitar protección PIN' : 'Proteger con PIN'} secondary="Bloqueo de seguridad" primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }} secondaryTypographyProps={{ variant: 'caption' }} />
+                </MenuItem>
+              )}
+
+              {!isReadOnly && (
+                <MenuItem
+                  onClick={() => {
+                    setMobileToolsAnchor(null);
+                    handleToggleArchive();
+                  }}
+                  sx={{ borderRadius: 1.5, py: 0.7, gap: 1.5 }}
+                >
+                  {note?.archived ? <UnarchiveIcon sx={{ fontSize: 19 }} /> : <ArchiveIcon sx={{ fontSize: 19 }} />}
+                  <ListItemText primary={note?.archived ? 'Restaurar de archivadas' : 'Archivar nota'} primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }} />
+                </MenuItem>
+              )}
+
+              {!isReadOnly && (
+                <MenuItem
+                  onClick={() => {
+                    setMobileToolsAnchor(null);
+                    confirm({
+                      title: 'Mover a la papelera',
+                      message: `¿Mover "${note?.title || 'Sin título'}" a la papelera? Podrás restaurarla más tarde.`,
+                      confirmLabel: 'Mover',
+                      cancelLabel: 'Cancelar',
+                      color: 'error',
+                      onConfirm: deleteNote,
+                    });
+                  }}
+                  sx={{ borderRadius: 1.5, py: 0.7, gap: 1.5, color: 'error.main' }}
+                >
+                  <DeleteIcon sx={{ fontSize: 19 }} />
+                  <ListItemText primary="Mover a papelera" primaryTypographyProps={{ variant: 'body2', fontWeight: 600, color: 'error.main' }} />
+                </MenuItem>
+              )}
+            </Menu>
+          </Box>
+
           {/* Hidden file inputs + move menu */}
           {!isReadOnly && (
             <>
@@ -1722,39 +2189,41 @@ export default function NoteEditor({ noteIdOverride = null } = {}) {
             <MenuItem onClick={exportAsTxt}>
               <TextSnippetIcon fontSize="small" sx={{ mr: 1 }} /> Texto plano (.txt)
             </MenuItem>
+            {!isReadOnly && <Divider key="divider-import" />}
             {!isReadOnly && (
-              <>
-                <Divider />
-                <MenuItem onClick={() => { setExportMenuAnchor(null); importFileInputRef.current?.click(); }}>
-                  <ImportFileIcon fontSize="small" sx={{ mr: 1 }} /> Importar archivo (.md / .txt)
-                </MenuItem>
-                <MenuItem
-                  onClick={() => {
-                    setExportMenuAnchor(null);
-                    setPinModalMode(note?.hasPin ? 'remove' : 'set');
-                    setPinInputValue('');
-                    setPinModalOpen(true);
-                  }}
-                >
-                  <LockIcon fontSize="small" sx={{ mr: 1, color: note?.hasPin ? 'error.main' : 'primary.main' }} />
-                  {note?.hasPin ? 'Quitar protección PIN' : 'Proteger nota con PIN'}
-                </MenuItem>
-                <MenuItem
-                  onClick={async () => {
-                    setExportMenuAnchor(null);
-                    try {
-                      await api.post(`/templates/from-note/${currentNoteId}`, {});
-                      queryClient.invalidateQueries({ queryKey: ['custom-templates'] });
-                      toast.success('Nota guardada en "Mis Plantillas" exitosamente');
-                    } catch (err) {
-                      console.error('Error saving note as template:', err);
-                      toast.error('No se pudo guardar la nota como plantilla');
-                    }
-                  }}
-                >
-                  <TemplateIcon fontSize="small" sx={{ mr: 1, color: '#f39c12' }} /> Guardar como plantilla personal
-                </MenuItem>
-              </>
+              <MenuItem onClick={() => { setExportMenuAnchor(null); importFileInputRef.current?.click(); }}>
+                <ImportFileIcon fontSize="small" sx={{ mr: 1 }} /> Importar archivo (.md / .txt)
+              </MenuItem>
+            )}
+            {!isReadOnly && (
+              <MenuItem
+                onClick={() => {
+                  setExportMenuAnchor(null);
+                  setPinModalMode(note?.hasPin ? 'remove' : 'set');
+                  setPinInputValue('');
+                  setPinModalOpen(true);
+                }}
+              >
+                <LockIcon fontSize="small" sx={{ mr: 1, color: note?.hasPin ? 'error.main' : 'primary.main' }} />
+                {note?.hasPin ? 'Quitar protección PIN' : 'Proteger nota con PIN'}
+              </MenuItem>
+            )}
+            {!isReadOnly && (
+              <MenuItem
+                onClick={async () => {
+                  setExportMenuAnchor(null);
+                  try {
+                    await api.post(`/templates/from-note/${currentNoteId}`, {});
+                    queryClient.invalidateQueries({ queryKey: ['custom-templates'] });
+                    toast.success('Nota guardada en "Mis Plantillas" exitosamente');
+                  } catch (err) {
+                    console.error('Error saving note as template:', err);
+                    toast.error('No se pudo guardar la nota como plantilla');
+                  }
+                }}
+              >
+                <TemplateIcon fontSize="small" sx={{ mr: 1, color: '#f39c12' }} /> Guardar como plantilla personal
+              </MenuItem>
             )}
           </Menu>
 
@@ -1953,9 +2422,9 @@ export default function NoteEditor({ noteIdOverride = null } = {}) {
           </Box>
         )}
 
-        {/* Botones de acción rápida sobre el título */}
+        {/* Botones de acción rápida sobre el título (Solo en Tablet/Escritorio) */}
         {!isReadOnly && (
-          <Box sx={{ mb: 1.5, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+          <Box sx={{ mb: 1.5, display: { xs: 'none', sm: 'flex' }, alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
             {!coverUrl && (
               <Button
                 size="small"
@@ -2039,14 +2508,14 @@ export default function NoteEditor({ noteIdOverride = null } = {}) {
         )}
 
         {/* Note Icon + Title Row */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 1.5 }, mb: { xs: 1, sm: 1.5 } }}>
           {note?.icon && (
             <Tooltip title={isReadOnly ? undefined : 'Cambiar o quitar icono'}>
               <Box
                 component={isReadOnly ? 'div' : 'button'}
                 onClick={isReadOnly ? undefined : (e) => setEmojiAnchor(e.currentTarget)}
                 sx={{
-                  fontSize: { xs: '2rem', sm: '2.5rem' },
+                  fontSize: { xs: '1.75rem', sm: '2.5rem' },
                   lineHeight: 1,
                   p: 0.5,
                   borderRadius: 2.5,
@@ -2076,7 +2545,7 @@ export default function NoteEditor({ noteIdOverride = null } = {}) {
             InputProps={{
               disableUnderline: true,
               sx: {
-                fontSize: { xs: '1.85rem', sm: '2.4rem' },
+                fontSize: { xs: '1.35rem', sm: '2.4rem' },
                 fontWeight: 800,
                 letterSpacing: '-0.02em',
                 lineHeight: 1.15,
@@ -2092,10 +2561,10 @@ export default function NoteEditor({ noteIdOverride = null } = {}) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            gap: 2,
+            gap: { xs: 1, sm: 2 },
             flexWrap: 'wrap',
-            mb: 3,
-            pb: 2.5,
+            mb: { xs: 1.5, sm: 3 },
+            pb: { xs: 1.25, sm: 2.5 },
             borderBottom: '1px solid',
             borderColor: 'divider',
           }}
@@ -2207,10 +2676,11 @@ export default function NoteEditor({ noteIdOverride = null } = {}) {
               position: 'sticky',
               top: 0,
               zIndex: 5,
-              p: 0.5,
-              mb: 2,
+              p: { xs: 0.35, sm: 0.5 },
+              mb: { xs: 1.5, sm: 2 },
               display: 'flex',
-              gap: 0.25,
+              gap: { xs: 0.15, sm: 0.25 },
+              alignItems: 'center',
               flexWrap: { xs: 'nowrap', sm: 'wrap' },
               overflowX: 'auto',
               overflowY: 'hidden',
@@ -2230,7 +2700,7 @@ export default function NoteEditor({ noteIdOverride = null } = {}) {
                 onClick={() => editor.chain().focus().toggleBold().run()}
                 color={editor.isActive('bold') ? 'primary' : 'default'}
                 aria-label="Negrita"
-                sx={{ minWidth: 40, minHeight: 40, transition: 'all 0.15s ease' }}
+                sx={{ p: { xs: 0.5, sm: 0.75 }, transition: 'all 0.15s ease' }}
               >
                 <BoldIcon fontSize="small" />
               </IconButton>
@@ -2398,6 +2868,67 @@ export default function NoteEditor({ noteIdOverride = null } = {}) {
 
             <Divider orientation="vertical" flexItem />
 
+            {/* Interlineado */}
+            <Tooltip title={`Interlineado: ${editorLineHeight.toFixed(1)}`}>
+              <IconButton
+                size="small"
+                onClick={(e) => setLineSpacingAnchor(e.currentTarget)}
+                sx={{
+                  color: lineSpacingAnchor ? 'primary.main' : 'inherit',
+                  transition: 'color 0.15s',
+                }}
+              >
+                <LineSpacingIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Popover
+              open={Boolean(lineSpacingAnchor)}
+              anchorEl={lineSpacingAnchor}
+              onClose={() => setLineSpacingAnchor(null)}
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+              transformOrigin={{ vertical: 'top', horizontal: 'center' }}
+              PaperProps={{
+                sx: {
+                  p: 2.5,
+                  width: 240,
+                  borderRadius: 2.5,
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
+                },
+              }}
+            >
+              <Typography variant="caption" fontWeight={700} sx={{ mb: 1.5, display: 'block', color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Interlineado
+              </Typography>
+              <Slider
+                value={editorLineHeight}
+                min={1.0}
+                max={3.0}
+                step={0.1}
+                marks={[
+                  { value: 1.0, label: '1.0' },
+                  { value: 1.5, label: '1.5' },
+                  { value: 2.0, label: '2.0' },
+                  { value: 2.5, label: '2.5' },
+                  { value: 3.0, label: '3.0' },
+                ]}
+                onChange={(_, val) => setEditorLineHeight(val)}
+                valueLabelDisplay="auto"
+                valueLabelFormat={(v) => v.toFixed(1)}
+                size="small"
+                sx={{ color: 'primary.main', mt: 1 }}
+              />
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 0.5 }}>
+                <Button
+                  size="small"
+                  variant="text"
+                  onClick={() => setEditorLineHeight(1.6)}
+                  sx={{ fontSize: '0.7rem', color: 'text.secondary' }}
+                >
+                  Restablecer
+                </Button>
+              </Box>
+            </Popover>
+
             <IconButton size="small" onClick={() => editor.chain().focus().undo().run()}>
               <UndoIcon fontSize="small" />
             </IconButton>
@@ -2490,7 +3021,7 @@ export default function NoteEditor({ noteIdOverride = null } = {}) {
       // Lienzo de referencia para las imágenes flotantes (posición absoluta)
       position: 'relative',
       fontSize: '1.05rem',
-      lineHeight: 1.75,
+      lineHeight: editorLineHeight,
               '& p.is-editor-empty:first-of-type::before': {
                 color: 'text.disabled',
                 content: 'attr(data-placeholder)',
@@ -2601,11 +3132,54 @@ export default function NoteEditor({ noteIdOverride = null } = {}) {
                   },
                 },
               },
+              // Note mentions (@) & Wiki links ([[])
+              '& .note-mention-badge, & .note-link': {
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                px: 1,
+                py: 0.2,
+                borderRadius: '8px',
+                fontWeight: 600,
+                fontSize: '0.92em',
+                textDecoration: 'none !important',
+                cursor: 'pointer',
+                bgcolor: (theme) =>
+                  theme.palette.mode === 'dark' ? 'rgba(56, 108, 95, 0.35)' : 'rgba(56, 108, 95, 0.12)',
+                color: (theme) =>
+                  theme.palette.mode === 'dark' ? '#8be0cc' : '#386c5f',
+                border: '1px solid',
+                borderColor: (theme) =>
+                  theme.palette.mode === 'dark' ? 'rgba(106, 150, 140, 0.4)' : 'rgba(56, 108, 95, 0.25)',
+                transition: 'all 0.18s ease',
+                '&:hover': {
+                  bgcolor: (theme) =>
+                    theme.palette.mode === 'dark' ? 'rgba(56, 108, 95, 0.55)' : 'rgba(56, 108, 95, 0.22)',
+                  transform: 'translateY(-1px)',
+                  boxShadow: '0 2px 8px rgba(56, 108, 95, 0.2)',
+                },
+              },
               // Clean float flows
               '& p, & h1, & h2, & h3, & h4, & h5, & h6': {
                 clear: 'both',
               },
             },
+          }}
+          onClick={(e) => {
+            const mentionLink = e.target.closest('[data-note-id]');
+            if (mentionLink) {
+              e.preventDefault();
+              const targetNoteId = Number(mentionLink.getAttribute('data-note-id'));
+              const targetProjectId = Number(mentionLink.getAttribute('data-project-id'));
+              if (targetNoteId) {
+                flushPendingSaveRef.current?.();
+                if (targetProjectId) {
+                  setCurrentProject(targetProjectId);
+                }
+                setCurrentNote(targetNoteId);
+                toast.info('Abriendo nota vinculada...');
+              }
+            }
           }}
         >
           <EditorContent editor={editor} />
@@ -2984,29 +3558,51 @@ export default function NoteEditor({ noteIdOverride = null } = {}) {
         onOpenCalculator={() => setCalculatorModalOpen(true)}
         onOpenMermaid={() => setMermaidModalOpen(true)}
         onOpenAudio={() => setAudioModalOpen(true)}
+        onOpenDictation={() => setDictationModalOpen(true)}
         onOpenPresentation={() => setPresentationModalOpen(true)}
+        onOpenMention={() => {
+          if (!editor) return;
+          editor.chain().focus().insertContent('@').run();
+          setMentionTrigger('@');
+          setWikiQuery('');
+          setWikiOpen(true);
+        }}
       />
 
-      {/* Floating Wiki Link Menu [[ */}
+      {/* Floating Note Mention / Wiki Link Menu (@ o [[) */}
       <WikiLinkMenu
         open={wikiOpen}
         query={wikiQuery}
-        notes={notes || []}
+        triggerChar={mentionTrigger}
+        notes={allUserNotes.length > 0 ? allUserNotes : (notes || [])}
+        projects={userProjects || []}
         position={wikiMenuPos}
         onSelect={(selectedNote) => {
           setWikiOpen(false);
           if (!editor) return;
           const { from, $from } = editor.state.selection;
           const textInNode = $from.parent.textBetween(0, $from.parentOffset, null, '\uFFFC');
-          const startIdx = textInNode.lastIndexOf('[[');
-          if (startIdx === -1) return;
-          const deleteFrom = from - (textInNode.length - startIdx);
+
+          let deleteFrom = from;
+          if (mentionTrigger === '@') {
+            const startIdx = textInNode.lastIndexOf('@');
+            if (startIdx !== -1) {
+              deleteFrom = from - (textInNode.length - startIdx);
+            }
+          } else {
+            const startIdx = textInNode.lastIndexOf('[[');
+            if (startIdx !== -1) {
+              deleteFrom = from - (textInNode.length - startIdx);
+            }
+          }
+
+          const noteTitle = selectedNote.title || 'Sin título';
           editor
             .chain()
             .focus()
             .deleteRange({ from: deleteFrom, to: from })
             .insertContent(
-              `<a href="#note-${selectedNote.id}" data-note-id="${selectedNote.id}" class="note-link">${selectedNote.icon ? selectedNote.icon + ' ' : ''}${selectedNote.title || 'Sin título'}</a>&nbsp;`
+              `<a href="#note-${selectedNote.id}" data-note-id="${selectedNote.id}" data-project-id="${selectedNote.projectId || ''}" class="note-mention-badge">@${noteTitle}</a>&nbsp;`
             )
             .run();
         }}
@@ -3172,6 +3768,28 @@ export default function NoteEditor({ noteIdOverride = null } = {}) {
           />
         </React.Suspense>
       )}
+
+      {/* Speech-to-Text Live Dictation Modal */}
+      {dictationModalOpen && (
+        <React.Suspense fallback={null}>
+          <SpeechDictationModal
+            open={dictationModalOpen}
+            onClose={() => setDictationModalOpen(false)}
+            onInsertText={(text) => {
+              if (editor) {
+                editor.chain().focus().insertContent(text + ' ').run();
+              }
+            }}
+          />
+        </React.Suspense>
+      )}
+
+      {/* Zen Ambient Sound Player Popover */}
+      <ZenAmbientSoundPlayer
+        anchorEl={ambientAnchor}
+        open={Boolean(ambientAnchor)}
+        onClose={() => setAmbientAnchor(null)}
+      />
     </Box>
   );
 }

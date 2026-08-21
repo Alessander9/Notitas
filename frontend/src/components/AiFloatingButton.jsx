@@ -2,18 +2,20 @@ import React from 'react';
 import { Box, Tooltip, Fab } from '@mui/material';
 import { AutoAwesome as SparklesIcon, SmartToy as BotIcon } from '@mui/icons-material';
 import { useUiStore } from '../store/uiStore';
+import { useAuthStore } from '../store/authStore';
 
 export default function AiFloatingButton() {
+  const { isAuthenticated } = useAuthStore();
   const { aiDrawerOpen, toggleAiDrawer } = useUiStore();
 
-  if (aiDrawerOpen) return null;
+  if (!isAuthenticated || aiDrawerOpen) return null;
 
   return (
     <Box
       sx={{
         position: 'fixed',
-        bottom: { xs: 20, sm: 28 },
-        right: { xs: 18, sm: 28 },
+        bottom: { xs: 16, sm: 28 },
+        right: { xs: 14, sm: 28 },
         zIndex: 99999,
         pointerEvents: 'auto',
       }}
@@ -32,29 +34,31 @@ export default function AiFloatingButton() {
             color: '#ffffff !important',
             fontWeight: 800,
             fontSize: { xs: '0.85rem', sm: '0.92rem' },
-            px: { xs: 2, sm: 2.5 },
-            py: 1.5,
-            height: { xs: 48, sm: 52 },
-            borderRadius: '28px',
-            boxShadow: '0 8px 30px rgba(16, 185, 129, 0.55), 0 4px 12px rgba(0,0,0,0.3) !important',
+            px: { xs: 0, sm: 2.5 },
+            minWidth: { xs: 44, sm: 'auto' },
+            width: { xs: 44, sm: 'auto' },
+            height: { xs: 44, sm: 52 },
+            borderRadius: { xs: '50%', sm: '28px' },
+            boxShadow: '0 8px 24px rgba(16, 185, 129, 0.45), 0 4px 12px rgba(0,0,0,0.25) !important',
             border: '2px solid rgba(255, 255, 255, 0.45)',
             textTransform: 'none',
             display: 'flex',
             alignItems: 'center',
-            gap: 1.2,
+            justifyContent: 'center',
+            gap: { xs: 0, sm: 1.2 },
             transition: 'all 0.25s ease',
             '&:hover': {
               background: 'linear-gradient(135deg, #34d399 0%, #386c5f 50%, #0d2b23 100%) !important',
               transform: 'scale(1.06)',
-              boxShadow: '0 12px 36px rgba(16, 185, 129, 0.75), 0 6px 16px rgba(0,0,0,0.4) !important',
+              boxShadow: '0 12px 32px rgba(16, 185, 129, 0.65), 0 6px 16px rgba(0,0,0,0.35) !important',
             },
           }}
         >
           <BotIcon sx={{ fontSize: { xs: 22, sm: 24 } }} />
-          <Box component="span" sx={{ fontWeight: 800, letterSpacing: '0.02em' }}>
+          <Box component="span" sx={{ display: { xs: 'none', sm: 'inline-block' }, fontWeight: 800, letterSpacing: '0.02em' }}>
             CleoBot
           </Box>
-          <SparklesIcon sx={{ fontSize: 16, color: '#fef08a' }} />
+          <SparklesIcon sx={{ fontSize: 16, color: '#fef08a', display: { xs: 'none', sm: 'inline-block' } }} />
         </Fab>
       </Tooltip>
     </Box>

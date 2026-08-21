@@ -31,6 +31,7 @@ import {
   Inventory2 as ArchiveIcon,
   Bolt as QuickNoteIcon,
   CloudSync as BackupIcon,
+  FileUpload as ImportIcon,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
@@ -41,9 +42,11 @@ import SidebarSkeleton from './skeletons/SidebarSkeleton';
 import ProjectFormDialog from './ProjectFormDialog';
 import QuickNoteModal from './QuickNoteModal';
 import WorkspaceBackupModal from './WorkspaceBackupModal';
+import UniversalNoteImporterModal from './UniversalNoteImporterModal';
 import { COLOR_OPTIONS, PROJECT_TEMPLATES } from '../constants/projectOptions';
 import SidebarProjectItem from './SidebarProjectItem';
 import { getAssetUrl } from '../utils/text';
+import { compressImage } from '../utils/imageCompressor';
 import logoImage from '../assets/logo notitas.png';
 
 export default function Sidebar({ embedded = false }) {
@@ -96,6 +99,7 @@ export default function Sidebar({ embedded = false }) {
   const [openModal, setOpenModal] = useState(false);
   const [quickNoteOpen, setQuickNoteOpen] = useState(false);
   const [backupOpen, setBackupOpen] = useState(false);
+  const [importerModalOpen, setImporterModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState(null);
   const [name, setName] = useState('');
@@ -242,9 +246,10 @@ export default function Sidebar({ embedded = false }) {
   });
 
   const uploadProjectCover = async (projectId, file) => {
-    const formData = new FormData();
-    formData.append('file', file);
     try {
+      const optimizedFile = await compressImage(file, { maxWidth: 1920, maxHeight: 1080, quality: 0.85 });
+      const formData = new FormData();
+      formData.append('file', optimizedFile);
       await api.post(`/projects/${projectId}/cover`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
@@ -607,7 +612,7 @@ const navItemVariants = {
         </ListItem>
 
         {/* Navigation Option: Archivadas */}
-        <ListItem disablePadding>
+        <ListItem disablePadding sx={{ mb: 0.5 }}>
           <motion.div custom={3} variants={navItemVariants} initial="hidden" animate="visible" style={{ width: '100%' }}>
             <Tooltip title={effectiveCollapsed ? "Archivadas" : ""} placement="right">
               <ListItemButton
@@ -635,6 +640,36 @@ const navItemVariants = {
                   <ArchiveIcon sx={{ color: currentProjectId === 'archived' ? 'primary.main' : 'action.active', fontSize: 22 }} />
                 </ListItemIcon>
                 {!effectiveCollapsed && <ListItemText primary="Archivadas" primaryTypographyProps={{ fontWeight: currentProjectId === 'archived' ? 700 : 500, fontSize: '0.88rem' }} />}
+              </ListItemButton>
+            </Tooltip>
+          </motion.div>
+        </ListItem>
+
+        {/* Navigation Option: Importador Universal */}
+        <ListItem disablePadding>
+          <motion.div custom={4} variants={navItemVariants} initial="hidden" animate="visible" style={{ width: '100%' }}>
+            <Tooltip title={effectiveCollapsed ? "Importar Notas (Obsidian/Notion/ZIP)" : ""} placement="right">
+              <ListItemButton
+                onClick={() => {
+                  if (embedded) setSidebarMobileOpen(false);
+                  setImporterModalOpen(true);
+                }}
+                sx={{
+                  borderRadius: 2.5,
+                  justifyContent: effectiveCollapsed ? 'center' : 'flex-start',
+                  px: effectiveCollapsed ? 0 : 2,
+                  minHeight: 44,
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    bgcolor: 'action.hover',
+                    transform: 'translateX(4px)',
+                  },
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: 40, justifyContent: 'center' }}>
+                  <ImportIcon sx={{ color: '#0ea5e9', fontSize: 22 }} />
+                </ListItemIcon>
+                {!effectiveCollapsed && <ListItemText primary="Importar Notas" primaryTypographyProps={{ fontWeight: 500, fontSize: '0.88rem' }} />}
               </ListItemButton>
             </Tooltip>
           </motion.div>
@@ -990,6 +1025,15 @@ const navItemVariants = {
           open={backupOpen}
           onClose={() => setBackupOpen(false)}
           projects={projects}
+        />
+      )}
+
+      {/* Modal de Importación Universal de Notas */}
+      {importerModalOpen && (
+        <UniversalNoteImporterModal
+          open={importerModalOpen}
+          onClose={() => setImporterModalOpen(false)}
+          defaultProjectId={typeof currentProjectId === 'number' ? currentProjectId : null}
         />
       )}
     </Box>

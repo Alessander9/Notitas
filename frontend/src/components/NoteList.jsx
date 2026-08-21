@@ -423,7 +423,7 @@ export default function NoteList() {
       ) : (
         <>
       {/* Header */}
-      <Box sx={{ p: isCollapsed ? 1 : 1.5, display: 'flex', alignItems: 'center', justifyContent: isCollapsed ? 'center' : 'space-between', borderBottom: '1px solid', borderColor: 'divider', minHeight: 56, gap: 1 }}>
+      <Box sx={{ p: isCollapsed ? 1 : 1.5, display: 'flex', alignItems: 'center', justifyContent: isCollapsed ? 'center' : 'space-between', borderBottom: '1px solid', borderColor: 'divider', minHeight: 56, gap: 1, flexWrap: { xs: 'wrap', sm: 'nowrap' } }}>
         {isCollapsed ? (
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.2, width: '100%' }}>
             {/* Si estamos dentro de un proyecto, mostrar creador y colaboradores en círculos */}
@@ -587,7 +587,7 @@ export default function NoteList() {
               </Typography>
             </Box>
 
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, flexShrink: 0 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, flexShrink: 0, flexWrap: 'wrap' }}>
               <ToggleButtonGroup
                 size="small"
                 value={notesViewMode}
@@ -1331,16 +1331,16 @@ export default function NoteList() {
                               </IconButton>
                             </Tooltip>
 
-                            {/* Hover-revealed actions */}
+                            {/* Hover / Touch actions */}
                             <Box
                               className="note-card-actions"
                               sx={{
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: 0.2,
-                                opacity: 0,
-                                pointerEvents: 'none',
-                                visibility: 'hidden',
+                                opacity: { xs: 1, md: 0 },
+                                pointerEvents: { xs: 'auto', md: 'none' },
+                                visibility: { xs: 'visible', md: 'hidden' },
                                 transition: 'opacity 0.18s ease, visibility 0.18s',
                               }}
                             >

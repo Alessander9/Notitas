@@ -27,6 +27,8 @@ import {
   AccountTree as MermaidIcon,
   Mic as MicIcon,
   Slideshow as SlidesIcon,
+  AlternateEmail as AtIcon,
+  SettingsVoice as VoiceIcon,
 } from '@mui/icons-material';
 
 const SLASH_COMMANDS = [
@@ -164,8 +166,24 @@ const SLASH_COMMANDS = [
     label: 'Nota de Voz / Audio',
     description: 'Grabar audio con el micrófono e incrustar reproductor',
     icon: <MicIcon sx={{ fontSize: 20, color: '#e11d48' }} />,
-    aliases: ['audio', 'voz', 'grabar', 'microfono', 'dictado', 'nota de voz'],
+    aliases: ['audio', 'grabar', 'microfono', 'nota de voz'],
     customAction: 'openAudio',
+  },
+  {
+    id: 'dictation',
+    label: 'Dictado por Voz (Speech-to-Text)',
+    description: 'Hablar con el micrófono y transcribir a texto en vivo',
+    icon: <VoiceIcon sx={{ fontSize: 20, color: '#0ea5e9' }} />,
+    aliases: ['dictado', 'voz', 'hablar', 'dictar', 'speech', 'transcribir', 'stt'],
+    customAction: 'openDictation',
+  },
+  {
+    id: 'mention',
+    label: 'Mención de Nota (@)',
+    description: 'Enlazar otra nota de cualquier proyecto',
+    icon: <AtIcon sx={{ fontSize: 20, color: '#386c5f' }} />,
+    aliases: ['@', 'arroba', 'mencion', 'link', 'nota', 'referencia', 'enlazar'],
+    customAction: 'openMention',
   },
   {
     id: 'presentation',
@@ -190,7 +208,9 @@ export default function SlashCommandsMenu({
   onOpenCalculator,
   onOpenMermaid,
   onOpenAudio,
+  onOpenDictation,
   onOpenPresentation,
+  onOpenMention,
 }) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const menuRef = useRef(null);
@@ -230,8 +250,12 @@ export default function SlashCommandsMenu({
       onOpenMermaid?.();
     } else if (cmd.customAction === 'openAudio') {
       onOpenAudio?.();
+    } else if (cmd.customAction === 'openDictation') {
+      onOpenDictation?.();
     } else if (cmd.customAction === 'openPresentation') {
       onOpenPresentation?.();
+    } else if (cmd.customAction === 'openMention') {
+      onOpenMention?.();
     } else if (cmd.customAction === 'openAi') {
       if (onOpenAi) onOpenAi();
       else useUiStore.getState().setAiDrawerOpen(true);
@@ -239,7 +263,7 @@ export default function SlashCommandsMenu({
       cmd.action(editor);
     }
     onClose();
-  }, [editor, query, onOpenMediaPicker, onOpenTemplates, onOpenAi, onOpenCanvas, onOpenCalculator, onOpenMermaid, onOpenAudio, onOpenPresentation, onClose]);
+  }, [editor, query, onOpenMediaPicker, onOpenTemplates, onOpenAi, onOpenCanvas, onOpenCalculator, onOpenMermaid, onOpenAudio, onOpenDictation, onOpenPresentation, onOpenMention, onClose]);
 
   useEffect(() => {
     if (!open) return;

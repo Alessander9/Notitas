@@ -13,7 +13,7 @@ import ProjectsDashboard from '../components/ProjectsDashboard';
 import TrashView from '../components/TrashView';
 import FavoritesView from '../components/FavoritesView';
 import ArchivedView from '../components/ArchivedView';
-import MobileFab from '../components/MobileFab';
+import MobileBottomNav from '../components/MobileBottomNav';
 import { AiAssistantPanel } from '../components/AiAssistantDrawer';
 import RecentNotesTabs from '../components/RecentNotesTabs';
 import { useProjectNotes } from '../hooks/useProjectNotes';
@@ -305,8 +305,8 @@ export default function Workspace() {
           </Drawer>
         )}
 
-        {/* Acciones rápidas flotantes (solo móvil) */}
-        {isMobile && <MobileFab />}
+        {/* Barra de navegación inferior móvil */}
+        {isMobile && !currentNoteId && !isZenActive && <MobileBottomNav />}
 
         {/* Transición de vistas */}
         <AnimatePresence mode="wait" initial={false}>

@@ -59,6 +59,19 @@ export default function FloatingImageNodeView({ node, updateAttributes, selected
     }
   }, [selected, width]);
 
+  // Limpieza al desmontar el componente si estaba en pleno arrastre
+  useEffect(() => {
+    return () => {
+      cancelPendingTouch();
+      if (handlersRef.current) {
+        window.removeEventListener('pointermove', handlersRef.current.move);
+        window.removeEventListener('pointerup', handlersRef.current.up);
+        window.removeEventListener('pointercancel', handlersRef.current.cancel);
+        handlersRef.current = null;
+      }
+    };
+  }, []);
+
   // Estira el alto del lienzo para que la imagen arrastrada no quede cortada
   const bumpCanvas = (imgEl) => {
     if (!container || !imgEl) return;

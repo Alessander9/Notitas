@@ -288,7 +288,8 @@ public class NoteServiceImpl implements NoteService {
     @Override
     public Page<NoteResponse> searchNotes(Long userId, String query, Pageable pageable) {
         if (query == null || query.trim().isEmpty()) {
-            return Page.empty();
+            return noteRepository.findAllActiveNotesForUser(userId, pageable)
+                    .map(this::mapToResponse);
         }
 
         // Una sola consulta (proyectos propios + donde es miembro, sin duplicados

@@ -129,7 +129,7 @@ export default function FavoritesSection({ projects, projectsLoading }) {
               }}
               sx={{
                 position: 'relative',
-                flex: '0 0 260px',
+                flex: { xs: '0 0 220px', sm: '0 0 260px' },
                 scrollSnapAlign: 'start',
                 borderRadius: 3,
                 overflow: 'hidden',
@@ -153,7 +153,7 @@ export default function FavoritesSection({ projects, projectsLoading }) {
                 '&:hover .fav-card-actions': { opacity: 1, pointerEvents: 'auto', visibility: 'visible' },
               }}
             >
-              {/* Hover actions: move to trash */}
+              {/* Hover / Touch actions: move to trash */}
               <Box
                 className="fav-card-actions"
                 onClick={(e) => e.stopPropagation()}
@@ -164,9 +164,9 @@ export default function FavoritesSection({ projects, projectsLoading }) {
                   zIndex: 2,
                   display: 'flex',
                   gap: 0.3,
-                  opacity: 0,
-                  pointerEvents: 'none',
-                  visibility: 'hidden',
+                  opacity: { xs: 1, md: 0 },
+                  pointerEvents: { xs: 'auto', md: 'none' },
+                  visibility: { xs: 'visible', md: 'hidden' },
                   transition: 'opacity 0.18s ease, visibility 0.18s',
                 }}
               >

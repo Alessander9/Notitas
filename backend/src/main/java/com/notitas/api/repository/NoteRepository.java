@@ -58,6 +58,12 @@ public interface NoteRepository extends JpaRepository<Note, Long> {
            "ORDER BY n.updatedAt DESC")
     Page<Note> findSharedNotesByProjectAndUser(@Param("projectId") Long projectId, @Param("userId") Long userId, Pageable pageable);
 
+    @Query("SELECT n FROM Note n WHERE n.deleted = false AND n.archived = false AND " +
+           "(n.project.user.id = :userId OR " +
+           "EXISTS (SELECT pm FROM ProjectMember pm WHERE pm.project = n.project AND pm.user.id = :userId)) " +
+           "ORDER BY n.updatedAt DESC")
+    Page<Note> findAllActiveNotesForUser(@Param("userId") Long userId, Pageable pageable);
+
     @Query("SELECT COUNT(n) > 0 FROM Note n WHERE n.project.id = :projectId AND n.deleted = false AND " +
            "EXISTS (SELECT nm FROM NoteMember nm WHERE nm.note = n AND nm.user.id = :userId)")
     boolean existsSharedNotesByProjectAndUser(@Param("projectId") Long projectId, @Param("userId") Long userId);

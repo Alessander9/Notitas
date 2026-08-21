@@ -397,9 +397,13 @@ export default function App() {
               </Routes>
             </Suspense>
           </ErrorBoundary>
-          <AiAssistantDrawer />
-          <AiFloatingButton />
-          <Scratchpad />
+          {isAuthenticated && (
+            <>
+              <AiAssistantDrawer />
+              <AiFloatingButton />
+              <Scratchpad />
+            </>
+          )}
         </BrowserRouter>
         <Toasts />
         <ConfirmDialog />

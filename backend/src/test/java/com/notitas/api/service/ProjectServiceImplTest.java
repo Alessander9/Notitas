@@ -29,6 +29,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.inOrder;
@@ -106,9 +107,8 @@ class ProjectServiceImplTest {
         when(projectMemberRepository.findByUserId(OWNER_ID))
                 .thenReturn(List.of(new ProjectMember(null, memberProject, owner, "EDITOR", null)));
         when(projectRepository.findProjectsByNoteCollaboratorUserId(OWNER_ID)).thenReturn(List.of(shared));
-        when(projectMemberRepository.findByProjectId(anyLong())).thenReturn(List.of());
-        when(projectMemberRepository.findByProjectIdAndUserId(3L, OWNER_ID))
-                .thenReturn(Optional.of(new ProjectMember(null, memberProject, owner, "EDITOR", null)));
+        when(projectMemberRepository.findByProjectIdIn(anyList()))
+                .thenReturn(List.of(new ProjectMember(null, memberProject, owner, "EDITOR", null)));
 
         List<ProjectResponse> projects = projectService.getProjectsByUser(OWNER_ID);
 
@@ -153,8 +153,6 @@ class ProjectServiceImplTest {
         when(userRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
         when(projectMemberRepository.existsByProjectIdAndUserId(1L, MEMBER_ID)).thenReturn(false);
         when(projectMemberRepository.findByProjectId(1L)).thenReturn(List.of(otherMember));
-        when(projectMemberRepository.findByProjectIdAndUserId(1L, MEMBER_ID))
-                .thenReturn(Optional.of(new ProjectMember(null, project, member, "EDITOR", null)));
 
         projectService.joinProject("tok", MEMBER_ID);
 
@@ -177,8 +175,6 @@ class ProjectServiceImplTest {
         when(userRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
         when(projectMemberRepository.existsByProjectIdAndUserId(1L, MEMBER_ID)).thenReturn(true);
         when(projectMemberRepository.findByProjectId(1L)).thenReturn(List.of());
-        when(projectMemberRepository.findByProjectIdAndUserId(1L, MEMBER_ID))
-                .thenReturn(Optional.of(new ProjectMember(null, project, member, "EDITOR", null)));
 
         projectService.joinProject("tok", MEMBER_ID);
 

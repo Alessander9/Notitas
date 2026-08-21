@@ -38,6 +38,7 @@ import ProfileDialog from './ProfileDialog';
 import NotificationBell from './NotificationBell';
 import QuickNoteModal from './QuickNoteModal';
 import { getAvatarUrl } from '../utils/text';
+import { compressImage } from '../utils/imageCompressor';
 import logoImage from '../assets/logo notitas.png';
 import textoImage from '../assets/notitas-texto.png';
 
@@ -93,6 +94,7 @@ export default function Navbar() {
     toggleAiDrawer,
     aiDrawerOpen,
     currentProjectId,
+    currentNoteId,
     scratchpadOpen,
     toggleScratchpad,
   } = useUiStore();
@@ -157,9 +159,10 @@ export default function Navbar() {
     const file = e.target.files[0];
     if (!file) return;
 
-    const formData = new FormData();
-    formData.append('file', file);
     try {
+      const optimizedFile = await compressImage(file, { maxWidth: 512, maxHeight: 512, quality: 0.85 });
+      const formData = new FormData();
+      formData.append('file', optimizedFile);
       const res = await api.post('/users/profile/avatar', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
@@ -206,10 +209,10 @@ export default function Navbar() {
       <Toolbar
         sx={{
           justifyContent: 'space-between',
-          minHeight: { xs: '56px', sm: '64px' },
+          minHeight: { xs: 50, sm: 64 },
           flexWrap: 'wrap',
           px: { xs: 1, sm: 2, md: 3 },
-          py: isMobile ? 0.75 : 0,
+          py: isMobile ? (currentNoteId ? 0.35 : 0.6) : 0,
           gap: { xs: 0.5, sm: 1 },
         }}
       >
@@ -313,16 +316,16 @@ export default function Navbar() {
                     onClick={(e) => setToolsAnchorEl(e.currentTarget)}
                     aria-label="Menú desplegable de herramientas"
                     sx={{
-                      bgcolor: Boolean(toolsAnchorEl)
+                      bgcolor: toolsAnchorEl
                         ? 'primary.main'
                         : (theme) => (theme.palette.mode === 'dark' ? 'rgba(56, 108, 95, 0.28)' : 'rgba(56, 108, 95, 0.14)'),
-                      color: Boolean(toolsAnchorEl) ? '#fff' : 'primary.main',
+                      color: toolsAnchorEl ? '#fff' : 'primary.main',
                       border: '1px solid',
                       borderColor: 'primary.main',
                       p: 0.7,
                       borderRadius: 2.5,
                       transition: 'all 0.2s ease',
-                      boxShadow: Boolean(toolsAnchorEl) ? '0 4px 14px rgba(56, 108, 95, 0.35)' : 'none',
+                      boxShadow: toolsAnchorEl ? '0 4px 14px rgba(56, 108, 95, 0.35)' : 'none',
                     }}
                   >
                     <WidgetsIcon sx={{ fontSize: 19 }} />
@@ -573,8 +576,8 @@ export default function Navbar() {
           )}
         </Box>
 
-        {/* Búsqueda (móvil): fila completa debajo */}
-        {isMobile && <Box sx={{ flexBasis: '100%', order: 3, mt: 0.5, mb: 0.25 }}>{searchBar}</Box>}
+        {/* Búsqueda (móvil): fila completa debajo solo cuando no hay una nota abierta */}
+        {isMobile && !currentNoteId && <Box sx={{ flexBasis: '100%', order: 3, mt: 0.5, mb: 0.25 }}>{searchBar}</Box>}
       </Toolbar>
 
       {/* Remounted each open so the form state is fresh */}

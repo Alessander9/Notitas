@@ -21,6 +21,21 @@ export default function ServerStatusBanner() {
   const [secondsLeft, setSecondsLeft] = useState(60);
 
   useEffect(() => {
+    const handleOnline = () => {
+      if (status === 'offline') setServerStatus('ok');
+    };
+    const handleOffline = () => {
+      setServerStatus('offline');
+    };
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [status, setServerStatus]);
+
+  useEffect(() => {
     if (status !== 'slow') return undefined;
 
     // Render no ofrece un tiempo exacto de arranque. Es una estimación visual

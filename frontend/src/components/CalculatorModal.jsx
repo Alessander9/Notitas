@@ -26,31 +26,29 @@ export default function CalculatorModal({ open, onClose, onInsertText }) {
   const [history, setHistory] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
 
-  const handleDigit = (digit) => {
+  const handleDigit = React.useCallback((digit) => {
     setDisplay((prev) => (prev === '0' ? String(digit) : prev + digit));
-  };
+  }, []);
 
-  const handleDecimal = () => {
-    if (!display.includes('.')) {
-      setDisplay((prev) => prev + '.');
-    }
-  };
+  const handleDecimal = React.useCallback(() => {
+    setDisplay((prev) => (!prev.includes('.') ? prev + '.' : prev));
+  }, []);
 
-  const handleOperator = (op) => {
+  const handleOperator = React.useCallback((op) => {
     setEquation(`${display} ${op} `);
     setDisplay('0');
-  };
+  }, [display]);
 
-  const handleClear = () => {
+  const handleClear = React.useCallback(() => {
     setDisplay('0');
     setEquation('');
-  };
+  }, []);
 
-  const handleBackspace = () => {
+  const handleBackspace = React.useCallback(() => {
     setDisplay((prev) => (prev.length > 1 ? prev.slice(0, -1) : '0'));
-  };
+  }, []);
 
-  const calculate = () => {
+  const calculate = React.useCallback(() => {
     try {
       const fullExpr = `${equation}${display}`;
       // Sanitizar expresión para evaluar de forma segura
@@ -75,21 +73,21 @@ export default function CalculatorModal({ open, onClose, onInsertText }) {
     } catch {
       setDisplay('Error');
     }
-  };
+  }, [equation, display]);
 
-  const handlePercent = () => {
-    const num = parseFloat(display);
-    if (!isNaN(num)) {
-      setDisplay(String(num / 100));
-    }
-  };
+  const handlePercent = React.useCallback(() => {
+    setDisplay((prev) => {
+      const num = parseFloat(prev);
+      return !isNaN(num) ? String(num / 100) : prev;
+    });
+  }, []);
 
-  const handleSign = () => {
-    const num = parseFloat(display);
-    if (!isNaN(num)) {
-      setDisplay(String(-num));
-    }
-  };
+  const handleSign = React.useCallback(() => {
+    setDisplay((prev) => {
+      const num = parseFloat(prev);
+      return !isNaN(num) ? String(-num) : prev;
+    });
+  }, []);
 
   const handleInsertResult = () => {
     onInsertText(display);
@@ -102,6 +100,65 @@ export default function CalculatorModal({ open, onClose, onInsertText }) {
     onInsertText(text);
     onClose();
   };
+
+  // Soporte de teclado físico (números 0-9, operadores +, -, *, /, Enter, Backspace, Escape, C)
+  React.useEffect(() => {
+    if (!open) return undefined;
+
+    const handleKeyDown = (e) => {
+      if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
+
+      const key = e.key;
+
+      if (key >= '0' && key <= '9') {
+        e.preventDefault();
+        handleDigit(key);
+      } else if (key === '.' || key === ',') {
+        e.preventDefault();
+        handleDecimal();
+      } else if (key === '+') {
+        e.preventDefault();
+        handleOperator('+');
+      } else if (key === '-' || key === '−') {
+        e.preventDefault();
+        handleOperator('−');
+      } else if (key === '*' || key === 'x' || key === 'X' || key === '×') {
+        e.preventDefault();
+        handleOperator('×');
+      } else if (key === '/' || key === '÷') {
+        e.preventDefault();
+        handleOperator('÷');
+      } else if (key === '%') {
+        e.preventDefault();
+        handlePercent();
+      } else if (key === 'Enter' || key === '=') {
+        e.preventDefault();
+        calculate();
+      } else if (key === 'Backspace') {
+        e.preventDefault();
+        handleBackspace();
+      } else if (key === 'c' || key === 'C') {
+        e.preventDefault();
+        handleClear();
+      } else if (key === 'Escape') {
+        e.preventDefault();
+        onClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [
+    open,
+    handleDigit,
+    handleDecimal,
+    handleOperator,
+    handlePercent,
+    calculate,
+    handleBackspace,
+    handleClear,
+    onClose,
+  ]);
 
   const calcButtons = [
     { label: 'C', action: handleClear, color: 'error.main', bgcolor: 'error.light' },

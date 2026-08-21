@@ -18,6 +18,14 @@ vi.mock('../services/api', () => ({
   },
 }));
 
+vi.mock('../hooks/useProjectNotes', () => ({
+  useProjectNotes: () => ({ notes: [], isLoading: false }),
+}));
+
+vi.mock('../store/confirmStore', () => ({
+  confirm: vi.fn().mockResolvedValue(true),
+}));
+
 function renderWithClient(ui) {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -68,4 +76,48 @@ describe('AiAssistantDrawer', () => {
       expect(screen.getByText('Respuesta generada por CleoBot')).toBeInTheDocument();
     });
   });
+
+  it('permite abrir el menú de traspaso a la nota y disparar el evento de inserción', async () => {
+    const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+    useUiStore.setState({
+      aiDrawerOpen: true,
+      currentNoteId: 123,
+      currentProjectId: 1,
+    });
+
+    renderWithClient(<AiAssistantDrawer forceRender />);
+
+    const input = screen.getByPlaceholderText(/Pregunta algo a CleoBot/i);
+    fireEvent.change(input, { target: { value: 'Resume esta nota' } });
+    const sendBtn = screen.getByLabelText(/Enviar mensaje a CleoBot/i);
+    fireEvent.click(sendBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText('Respuesta generada por CleoBot')).toBeInTheDocument();
+    });
+
+    const transferBtn = screen.getByRole('button', { name: /Traspasar/i });
+    expect(transferBtn).toBeInTheDocument();
+    fireEvent.click(transferBtn);
+
+    // Debe abrirse el menú de opciones
+    expect(screen.getByText('Insertar en el cursor')).toBeInTheDocument();
+    expect(screen.getByText('Añadir al final')).toBeInTheDocument();
+    expect(screen.getByText('Reemplazar contenido')).toBeInTheDocument();
+
+    // Clic en "Insertar en el cursor"
+    const insertItem = screen.getByText('Insertar en el cursor');
+    fireEvent.click(insertItem);
+
+    expect(dispatchSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'notitas-ai-insert',
+        detail: expect.objectContaining({
+          content: expect.stringContaining('Respuesta generada por CleoBot'),
+          mode: 'insert',
+        }),
+      })
+    );
+  });
 });
+

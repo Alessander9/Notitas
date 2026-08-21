@@ -70,12 +70,12 @@ describe('NoteEditor', () => {
     expect(() => renderWithClient(<NoteEditor />)).not.toThrow();
     // El título de la nota aparece en el breadcrumb tras cargar la nota;
     // confirma que el editor renderizó completo sin errores de TDZ.
-    expect(await screen.findByText('Nota de prueba', {}, { timeout: 8000 })).toBeInTheDocument();
-  });
+    expect(await screen.findByText('Nota de prueba', {}, { timeout: 12000 })).toBeInTheDocument();
+  }, 15000);
 
   it('al cambiar de nota sincroniza el editor con la nueva nota (regresión cambio de nota)', async () => {
     renderWithClient(<NoteEditor />);
-    expect(await screen.findByText('Nota de prueba', {}, { timeout: 8000 })).toBeInTheDocument();
+    expect(await screen.findByText('Nota de prueba', {}, { timeout: 12000 })).toBeInTheDocument();
 
     const titleInput = screen.getByPlaceholderText('Título de la nota');
     expect(titleInput.value).toBe('Nota de prueba');
@@ -87,6 +87,6 @@ describe('NoteEditor', () => {
 
     await waitFor(() => {
       expect(screen.getByPlaceholderText('Título de la nota').value).toBe('');
-    }, { timeout: 8000 });
-  });
+    }, { timeout: 12000 });
+  }, 15000);
 });

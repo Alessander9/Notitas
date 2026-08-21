@@ -64,27 +64,50 @@ export default function Login() {
       <Paper
         elevation={6}
         aria-busy={loading}
-        sx={{ p: { xs: 3, sm: 4 }, borderRadius: 4, bgcolor: 'background.paper' }}
+        sx={{
+          p: { xs: 2.25, sm: 3.5, md: 4 },
+          borderRadius: { xs: 3, sm: 4 },
+          bgcolor: 'background.paper',
+          width: '100%',
+          boxSizing: 'border-box',
+        }}
       >
         {loading ? (
           <AuthFormSkeleton fields={2} />
         ) : (
           <Box component="form" onSubmit={handleSubmit} noValidate sx={{ display: 'flex', flexDirection: 'column' }}>
-            <Typography component="h1" variant="h5" fontWeight={800} gutterBottom>
+            <Typography
+              component="h1"
+              variant="h5"
+              fontWeight={800}
+              sx={{
+                fontSize: { xs: '1.25rem', sm: '1.45rem', md: '1.55rem' },
+                lineHeight: 1.25,
+                mb: 0.5,
+              }}
+            >
               Bienvenido de nuevo 👋
             </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{
+                mb: { xs: 2, sm: 2.5 },
+                fontSize: { xs: '0.8rem', sm: '0.875rem' },
+                lineHeight: 1.4,
+              }}
+            >
               Inicia sesión para continuar con tus proyectos y notas
             </Typography>
 
             {error && (
-              <Alert severity="error" sx={{ mb: 2 }}>
+              <Alert severity="error" sx={{ mb: 2, fontSize: { xs: '0.82rem', sm: '0.875rem' } }}>
                 {error}
               </Alert>
             )}
 
             <TextField
-              margin="normal"
+              margin="dense"
               required
               fullWidth
               id="email"
@@ -101,9 +124,10 @@ export default function Login() {
                   </InputAdornment>
                 ),
               }}
+              sx={{ mb: 1 }}
             />
             <TextField
-              margin="normal"
+              margin="dense"
               required
               fullWidth
               name="password"
@@ -120,6 +144,7 @@ export default function Login() {
                   </InputAdornment>
                 ),
               }}
+              sx={{ mb: 1 }}
             />
             <FormControlLabel
               control={
@@ -129,25 +154,28 @@ export default function Login() {
                   color="primary"
                   size="small"
                   sx={{
-                    '& .MuiSvgIcon-root': { fontSize: 22 },
+                    p: { xs: 0.5, sm: 0.75 },
+                    '& .MuiSvgIcon-root': { fontSize: { xs: 20, sm: 22 } },
                     '&:hover': { backgroundColor: 'transparent' },
                   }}
                 />
               }
               label={
-                <Box>
-                  <Typography variant="body2" sx={{ fontWeight: 500, lineHeight: 1.3 }}>
+                <Box sx={{ ml: { xs: 0.5, sm: 0.75 } }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600, fontSize: { xs: '0.8rem', sm: '0.875rem' }, lineHeight: 1.3 }}>
                     Recuérdame
                   </Typography>
-                  <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.3 }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' }, lineHeight: 1.25, display: 'block' }}>
                     Mantendrá tu sesión iniciada 30 días en este dispositivo
                   </Typography>
                 </Box>
               }
               sx={{
-                mt: 1.5,
+                mt: 1,
+                mb: 0.5,
+                mx: 0,
                 alignItems: 'flex-start',
-                '& .MuiFormControlLabel-label': { mt: 0.2 },
+                '& .MuiFormControlLabel-label': { mt: 0.1 },
               }}
             />
             <Button
@@ -155,17 +183,38 @@ export default function Login() {
               fullWidth
               variant="contained"
               disabled={loading}
-              sx={{ mt: 3, mb: 2, py: 1.2, fontWeight: 'bold', fontSize: '0.95rem' }}
+              sx={{
+                mt: { xs: 2, sm: 2.5 },
+                mb: 1.5,
+                py: { xs: 1.15, sm: 1.3 },
+                fontWeight: 700,
+                fontSize: { xs: '0.88rem', sm: '0.95rem' },
+                borderRadius: 2.5,
+              }}
             >
               Iniciar sesión
             </Button>
             <Box sx={{ textAlign: 'center', mt: 0.5 }}>
-              <Link component={RouterLink} to="/forgot-password" variant="body2" color="text.secondary" underline="hover">
+              <Link
+                component={RouterLink}
+                to="/forgot-password"
+                variant="body2"
+                color="text.secondary"
+                underline="hover"
+                sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' }, display: 'inline-block', py: 0.4 }}
+              >
                 ¿Olvidaste tu contraseña?
               </Link>
             </Box>
-            <Box sx={{ textAlign: 'center', mt: 1 }}>
-              <Link component={RouterLink} to="/register" variant="body2" color="primary" underline="hover">
+            <Box sx={{ textAlign: 'center', mt: 0.5 }}>
+              <Link
+                component={RouterLink}
+                to="/register"
+                variant="body2"
+                color="primary"
+                underline="hover"
+                sx={{ fontSize: { xs: '0.82rem', sm: '0.875rem' }, fontWeight: 600, display: 'inline-block', py: 0.4 }}
+              >
                 ¿No tienes cuenta? Regístrate
               </Link>
             </Box>

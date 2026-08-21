@@ -27,7 +27,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.Optional;
@@ -36,6 +38,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -298,10 +301,14 @@ class NoteServiceImplTest {
     // ---------- búsqueda ----------
 
     @Test
-    void searchNotes_blankQuery_returnsEmptyPageWithoutQuerying() {
+    void searchNotes_blankQuery_returnsAllActiveNotesForUser() {
+        when(noteRepository.findAllActiveNotesForUser(eq(OWNER_ID), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(note())));
+
         Page<NoteResponse> page = noteService.searchNotes(OWNER_ID, "   ", PageRequest.of(0, 20));
 
-        assertThat(page.isEmpty()).isTrue();
-        verifyNoInteractions(noteRepository);
+        assertThat(page.getContent()).hasSize(1);
+        assertThat(page.getContent().get(0).getId()).isEqualTo(NOTE_ID);
+        verify(noteRepository).findAllActiveNotesForUser(eq(OWNER_ID), any(Pageable.class));
     }
 }
